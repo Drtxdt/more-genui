@@ -1,6 +1,6 @@
 {
   "name": "more-genui-harness",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Persistent sandboxed HTML apps for DeepSeek Harness",
   "type": "module",
   "main": "lib/index.js",
@@ -8,7 +8,8 @@
     "lib",
     "cordis.patch.yml",
     "README.md",
-    "LUCIDE-LICENSE.txt"
+    "LUCIDE-LICENSE.txt",
+    "LICENSE"
   ],
   "exports": {
     ".": "./lib/index.js",
@@ -43,5 +44,6 @@
   "engines": {
     "node": ">=22.19",
     "dsh": "0.2.1-rc.5"
-  }
+  },
+  "license": "Apache-2.0"
 }

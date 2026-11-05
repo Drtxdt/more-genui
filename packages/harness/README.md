@@ -28,7 +28,7 @@ dsh plugin --profile web add E:\my_code\more-genui\packages\harness
 
 客户端按工具调用 ID 创建节点，使用 `groupTree: 'turn'` 保持展示位置，避免在回合结束时把同一个应用搬到另一个渲染组件。直接结果读取 `tool/result.data.message.toolCallId`，嵌套结果读取 `tool/ptc-dispatch.data.subCallId`。
 
-参数保存在本机浏览器的 localStorage，按会话、应用 ID 和状态版本隔离。界面与官网扩展共用 `src/surface.ts` 和沙箱运行时。继续询问通过宿主的 `captureInsertion/insertText` 填入草稿；修复由用户触发，输入框已有草稿时不会覆盖。
+参数保存在本机浏览器的 localStorage，按宿主、会话、工具调用 ID、应用 ID 和状态版本隔离。界面与官网扩展共用 `src/surface.ts` 和沙箱运行时。继续询问通过宿主的 `captureInsertion/insertText` 填入草稿；修复由用户触发，输入框已有草稿时不会覆盖。
 
 ## 测试证明了什么？
 
@@ -37,3 +37,5 @@ dsh plugin --profile web add E:\my_code\more-genui\packages\harness
 早期还在隔离 profile 中启动了官方 Harness Web，用无网络的测试模型适配器跑通了真实 agent loop、工具执行、客户端渲染、回合结束保留同一 iframe，以及刷新恢复参数。证据在项目的 `docs/evidence/harness-e2e.json`，复现脚本是 `tests/browser/harness-e2e.mjs`。
 
 注意这个边界：测试适配器提供的是确定性工具调用，验证的是宿主集成，不是某个模型的生成质量；也不代表后续每个版本都重跑了完整宿主验收。它不读取你的模型凭据。
+
+0.3 的修复会截取参数快照，通过本次请求的一次性注释标识确认返回结果，再检查应用 ID 与 stateVersion。模型没有回显标识时不自动继承；刷新页面会丢弃尚未完成的交接。普通新工具调用不会借用同名应用的状态。此轮只重跑快速服务/回放和共享界面回归，未重跑真实 Harness Web 全链路。

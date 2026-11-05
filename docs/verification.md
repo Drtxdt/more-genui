@@ -47,3 +47,7 @@ node scripts/acceptance-report.mjs
 扩展：`dist/more-genui-extension-0.1.0.zip`，解压后加载包含 manifest.json 的目录，或直接加载 `.output/chrome-mv3`。Harness：`dist/more-genui-harness-0.1.0.tgz`，本地已构建目录 `packages/harness` 可按 README 直接安装。
 
 范围边界：当前仅适配 DeepSeek；Claude 等平台尚未实现。没有云同步、A2UI 兼容层、外部 CDN、第二次模型调用或商店发布。沙箱不提供 CPU 配额，也不保证程序化自导航绝不产生网络请求。详细改进及代价见 [上游分析](upstream-analysis.md)。
+
+## 0.3 本轮记录
+
+当前验证范围与限制请看 [0.3.0 发布说明](releases/v0.3.0.md)。本轮保留轻量本地门槛，不新增 CI，不使用历史 0.1 的大规模结果替代当前提交验证。真实官网生成与 Edge 体验由用户按 [手测清单](test-prompts.md) 检查。

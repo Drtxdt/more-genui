@@ -1,0 +1,98 @@
+{
+  "version": "0.3.0",
+  "scope": "Local mock website + shared runtime; not live model generation",
+  "stats": {
+    "startTime": "2026-11-05T13:44:29.906Z",
+    "duration": 15711.771,
+    "expected": 14,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "name": "actual MV3 scripts append instructions once, sandbox renders current DeepSeek DOM and persists",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 2859
+    },
+    {
+      "name": "unfinished streaming documents never execute; plain prose and disabled mode stay ordinary",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 1199
+    },
+    {
+      "name": "XHR transport rewrites only known prompt fields and decodes official BATCH events",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 836
+    },
+    {
+      "name": "navigation duplicates are never folded or modified",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 919
+    },
+    {
+      "name": "cancelled output requires current-source approval and old-route events cannot run it",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 1347
+    },
+    {
+      "name": "same IDs in separate messages stay isolated and stable messages restore after rebuild",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 1317
+    },
+    {
+      "name": "compact static visual, accessible menu, theme and same-frame enlargement",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 460
+    },
+    {
+      "name": "local forms survive and long content expands without remounting",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 309
+    },
+    {
+      "name": "scene: data-exploration",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 221
+    },
+    {
+      "name": "scene: decision-comparison",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 219
+    },
+    {
+      "name": "scene: algorithm-steps",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 516
+    },
+    {
+      "name": "scene: knowledge-map",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 181
+    },
+    {
+      "name": "scene: time-planning",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 210
+    },
+    {
+      "name": "scene: practical-calculator",
+      "project": "Chromium",
+      "status": "passed",
+      "durationMs": 207
+    }
+  ]
+}
