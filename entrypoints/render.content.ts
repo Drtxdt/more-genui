@@ -1,3 +1,4 @@
+import { createElement, Power } from 'lucide';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { browser } from 'wxt/browser';
 import { parseApp, splitGuidance, MAX_SOURCE } from '../src/protocol.mjs';
@@ -42,9 +43,15 @@ export default defineContentScript({
       background: 'Canvas',
       color: 'CanvasText',
     });
+    const toggleStyle = document.createElement('style');
+    toggleStyle.textContent =
+      '#more-genui-toggle{display:grid;place-items:center;width:38px;height:38px;padding:9px!important;border-radius:50%!important;transition:color .2s,background .2s}#more-genui-toggle svg{width:18px;height:18px}#more-genui-toggle[aria-pressed=true]{color:#3569c8}#more-genui-toggle[aria-pressed=true]:after{content:"";position:absolute;right:3px;bottom:3px;width:6px;height:6px;border-radius:50%;background:currentColor}#more-genui-toggle.activating{animation:mg-activate .5s ease-out}@keyframes mg-activate{0%{box-shadow:0 0 0 0 #3569c855;transform:scale(.92)}100%{box-shadow:0 0 0 15px #3569c800;transform:scale(1)}}@media(prefers-reduced-motion:reduce){#more-genui-toggle{animation:none!important;transition:none!important}}';
+    document.head.append(toggleStyle);
+    control.append(createElement(Power));
     document.body.append(control);
     const publish = () => {
-      control.textContent = `GenUI：${enabled ? '开启' : '关闭'}`;
+      control.title = `GenUI：${enabled ? '开启' : '关闭'}`;
+      control.setAttribute('aria-label', control.title);
       control.setAttribute('aria-pressed', String(enabled));
       window.postMessage({ type: 'more-genui-enabled', enabled }, location.origin);
     };
@@ -55,10 +62,14 @@ export default defineContentScript({
     });
     control.onclick = () => {
       enabled = !enabled;
+      control.classList.remove('activating');
+      void control.offsetWidth;
+      control.classList.add('activating');
       void browser.storage.local.set({ enabled });
       publish();
       scan();
     };
+    control.addEventListener('animationend', () => control.classList.remove('activating'));
     const interval = setInterval(publish, 1000);
     function composer() {
       const input = document.querySelector<HTMLTextAreaElement>('textarea');
@@ -130,7 +141,9 @@ export default defineContentScript({
         if (!enabled || !element.isConnected || element.textContent !== value.text)
           unfold(element, value);
       if (!enabled) return;
-      for (const code of document.querySelectorAll<HTMLElement>('.ds-message .ds-assistant-message-main-content .md-code-block pre, .ds-message .ds-assistant-message-main-content pre code')) {
+      for (const code of document.querySelectorAll<HTMLElement>(
+        '.ds-message .ds-assistant-message-main-content .md-code-block pre, .ds-message .ds-assistant-message-main-content pre code',
+      )) {
         const source = code.textContent || '';
         if (
           mounted.has(code) ||
@@ -168,9 +181,13 @@ export default defineContentScript({
         mounted.set(code, { source, host, container, display, dispose: surface.dispose });
       }
       // Fold only the smallest complete text container; retain the original DOM for framework reconciliation.
-      for (const element of document.querySelectorAll<HTMLElement>('.ds-message p,.ds-message div')) {
+      for (const element of document.querySelectorAll<HTMLElement>(
+        '.ds-message p,.ds-message div',
+      )) {
         if (
-          element.closest('.more-genui-guidance,.more-genui-surface,.ds-assistant-message-main-content,.ds-think-content') ||
+          element.closest(
+            '.more-genui-guidance,.more-genui-surface,.ds-assistant-message-main-content,.ds-think-content',
+          ) ||
           folded.has(element) ||
           element.querySelector('textarea,pre') ||
           element.children.length > 0
@@ -219,7 +236,18 @@ export default defineContentScript({
       scan();
     });
     let timer: ReturnType<typeof setTimeout>;
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver((records) => {
+      const relevant = records.some((record) => {
+        const target =
+          record.target instanceof Element ? record.target : record.target.parentElement;
+        if (target?.closest('.ds-message')) return true;
+        return [...record.addedNodes, ...record.removedNodes].some(
+          (node) =>
+            node instanceof Element &&
+            (node.matches('.ds-message') || node.querySelector('.ds-message')),
+        );
+      });
+      if (!relevant && route === location.pathname) return;
       clearTimeout(timer);
       timer = setTimeout(scan, 100);
     });
@@ -236,6 +264,7 @@ export default defineContentScript({
       }
       for (const [e, v] of folded) unfold(e, v);
       control.remove();
+      toggleStyle.remove();
     });
   },
 });

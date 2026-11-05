@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 let context, page;
 const source = (await readFile('examples/wave.html', 'utf8')).trim();
-const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><main id="messages"></main><textarea placeholder="给 DeepSeek 发送消息 " aria-label="输入"></textarea><button data-testid="send-button">发送</button><script>document.querySelector('button').onclick=async()=>{const input=document.querySelector('textarea');const prompt=input.value;input.value='';const response=await fetch(new Request('/api/v0/chat/completion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,chat_session_id:'fixture'})}));await response.text();};</script></body></html>`;
+const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><main id="messages" class="ds-message"><div class="ds-assistant-message-main-content"></div></main><textarea placeholder="给 DeepSeek 发送消息 " aria-label="输入"></textarea><button data-testid="send-button">发送</button><script>document.querySelector('button').onclick=async()=>{const input=document.querySelector('textarea');const prompt=input.value;input.value='';const response=await fetch(new Request('/api/v0/chat/completion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,chat_session_id:'fixture'})}));await response.text();};</script></body></html>`;
 test.beforeEach(async ({}, info) => {
   const path = resolve('.output/chrome-mv3');
   context = await chromium.launchPersistentContext(
@@ -21,7 +21,7 @@ test.beforeEach(async ({}, info) => {
   );
   page = await context.newPage();
   await page.goto('https://chat.deepseek.com/a/chat/fixture');
-  await expect(page.locator('#more-genui-toggle')).toHaveText('GenUI：开启');
+  await expect(page.locator('#more-genui-toggle')).toHaveAttribute('aria-pressed', 'true');
 });
 test.afterEach(async () => {
   await context?.close();
@@ -52,7 +52,7 @@ test('actual MV3 scripts append instructions once, sandbox renders current DeepS
     const pre = document.createElement('pre');
     pre.textContent = source;
     wrapper.append(pre);
-    document.querySelector('main').append(wrapper);
+    document.querySelector('.ds-assistant-message-main-content').append(wrapper);
   }, source);
   const frame = page.frameLocator('.more-genui-surface iframe');
   await expect(frame.getByLabel('振幅')).toBeVisible();
@@ -63,6 +63,7 @@ test('actual MV3 scripts append instructions once, sandbox renders current DeepS
   await expect(page.locator('.more-genui-surface')).toHaveCount(0);
   await page.locator('#more-genui-toggle').click();
   await expect(frame.getByLabel('振幅')).toHaveValue('1.8');
+  await page.getByLabel('更多', { exact: true }).click();
   await page.getByRole('button', { name: '修复', exact: true }).click();
   await expect.poll(() => sent.prompt).toContain('请修复应用');
   await page.screenshot({
@@ -78,7 +79,7 @@ test('unfinished streaming documents never execute; plain prose and disabled mod
     const wrapper = document.createElement('div');
     wrapper.className = 'md-code-block';
     wrapper.append(pre);
-    document.querySelector('main').append(wrapper);
+    document.querySelector('.ds-assistant-message-main-content').append(wrapper);
   }, source);
   await page.waitForTimeout(250);
   await expect(page.locator('.more-genui-surface')).toHaveCount(0);
@@ -142,7 +143,7 @@ test('XHR transport rewrites only known prompt fields and decodes official BATCH
     const pre = document.createElement('pre');
     pre.textContent = source;
     block.append(pre);
-    document.querySelector('main').append(block);
+    document.querySelector('.ds-assistant-message-main-content').append(block);
   }, source);
   await expect(page.frameLocator('.more-genui-surface iframe').getByLabel('振幅')).toBeVisible();
   await context.route('**/api/v0/chat/continue', (route) => {
@@ -159,4 +160,27 @@ test('XHR transport rewrites only known prompt fields and decodes official BATCH
       }),
   );
   expect(sent).toEqual({ message_id: 7 });
+});
+
+test('navigation duplicates are never folded or modified', async () => {
+  const { GUIDE } = await import('../../src/protocol.mjs');
+  await page.evaluate((guide) => {
+    const text = '解释波形\n' + guide;
+    const user = document.createElement('div');
+    user.className = 'ds-message';
+    user.innerHTML = '<div class="user-body"></div>';
+    user.firstChild.textContent = text;
+    document.querySelector('main').after(user);
+    const nav = document.createElement('aside');
+    nav.id = 'official-nav';
+    nav.innerHTML = '<div class="_72b6158"></div><div class="_8fcd755"></div>';
+    for (const el of nav.children) el.textContent = text;
+    document.body.append(nav);
+  }, GUIDE);
+  await expect(page.locator('.more-genui-guidance')).toHaveCount(1);
+  await expect(page.locator('#official-nav .more-genui-guidance')).toHaveCount(0);
+  await expect(page.locator('#official-nav ._72b6158')).toBeVisible();
+  await page.locator('#more-genui-toggle').click();
+  await expect(page.locator('.more-genui-guidance')).toHaveCount(0);
+  await expect(page.locator('.user-body')).toBeVisible();
 });
