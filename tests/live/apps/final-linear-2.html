@@ -1,0 +1,330 @@
+<!-- more-genui: {"version":1,"id":"final-linear-2","title":"一次函数：斜率与截距","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一次函数：斜率与截距</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --fg:#e8eef4;
+    --accent:#5bc0eb;
+    --panel:#17222e;
+    --muted:#9fb0c0;
+    --grid:#26364a;
+    --axis:#55708a;
+    --line:#5bc0eb;
+    --intercept:#f7b955;
+    --xroot:#7ee787;
+    --rise:#ff8fa3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;padding:16px;
+    background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+  h1{font-size:1.15rem;margin:0 0 4px;font-weight:650;}
+  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px;}
+  .eq{
+    background:var(--panel);border:1px solid var(--grid);border-radius:10px;
+    padding:10px 14px;margin-bottom:12px;font-size:1rem;
+    font-variant-numeric:tabular-nums;overflow-x:auto;white-space:nowrap;
+  }
+  .eq b{color:var(--accent);}
+  .controls{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:12px 14px;margin-bottom:12px;
+  }
+  @media (max-width:600px){ .controls{grid-template-columns:1fr;} }
+  .ctrl{display:flex;flex-direction:column;gap:6px;}
+  .ctrl label{font-size:.9rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .ctrl label b{color:var(--accent);font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:22px;}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+  .canvas-box{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:8px;
+  }
+  canvas{display:block;width:100%;height:auto;border-radius:6px;}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.78rem;color:var(--muted);margin-top:10px;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block;}
+  .readout{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+    gap:8px;margin-top:12px;
+  }
+  .stat{background:var(--panel);border:1px solid var(--grid);border-radius:8px;padding:8px 10px;}
+  .stat .k{color:var(--muted);font-size:.75rem;}
+  .stat .v{font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums;}
+  .stat .v.accent{color:var(--accent);}
+  .stat .v.intercept{color:var(--intercept);}
+  .stat .v.root{color:var(--xroot);}
+  .note{color:var(--muted);font-size:.78rem;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>一次函数：斜率与截距</h1>
+  <p class="sub">y = k·x + b，坐标窗口 x ∈ [−10,10]，y ∈ [−10,10]</p>
+
+  <div class="eq" id="eq"></div>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label for="k">斜率 k <b><output id="kOut">1.0</output></b></label>
+      <input id="k" type="range" min="-5" max="5" step="0.1" value="1"
+             aria-label="斜率 k，范围负 5 到 5，步长 0.1">
+    </div>
+    <div class="ctrl">
+      <label for="b">截距 b <b><output id="bOut">0.0</output></b></label>
+      <input id="b" type="range" min="-8" max="8" step="0.2" value="0"
+             aria-label="截距 b，范围负 8 到 8，步长 0.2">
+    </div>
+  </div>
+
+  <div class="canvas-box">
+    <canvas id="cv" width="900" height="520" role="img"
+            aria-label="直线图像，标出 y 轴截距、x 轴交点与斜率三角"></canvas>
+  </div>
+
+  <div class="legend" aria-hidden="true">
+    <span><i class="dot" style="background:#5bc0eb"></i>直线 y = kx + b</span>
+    <span><i class="dot" style="background:#f7b955"></i>y 轴截距 (0,b)</span>
+    <span><i class="dot" style="background:#7ee787"></i>x 轴交点</span>
+    <span><i class="dot" style="background:#ff8fa3"></i>斜率三角 Δy/Δx</span>
+  </div>
+
+  <div class="readout">
+    <div class="stat"><div class="k">斜率 k</div><div class="v accent" id="kStat">1.00</div></div>
+    <div class="stat"><div class="k">y 轴截距</div><div class="v intercept" id="bStat">(0, 0.00)</div></div>
+    <div class="stat"><div class="k">x 轴交点</div><div class="v root" id="xrootStat">x = 0.00</div></div>
+    <div class="stat"><div class="k">倾斜方向</div><div class="v" id="dirStat">上升</div></div>
+    <div class="stat"><div class="k">与水平夹角 θ = arctan k</div><div class="v" id="angleStat">45.0°</div></div>
+    <div class="stat"><div class="k">x = 2 时的函数值</div><div class="v" id="yAt2Stat">2.00</div></div>
+  </div>
+
+  <p class="note">k = 0 时为水平常函数，不属于严格一次函数，保留用于对比。图线超出窗口的部分被裁切。</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var kEl = document.getElementById("k");
+  var bEl = document.getElementById("b");
+  var kOut = document.getElementById("kOut");
+  var bOut = document.getElementById("bOut");
+  var eqEl = document.getElementById("eq");
+  var kStat = document.getElementById("kStat");
+  var bStat = document.getElementById("bStat");
+  var xrootStat = document.getElementById("xrootStat");
+  var dirStat = document.getElementById("dirStat");
+  var angleStat = document.getElementById("angleStat");
+  var yAt2Stat = document.getElementById("yAt2Stat");
+
+  var X_MIN = -10, X_MAX = 10, Y_MIN = -10, Y_MAX = 10;
+
+  function clamp(v, lo, hi){ return Math.min(hi, Math.max(lo, v)); }
+  function num(v, d){ return (typeof v === "number" && isFinite(v)) ? v : d; }
+  function fmt(v, d){
+    var s = v.toFixed(d === undefined ? 2 : d);
+    if (s === "-0.00") s = "0.00";
+    return s;
+  }
+
+  var state = genui.getState() || {};
+  var k = clamp(num(state.k, 1), -5, 5);
+  var b = clamp(num(state.b, 0), -8, 8);
+  kEl.value = String(k);
+  bEl.value = String(b);
+
+  function saveState(){ genui.setState({ k: k, b: b }); }
+
+  function fmtEq(){
+    var s = "y = ";
+    if (k === 0){
+      s += fmt(b, 1);
+      return s;
+    }
+    var absK = Math.abs(k);
+    s += (k < 0 ? "−" : "") + (absK === 1 ? "" : fmt(absK, 1)) + "x";
+    if (b !== 0){
+      s += (b < 0 ? " − " : " + ") + fmt(Math.abs(b), 1);
+    }
+    return s;
+  }
+
+  function updateTexts(){
+    kOut.textContent = fmt(k, 1);
+    bOut.textContent = fmt(b, 1);
+    eqEl.textContent = fmtEq();
+    kStat.textContent = fmt(k);
+    bStat.textContent = "(0, " + fmt(b) + ")";
+    if (Math.abs(k) < 1e-9){
+      xrootStat.textContent = (Math.abs(b) < 1e-9) ? "与 x 轴重合" : "无交点";
+    } else {
+      xrootStat.textContent = "x = " + fmt(-b / k);
+    }
+    dirStat.textContent = (k > 1e-9 ? "上升" : (k < -1e-9 ? "下降" : "水平"));
+    var deg = Math.atan(k) * 180 / Math.PI;
+    angleStat.textContent = fmt(deg, 1) + "°";
+    yAt2Stat.textContent = fmt(k * 2 + b);
+  }
+
+  function draw(){
+    var W = cv.width, H = cv.height;
+    var pad = 38;
+    var plotW = W - pad*2, plotH = H - pad*2;
+
+    function xOf(x){ return pad + (x - X_MIN) / (X_MAX - X_MIN) * plotW; }
+    function yOf(y){ return pad + (Y_MAX - y) / (Y_MAX - Y_MIN) * plotH; }
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#101a24";
+    ctx.fillRect(pad, pad, plotW, plotH);
+
+    // 网格
+    ctx.strokeStyle = "#26364a";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "#9fb0c0";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (var gx = X_MIN; gx <= X_MAX; gx += 2){
+      var px = xOf(gx);
+      ctx.beginPath(); ctx.moveTo(px, pad); ctx.lineTo(px, pad + plotH); ctx.stroke();
+      ctx.fillText(String(gx), px, pad + plotH + 6);
+    }
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (var gy = Y_MIN; gy <= Y_MAX; gy += 2){
+      var py = yOf(gy);
+      ctx.beginPath(); ctx.moveTo(pad, py); ctx.lineTo(pad + plotW, py); ctx.stroke();
+      ctx.fillText(String(gy), pad - 6, py);
+    }
+
+    // 坐标轴
+    ctx.strokeStyle = "#55708a";
+    ctx.lineWidth = 1.6;
+    var x0 = xOf(0), y0 = yOf(0);
+    ctx.beginPath(); ctx.moveTo(pad, y0); ctx.lineTo(pad + plotW, y0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, pad); ctx.lineTo(x0, pad + plotH); ctx.stroke();
+
+    ctx.fillStyle = "#9fb0c0";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+    ctx.fillText("x", pad + plotW, y0 - 4);
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText("y", x0 + 6, pad - 2);
+
+    // 斜率三角：从 (0,b) 到 (1, b+k)
+    if (Math.abs(k) < 12){
+      var triX0 = xOf(0), triY0 = yOf(b);
+      var triX1 = xOf(1), triY1 = yOf(b + k);
+      // 只在窗口内画
+      if (triX1 <= pad + plotW + 0.5){
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = "rgba(255,143,163,0.7)";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(triX0, triY0); ctx.lineTo(triX1, triY0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(triX1, triY0); ctx.lineTo(triX1, triY1); ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = "#ff8fa3";
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        ctx.fillText("Δx=1", (triX0 + triX1) / 2, triY0 + 4);
+        ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText("Δy=" + fmt(k, 1), triX1 + 5, (triY0 + triY1) / 2);
+      }
+    }
+
+    // 直线：计算与窗口边界交点
+    var pts = [];
+    var yAtXmin = k * X_MIN + b, yAtXmax = k * X_MAX + b;
+    if (Math.abs(k) < 1e-12){
+      if (b >= Y_MIN && b <= Y_MAX){
+        pts.push([X_MIN, b]); pts.push([X_MAX, b]);
+      }
+    } else {
+      // 左侧边界
+      if (yAtXmin >= Y_MIN && yAtXmin <= Y_MAX) pts.push([X_MIN, yAtXmin]);
+      // 右侧边界
+      if (yAtXmax >= Y_MIN && yAtXmax <= Y_MAX) pts.push([X_MAX, yAtXmax]);
+      // 下边界 y = Y_MIN
+      var xBottom = (Y_MIN - b) / k;
+      if (xBottom > X_MIN && xBottom < X_MAX) pts.push([xBottom, Y_MIN]);
+      // 上边界 y = Y_MAX
+      var xTop = (Y_MAX - b) / k;
+      if (xTop > X_MIN && xTop < X_MAX) pts.push([xTop, Y_MAX]);
+    }
+
+    if (pts.length >= 2){
+      // 取距离最远的两个点
+      var bestA = pts[0], bestB = pts[1], bestD = -1;
+      for (var i = 0; i < pts.length; i++){
+        for (var j = i + 1; j < pts.length; j++){
+          var dx = pts[i][0] - pts[j][0], dy = pts[i][1] - pts[j][1];
+          var d = dx*dx + dy*dy;
+          if (d > bestD){ bestD = d; bestA = pts[i]; bestB = pts[j]; }
+        }
+      }
+      ctx.beginPath();
+      ctx.moveTo(xOf(bestA[0]), yOf(bestA[1]));
+      ctx.lineTo(xOf(bestB[0]), yOf(bestB[1]));
+      ctx.strokeStyle = "#5bc0eb";
+      ctx.lineWidth = 2.8;
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+
+    // y 轴截距点
+    if (b >= Y_MIN && b <= Y_MAX){
+      ctx.fillStyle = "#f7b955";
+      ctx.beginPath(); ctx.arc(xOf(0), yOf(b), 5.5, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#0f1720"; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.fillStyle = "#f7b955";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText("(0," + fmt(b,1) + ")", xOf(0) + 8, yOf(b) - 4);
+    }
+
+    // x 轴交点
+    if (Math.abs(k) > 1e-9){
+      var rx = -b / k;
+      if (rx >= X_MIN && rx <= X_MAX){
+        ctx.fillStyle = "#7ee787";
+        ctx.beginPath(); ctx.arc(xOf(rx), yOf(0), 5.5, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "#0f1720"; ctx.lineWidth = 1.6; ctx.stroke();
+        ctx.fillStyle = "#7ee787";
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        ctx.fillText("x=" + fmt(rx,1), xOf(rx), yOf(0) + 6);
+      }
+    }
+  }
+
+  function refresh(){ updateTexts(); draw(); }
+
+  kEl.addEventListener("input", function(){
+    k = clamp(parseFloat(kEl.value) || 0, -5, 5);
+    saveState(); refresh();
+  });
+  bEl.addEventListener("input", function(){
+    b = clamp(parseFloat(bEl.value) || 0, -8, 8);
+    saveState(); refresh();
+  });
+
+  saveState();
+  refresh();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules/
+.output/
+.wxt/
+dist/
+
+.cache/
+test-results/
+playwright-report/
+packages/harness/lib/

@@ -1,0 +1,57 @@
+<!-- more-genui: {"version":1,"id":"coin-1","title":"硬币投掷二项概率","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>硬币概率</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#ff8a65}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:720px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b101b}
+.c{margin-top:10px}.r{display:flex;justify-content:space-between;font-size:.78rem;color:#9aa7c2;margin-bottom:4px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.f{margin-top:8px;font-size:.88rem;line-height:1.7}
+</style></head><body><div class="w">
+<h1>硬币投掷：恰好 k 次正面</h1>
+<p class="s">n 次独立公平投掷，正面次数 X~B(n, 0.5)，P(X=k)=C(n,k)/2ⁿ。</p>
+<canvas id="cv" width="720" height="240"></canvas>
+<div class="c"><div class="r"><span>投掷次数 n</span><span id="on">10</span></div><input id="n" type="range" min="1" max="20" step="1" value="10" aria-label="投掷次数"></div>
+<div class="c"><div class="r"><span>正面次数 k</span><span id="ok">5</span></div><input id="k" type="range" min="0" max="10" step="1" value="5" aria-label="正面次数"></div>
+<p class="f" id="info"></p>
+</div>
+<script>(function(){
+var D={n:10,k:5},S=Object.assign({},D);
+try{if(genui&&genui.getState){var g=genui.getState();if(g&&typeof g==="object"){if(isFinite(+g.n))S.n=Math.min(20,Math.max(1,Math.round(+g.n)));if(isFinite(+g.k))S.k=Math.max(0,Math.round(+g.k));}}}catch(e){}
+if(S.k>S.n)S.k=S.n;
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+var nE=document.getElementById("n"),kE=document.getElementById("k");
+var on=document.getElementById("on"),ok=document.getElementById("ok"),info=document.getElementById("info");
+function save(){try{genui.setState(S)}catch(e){}}
+function comb(n,k){if(k<0||k>n)return 0;var r=1;for(var i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)}
+function probs(n){var out=[],tot=Math.pow(2,n);for(var k=0;k<=n;k++)out.push(comb(n,k)/tot);return out}
+function draw(){
+ var W=cv.width,H=cv.height,pad=28;
+ var P=probs(S.n),maxP=Math.max.apply(null,P)||1;
+ var bw=(W-pad*2)/(S.n+1);
+ ctx.clearRect(0,0,W,H);
+ ctx.strokeStyle="#3a4a6b";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(pad,H-pad);ctx.lineTo(W-pad,H-pad);ctx.stroke();
+ var col=getComputedStyle(document.body).getPropertyValue("--accent");
+ for(var k=0;k<=S.n;k++){
+  var h=(P[k]/maxP)*(H-pad*2-14),x=pad+k*bw+bw*0.15,w=bw*0.7,y=H-pad-h;
+  ctx.fillStyle=(k===S.k)?col:"#2a3550";
+  ctx.fillRect(x,y,w,h);
+ }
+ ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--fg");ctx.font="11px system-ui";ctx.textAlign="center";
+ for(var k=0;k<=S.n;k++){if(S.n>12&&k%2)continue;ctx.fillText(k,pad+k*bw+bw/2,H-pad+14)}
+}
+function ui(){
+ if(S.k>S.n)S.k=S.n;
+ nE.value=S.n;kE.max=S.n;kE.value=S.k;
+ on.textContent=S.n;ok.textContent=S.k;
+ var P=probs(S.n),p=P[S.k];
+ info.innerHTML="P(X = "+S.k+") = C("+S.n+","+S.k+")/2<sup>"+S.n+"</sup> = "+comb(S.n,S.k)+" / "+Math.pow(2,S.n)+" ≈ <b>"+(p*100).toFixed(2)+"%</b>";
+ draw();
+}
+nE.oninput=function(){S.n=+this.value;if(S.k>S.n)S.k=S.n;ui();save()};
+kE.oninput=function(){S.k=+this.value;ui();save()};
+ui();
+})();</script></body></html>

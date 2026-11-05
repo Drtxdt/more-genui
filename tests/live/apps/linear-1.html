@@ -1,0 +1,53 @@
+<!-- more-genui: {"version":1,"id":"linear-1","title":"一次函数斜率与截距","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>一次函数</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#ff8a65}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:720px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b101b}
+.c{margin-top:10px}.r{display:flex;justify-content:space-between;font-size:.78rem;color:#9aa7c2;margin-bottom:4px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.f{margin-top:10px;font-size:.82rem;line-height:1.6;color:#9aa7c2}
+</style></head><body><div class="w">
+<h1>一次函数 y = kx + b</h1>
+<p class="s">k 为斜率（陡缓与方向），b 为 y 轴截距（直线与 y 轴交点）。</p>
+<canvas id="cv" width="720" height="320"></canvas>
+<div class="c"><div class="r"><span>斜率 k</span><span id="ok">1.0</span></div><input id="k" type="range" min="-3" max="3" step="0.1" value="1" aria-label="斜率"></div>
+<div class="c"><div class="r"><span>截距 b</span><span id="ob">0.0</span></div><input id="b" type="range" min="-4" max="4" step="0.2" value="0" aria-label="截距"></div>
+<p class="f" id="info"></p>
+</div>
+<script>(function(){
+var D={k:1,b:0},S=Object.assign({},D);
+try{if(genui&&genui.getState){var g=genui.getState();if(g&&typeof g==="object"){if(isFinite(+g.k))S.k=+g.k;if(isFinite(+g.b))S.b=+g.b;}}}catch(e){}
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+var kE=document.getElementById("k"),bE=document.getElementById("b");
+var ok=document.getElementById("ok"),ob=document.getElementById("ob"),info=document.getElementById("info");
+function save(){try{genui.setState(S)}catch(e){}}
+function draw(){
+ var W=cv.width,H=cv.height,cx=W/2,cy=H/2,sx=W/16,sy=H/12;
+ ctx.clearRect(0,0,W,H);ctx.strokeStyle="#1c2538";ctx.beginPath();
+ for(var i=-8;i<=8;i++){var x=cx+i*sx,y=cy+i*sy;ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.moveTo(0,y);ctx.lineTo(W,y)}ctx.stroke();
+ ctx.strokeStyle="#3a4a6b";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+ var col=getComputedStyle(document.body).getPropertyValue("--accent");
+ ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.beginPath();
+ var xL=-8,xR=8;var yL=S.k*xL+S.b,yR=S.k*xR+S.b;
+ var px1=cx+xL*sx,py1=cy-yL*sy,px2=cx+xR*sx,py2=cy-yR*sy;
+ ctx.moveTo(px1,py1);ctx.lineTo(px2,py2);ctx.stroke();
+ // y-intercept marker
+ ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy-S.b*sy,5,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--fg");ctx.font="12px system-ui";ctx.textAlign="left";
+ ctx.fillText("(0, "+S.b.toFixed(1)+")",cx+8,cy-S.b*sy-8);
+}
+function ui(){
+ ok.textContent=S.k.toFixed(1);ob.textContent=S.b.toFixed(1);kE.value=S.k;bE.value=S.b;
+ var ang=Math.atan(S.k)*180/Math.PI;
+ var dir=S.k>0.05?"上升":S.k<-0.05?"下降":"水平";
+ info.textContent="斜率 k = "+S.k.toFixed(1)+"（倾角 "+ang.toFixed(1)+"°，"+dir+"），截距 b = "+S.b.toFixed(1)+"；x 每增加 1，y 变化 "+S.k.toFixed(1)+"。";
+ draw();
+}
+kE.oninput=function(){S.k=+this.value;ui();save()};
+bE.oninput=function(){S.b=+this.value;ui();save()};
+ui();
+})();</script></body></html>

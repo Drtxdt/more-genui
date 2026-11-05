@@ -1,0 +1,28 @@
+<!-- more-genui: {"version":1,"id":"ohm-2","title":"欧姆定律·电压电阻与电流","stateVersion":1} -->
+<html><body style="margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;">
+<div style="max-width:560px;margin:0 auto;">
+<h2 style="color:var(--accent);font-weight:500;">⚡ 欧姆定律 I = U / R</h2>
+<p style="font-size:13px;opacity:0.75;">理想电阻，温度恒定。电流与电压成正比，与电阻成反比。</p>
+<canvas id="c" width="520" height="200" style="width:100%;background:#0e1c2c;border-radius:12px;"></canvas>
+<div style="margin-top:12px;"><label style="display:flex;justify-content:space-between;">电压 U (V) <output id="uv">12.0</output></label>
+<input id="u" type="range" min="0" max="24" step="0.1" value="12" style="width:100%;"></div>
+<div style="margin-top:12px;"><label style="display:flex;justify-content:space-between;">电阻 R (Ω) <output id="rv">6.0</output></label>
+<input id="r" type="range" min="0.5" max="30" step="0.5" value="6" style="width:100%;"></div>
+<p id="info" style="font-size:15px;margin-top:10px;color:var(--accent);font-weight:600;"></p>
+</div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d'),u=document.getElementById('u'),r=document.getElementById('r');
+const st=genui.getState();if(st.u!=null)u.value=st.u;if(st.r!=null)r.value=st.r;
+function draw(){const w=c.width,h=c.height,U=+u.value,R=+r.value,I=U/R;
+document.getElementById('uv').textContent=U.toFixed(1);document.getElementById('rv').textContent=R.toFixed(1);
+ctx.clearRect(0,0,w,h);
+ctx.beginPath();ctx.fillStyle='#1e334a';ctx.fillRect(0,0,w,h);
+const cw=w-60,ch=h-60;const maxI=24/0.5;
+const barW=cw*Math.min(I/maxI,1);
+ctx.fillStyle='var(--accent)';ctx.fillRect(30,40,barW,ch);
+ctx.strokeStyle='#3f5f7a';ctx.strokeRect(30,40,cw,ch);
+ctx.fillStyle='#fff';ctx.font='bold 20px system-ui';ctx.textAlign='center';ctx.fillText(I.toFixed(2)+' A',w/2,35);
+document.getElementById('info').textContent=`电流 I = ${I.toFixed(2)} A`;
+genui.setState({u:U,r:R});}
+u.oninput=draw;r.oninput=draw;draw();
+</script></body></html>

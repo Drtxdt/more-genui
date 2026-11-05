@@ -1,0 +1,128 @@
+[
+  {
+    "id": "wave",
+    "title": "正弦波实验",
+    "characters": 11853,
+    "capture": "capture-1-0.json"
+  },
+  {
+    "id": "wave-1",
+    "title": "正弦波振幅和频率",
+    "characters": 2838,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "spring-1",
+    "title": "理想弹簧振子",
+    "characters": 3057,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "sort-1",
+    "title": "冒泡排序逐步演示",
+    "characters": 3141,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "quadratic-1",
+    "title": "二次函数与抛物线",
+    "characters": 3466,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "linear-1",
+    "title": "一次函数斜率与截距",
+    "characters": 3336,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "projectile-1",
+    "title": "抛体运动",
+    "characters": 3587,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "ohm-1",
+    "title": "欧姆定律",
+    "characters": 3458,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "rgb-1",
+    "title": "RGB三原色混合",
+    "characters": 2589,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "rectangle-1",
+    "title": "矩形长宽与面积周长",
+    "characters": 2945,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "coin-1",
+    "title": "硬币投掷二项概率",
+    "characters": 3348,
+    "capture": "capture-1-1.json"
+  },
+  {
+    "id": "wave-2",
+    "title": "正弦波振幅与频率",
+    "characters": 1810,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "spring-2",
+    "title": "理想弹簧振子",
+    "characters": 2037,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "sort-2",
+    "title": "冒泡排序逐步演示",
+    "characters": 2252,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "quadratic-2",
+    "title": "二次函数的a,b,c与抛物线",
+    "characters": 2122,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "linear-2",
+    "title": "一次函数斜率与截距",
+    "characters": 1947,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "projectile-2",
+    "title": "抛体运动·初速度与角度",
+    "characters": 2396,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "ohm-2",
+    "title": "欧姆定律·电压电阻与电流",
+    "characters": 2004,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "rgb-2",
+    "title": "RGB三原色混合",
+    "characters": 2040,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "rectangle-2",
+    "title": "矩形长宽与面积周长",
+    "characters": 2232,
+    "capture": "capture-improved-2-1.json"
+  },
+  {
+    "id": "coin-2",
+    "title": "硬币投掷·恰好k次正面概率",
+    "characters": 2404,
+    "capture": "capture-improved-2-1.json"
+  }
+]

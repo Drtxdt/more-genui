@@ -1,0 +1,265 @@
+<!-- more-genui: {"version":1,"id":"final-rgb-1","title":"RGB 三原色加色混合","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGB 三原色加色混合</title>
+<style>
+  :root{--bg:#0f1720;--fg:#e8eef5;--accent:#4fc3f7;--muted:#8aa0b4;--panel:#18232e;
+        --r:#ff5252;--g:#4caf50;--b:#448aff;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;}
+  h1{font-size:1.15rem;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:.85rem;margin-bottom:14px;line-height:1.5;}
+  .wrap{display:grid;grid-template-columns:1fr 330px;gap:16px;align-items:start;}
+  @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:10px;}
+  canvas{width:100%;height:auto;display:block;border-radius:6px;background:#070b10;}
+  .panel{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:14px;}
+  .ctrl{margin-bottom:16px;}
+  .ctrl:last-of-type{margin-bottom:0;}
+  label{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem;margin-bottom:6px;}
+  .val{font-variant-numeric:tabular-nums;font-weight:600;}
+  input[type=range]{width:100%;}
+  #r{accent-color:var(--r);}
+  #g{accent-color:var(--g);}
+  #b{accent-color:var(--b);}
+  .swatch{height:70px;border-radius:8px;border:1px solid #2c3d4e;margin:12px 0 10px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.95rem;letter-spacing:.5px;}
+  .readout{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .mini{background:#0b131b;border:1px solid #223141;border-radius:8px;padding:8px 10px;}
+  .mini .k{font-size:.72rem;color:var(--muted);}
+  .mini .v{font-size:.95rem;color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  .mini.wide{grid-column:1 / -1;}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+  button{background:#22364a;color:var(--fg);border:1px solid #33506b;border-radius:8px;padding:8px;font-size:.8rem;cursor:pointer;font-family:inherit;}
+  button:hover{background:#2c4863;}
+  .assume{font-size:.75rem;color:var(--muted);line-height:1.6;margin-top:12px;border-top:1px dashed #2c3d4e;padding-top:9px;}
+  .assume b{color:#c7d6e4;}
+  .hint{font-size:.75rem;color:var(--muted);margin-top:8px;line-height:1.5;}
+</style>
+</head>
+<body>
+  <h1>RGB 三原色：加色混合</h1>
+  <div class="sub">分别调节红、绿、蓝三束光的强度，观察两两叠加与三色叠加的颜色，以及最终的十六进制色值。</div>
+
+  <div class="wrap">
+    <div class="card">
+      <canvas id="cv" width="900" height="520" aria-label="RGB 三圆加色混合图"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl">
+        <label for="r">红 R <span class="val" id="rOut" style="color:#ff5252">255</span></label>
+        <input id="r" type="range" min="0" max="255" step="1" value="255">
+      </div>
+      <div class="ctrl">
+        <label for="g">绿 G <span class="val" id="gOut" style="color:#4caf50">128</span></label>
+        <input id="g" type="range" min="0" max="255" step="1" value="128">
+      </div>
+      <div class="ctrl">
+        <label for="b">蓝 B <span class="val" id="bOut" style="color:#448aff">0</span></label>
+        <input id="b" type="range" min="0" max="255" step="1" value="0">
+      </div>
+
+      <div class="swatch" id="swatch">混合结果</div>
+
+      <div class="readout">
+        <div class="mini wide"><div class="k">HEX</div><div class="v" id="hexV">#FF8000</div></div>
+        <div class="mini"><div class="k">RGB</div><div class="v" id="rgbV">(255,128,0)</div></div>
+        <div class="mini"><div class="k">亮度估计</div><div class="v" id="lumV">0.55</div></div>
+        <div class="mini wide"><div class="k">颜色描述</div><div class="v" id="nameV">橙色</div></div>
+      </div>
+
+      <div class="btns">
+        <button id="btnWhite" type="button">三色全满</button>
+        <button id="btnBlack" type="button">全部归零</button>
+        <button id="btnYellow" type="button">红 + 绿</button>
+        <button id="btnCyan" type="button">绿 + 蓝</button>
+        <button id="btnMagenta" type="button">红 + 蓝</button>
+        <button id="btnMid" type="button">等量中灰</button>
+      </div>
+
+      <div class="hint">提示：加色混合是“光叠加”，越叠越亮；三色等量时是灰（中性色），全满为白、全零为黑。</div>
+
+      <div class="assume">
+        <b>数学假设：</b>采用 sRGB 加色模型，每个通道取值 0–255 整数，最终颜色为 \((R,G,B)\) 的线性叠加示意。
+        两两叠加的色相：红+绿≈黄，绿+蓝≈青，红+蓝≈品红，三色全满≈白。亮度估计按 Rec.601 近似 \(Y=0.299R+0.587G+0.114B\)（归一化 0–1），仅作相对明暗参考，不是严格光度学量。
+        画布为屏幕发光示意，不模拟印刷减色（CMYK）或真实光源光谱。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const rEl = document.getElementById("r");
+  const gEl = document.getElementById("g");
+  const bEl = document.getElementById("b");
+  const rOut = document.getElementById("rOut");
+  const gOut = document.getElementById("gOut");
+  const bOut = document.getElementById("bOut");
+  const swatch = document.getElementById("swatch");
+  const hexV = document.getElementById("hexV");
+  const rgbV = document.getElementById("rgbV");
+  const lumV = document.getElementById("lumV");
+  const nameV = document.getElementById("nameV");
+
+  function restore(){
+    let s = {};
+    try { s = genui.getState() || {}; } catch(e){ s = {}; }
+    rEl.value = (typeof s.r === "number") ? s.r : 255;
+    gEl.value = (typeof s.g === "number") ? s.g : 128;
+    bEl.value = (typeof s.b === "number") ? s.b : 0;
+  }
+  function save(){
+    try { genui.setState({ r:Number(rEl.value), g:Number(gEl.value), b:Number(bEl.value) }); } catch(e){}
+  }
+
+  function hex2(n){ return n.toString(16).padStart(2,"0").toUpperCase(); }
+
+  function describe(R,G,B){
+    const mx = Math.max(R,G,B), mn = Math.min(R,G,B);
+    if(mx === 0) return "黑色";
+    if(mn === 255) return "白色";
+    const sat = (mx - mn) / mx;
+    if(sat < 0.12){
+      if(mx < 60) return "深灰";
+      if(mx < 140) return "中灰";
+      if(mx < 220) return "浅灰";
+      return "接近白";
+    }
+    // 判断主导色相
+    const near = (a,b)=>Math.abs(a-b) < 0.16;
+    const norm = v => v / 255;
+    const r = norm(R), g = norm(G), b = norm(B);
+    if(near(r,g) && r > b + 0.15) return "黄色";
+    if(near(g,b) && g > r + 0.15) return "青色";
+    if(near(r,b) && r > g + 0.15) return "品红色";
+    if(r >= g && r >= b){
+      if(g > 0.55) return "橙色";
+      if(b > 0.55) return "粉红";
+      return "红色";
+    }
+    if(g >= r && g >= b){
+      if(r > 0.55) return "黄绿";
+      if(b > 0.55) return "青绿";
+      return "绿色";
+    }
+    if(r > 0.55) return "紫红";
+    if(g > 0.55) return "蓝绿";
+    return "蓝色";
+  }
+
+  function draw(){
+    const R = Number(rEl.value), G = Number(gEl.value), B = Number(bEl.value);
+    rOut.textContent = R;
+    gOut.textContent = G;
+    bOut.textContent = B;
+
+    const css = "rgb(" + R + "," + G + "," + B + ")";
+    swatch.style.background = css;
+    // 自动选择文字颜色
+    const lum = (0.299*R + 0.587*G + 0.114*B) / 255;
+    swatch.style.color = lum > 0.55 ? "#101820" : "#f2f6fa";
+
+    hexV.textContent = "#" + hex2(R) + hex2(G) + hex2(B);
+    rgbV.textContent = "(" + R + "," + G + "," + B + ")";
+    lumV.textContent = lum.toFixed(2);
+    nameV.textContent = describe(R,G,B);
+
+    // ===== 画布：三圆叠加 =====
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = "#070b10";
+    ctx.fillRect(0,0,W,H);
+
+    const cxc = W/2, cyc = H/2 + 6;
+    const rad = Math.min(W, H) * 0.235;
+    const d = rad * 0.62;
+    const centers = {
+      r: [cxc, cyc - d],
+      g: [cxc - d*0.9, cyc + d*0.55],
+      b: [cxc + d*0.9, cyc + d*0.55]
+    };
+
+    // 用加法混合渲染：先暗底，再用 'lighter' 合成
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const chans = [
+      { key:"r", color:"255,0,0", v:R },
+      { key:"g", color:"0,255,0", v:G },
+      { key:"b", color:"0,0,255", v:B }
+    ];
+    for(const ch of chans){
+      const [x,y] = centers[ch.key];
+      const gAlpha = ch.v / 255;
+      if(gAlpha <= 0) continue;
+      // 中心较亮、边缘略暗的径向渐变
+      const grad = ctx.createRadialGradient(x, y, rad*0.15, x, y, rad);
+      grad.addColorStop(0, "rgba(" + ch.color + "," + (0.95*gAlpha) + ")");
+      grad.addColorStop(1, "rgba(" + ch.color + "," + (0.62*gAlpha) + ")");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    // 圆轮廓与标签
+    ctx.lineWidth = 1.5;
+    ctx.font = "bold 15px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    const labels = [
+      { key:"r", text:"R", color:"#ff7b7b" },
+      { key:"g", text:"G", color:"#7bd88f" },
+      { key:"b", text:"B", color:"#7ba6ff" }
+    ];
+    for(const l of labels){
+      const [x,y] = centers[l.key];
+      ctx.strokeStyle = "rgba(200,215,230,0.28)";
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = l.color;
+      const ly = (l.key === "r") ? y - rad - 12 : y + rad + 22;
+      ctx.fillText(l.text, x, ly);
+    }
+
+    // 中心混色示意圆
+    const mixR = rad * 0.30;
+    const lumText = lum > 0.55 ? "#0d141b" : "#eef4fa";
+    ctx.beginPath(); ctx.arc(cxc, cyc, mixR, 0, Math.PI*2);
+    ctx.fillStyle = css; ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.stroke();
+    ctx.fillStyle = lumText;
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.fillText("混合", cxc, cyc + 4);
+
+    // 图例说明
+    ctx.fillStyle = "#8aa0b4";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("红+绿 ≈ 黄    绿+蓝 ≈ 青    红+蓝 ≈ 品红    三色全满 ≈ 白", 20, H - 18);
+  }
+
+  function setRGB(r,g,b){
+    rEl.value = r; gEl.value = g; bEl.value = b;
+    draw(); save();
+  }
+
+  rEl.addEventListener("input", function(){ draw(); save(); });
+  gEl.addEventListener("input", function(){ draw(); save(); });
+  bEl.addEventListener("input", function(){ draw(); save(); });
+
+  document.getElementById("btnWhite").addEventListener("click", function(){ setRGB(255,255,255); });
+  document.getElementById("btnBlack").addEventListener("click", function(){ setRGB(0,0,0); });
+  document.getElementById("btnYellow").addEventListener("click", function(){ setRGB(255,255,0); });
+  document.getElementById("btnCyan").addEventListener("click", function(){ setRGB(0,255,255); });
+  document.getElementById("btnMagenta").addEventListener("click", function(){ setRGB(255,0,255); });
+  document.getElementById("btnMid").addEventListener("click", function(){ setRGB(128,128,128); });
+
+  restore();
+  draw();
+  save();
+})();
+</script>
+</body>
+</html>

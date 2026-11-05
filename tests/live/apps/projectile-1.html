@@ -1,0 +1,54 @@
+<!-- more-genui: {"version":1,"id":"projectile-1","title":"抛体运动","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>抛体运动</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#4fc3f7}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:760px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b101b}
+.c{margin-top:10px}.r{display:flex;justify-content:space-between;font-size:.78rem;color:#9aa7c2;margin-bottom:4px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.f{margin-top:8px;font-size:.82rem;line-height:1.6;color:#9aa7c2}
+</style></head><body><div class="w">
+<h1>抛体运动（无空气阻力，g=9.8 m/s²）</h1>
+<p class="s">从地面以初速 v₀、仰角 θ 抛出：射程 R=v₀²sin2θ/g，最大高度 H=v₀²sin²θ/(2g)，飞行时间 T=2v₀sinθ/g。</p>
+<canvas id="cv" width="720" height="320"></canvas>
+<div class="c"><div class="r"><span>初速度 v₀ (m/s)</span><span id="ov">20.0</span></div><input id="v" type="range" min="5" max="40" step="0.5" value="20" aria-label="初速度"></div>
+<div class="c"><div class="r"><span>仰角 θ (°)</span><span id="ot">45</span></div><input id="t" type="range" min="5" max="85" step="1" value="45" aria-label="仰角"></div>
+<p class="f" id="info"></p>
+</div>
+<script>(function(){
+var D={v:20,t:45},S=Object.assign({},D);
+try{if(genui&&genui.getState){var g=genui.getState();if(g&&typeof g==="object"){if(isFinite(+g.v))S.v=Math.min(40,Math.max(5,+g.v));if(isFinite(+g.t))S.t=Math.min(85,Math.max(5,+g.t));}}}catch(e){}
+var G=9.8,cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+var vE=document.getElementById("v"),tE=document.getElementById("t");
+var ov=document.getElementById("ov"),ot=document.getElementById("ot"),info=document.getElementById("info");
+function save(){try{genui.setState(S)}catch(e){}}
+function draw(){
+ var W=cv.width,H=cv.height,pad=30;
+ var th=S.t*Math.PI/180,vx=S.v*Math.cos(th),vy0=S.v*Math.sin(th);
+ var T=2*vy0/G,R=vx*T,Hm=vy0*vy0/(2*G);
+ var scaleX=(W-pad*2)/Math.max(R,1),scaleY=(H-pad*2)/Math.max(Hm,1);
+ var sc=Math.min(scaleX,scaleY);
+ ctx.clearRect(0,0,W,H);
+ ctx.strokeStyle="#3a4a6b";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pad,H-pad);ctx.lineTo(W-pad,H-pad);ctx.stroke();
+ ctx.strokeStyle="#1c2538";ctx.beginPath();
+ for(var i=0;i<=10;i++){var x=pad+i*(W-pad*2)/10;ctx.moveTo(x,H-pad);ctx.lineTo(x,H-pad+6)}ctx.stroke();
+ var col=getComputedStyle(document.body).getPropertyValue("--accent");
+ ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.beginPath();
+ var N=100;for(var i=0;i<=N;i++){var tt=T*i/N;var x=pad+vx*tt*sc;var y=H-pad-(vy0*tt-0.5*G*tt*tt)*sc;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.stroke();
+ ctx.fillStyle=col;ctx.beginPath();ctx.arc(pad,H-pad,5,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--fg");ctx.font="12px system-ui";ctx.textAlign="left";
+ ctx.fillText("R="+R.toFixed(1)+"m",pad+4,H-pad-6);
+ ctx.fillText("H="+Hm.toFixed(1)+"m",pad+4,pad+14);
+}
+function ui(){ov.textContent=S.v.toFixed(1);ot.textContent=S.t.toFixed(0);vE.value=S.v;tE.value=S.t;
+ var th=S.t*Math.PI/180,vx=S.v*Math.cos(th),vy0=S.v*Math.sin(th);
+ var T=2*vy0/G,R=vx*T,Hm=vy0*vy0/(2*G);
+ info.textContent="射程 R = "+R.toFixed(1)+" m，最大高度 H = "+Hm.toFixed(1)+" m，飞行时间 T = "+T.toFixed(2)+" s。";
+ draw();}
+vE.oninput=function(){S.v=+this.value;ui();save()};
+tE.oninput=function(){S.t=+this.value;ui();save()};
+ui();
+})();</script></body></html>

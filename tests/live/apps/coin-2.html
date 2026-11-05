@@ -1,0 +1,30 @@
+<!-- more-genui: {"version":1,"id":"coin-2","title":"硬币投掷·恰好k次正面概率","stateVersion":1} -->
+<html><body style="margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;">
+<div style="max-width:560px;margin:0 auto;">
+<h2 style="color:var(--accent);font-weight:500;">🪙 硬币投掷·恰好 k 次正面</h2>
+<p style="font-size:13px;opacity:0.75;">独立公平硬币：P(X=k) = C(n,k)·(1/2)ⁿ。n 次投掷中恰好 k 次正面的二项分布。</p>
+<canvas id="c" width="520" height="220" style="width:100%;background:#0e1c2c;border-radius:12px;"></canvas>
+<div style="margin-top:12px;"><label style="display:flex;justify-content:space-between;">投掷次数 n <output id="nv">10</output></label><input id="n" type="range" min="1" max="20" step="1" value="10" style="width:100%;"></div>
+<div style="margin-top:8px;"><label style="display:flex;justify-content:space-between;">正面次数 k <output id="kv">5</output></label><input id="k" type="range" min="0" max="20" step="1" value="5" style="width:100%;"></div>
+<p id="info" style="font-size:15px;margin-top:10px;color:var(--accent);font-weight:600;"></p>
+</div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d'),n=document.getElementById('n'),k=document.getElementById('k');
+const st=genui.getState();if(st.n!=null)n.value=st.n;if(st.k!=null)k.value=st.k;
+function C(n,k){if(k<0||k>n)return 0;let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return r;}
+function draw(){let N=+n.value,K=+k.value;if(K>N){K=N;k.value=N;}
+document.getElementById('nv').textContent=N;document.getElementById('kv').textContent=K;
+const cw=c.width,ch=c.height;ctx.clearRect(0,0,cw,ch);ctx.fillStyle='#0e1c2c';ctx.fillRect(0,0,cw,ch);
+const probs=[];let maxP=0;for(let i=0;i<=N;i++){const p=C(N,i)/Math.pow(2,N);probs.push(p);if(p>maxP)maxP=p;}
+const barW=cw/(N+1)*0.75;const gap=cw/(N+1);
+const targetP=probs[K];
+for(let i=0;i<=N;i++){const hh=(probs[i]/maxP)*(ch-50);const x=i*gap+gap*0.125;const y=ch-20-hh;
+ctx.fillStyle=(i===K)?'#ffd966':'#3f5f7a';ctx.fillRect(x,y,barW,hh);}
+ctx.fillStyle='#fff';ctx.font='bold 15px system-ui';ctx.textAlign='center';
+ctx.fillText(`P(X=${K}) = ${(targetP*100).toFixed(2)}%`,cw/2,20);
+const pct=(targetP*100).toFixed(2);
+document.getElementById('info').textContent=`P(X=${K}) = C(${N},${K})/2^${N} = ${targetP.toFixed(5)} ≈ ${pct}%`;
+genui.setState({n:N,k:K});}
+n.oninput=()=>{const N=+n.value;if(+k.value>N)k.value=N;draw();};
+k.oninput=draw;draw();
+</script></body></html>

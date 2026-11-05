@@ -1,0 +1,24 @@
+<!-- more-genui: {"version":1,"id":"spring-2","title":"理想弹簧振子","stateVersion":1} -->
+<html><body style="margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;">
+<div style="max-width:560px;margin:0 auto;">
+<h2 style="color:var(--accent);font-weight:500;">🌀 理想弹簧振子 (m=1kg)</h2>
+<p style="font-size:13px;opacity:0.75;">x(t) = x₀·cos(ωt)，ω=√(k/m)。假设无阻尼、初位移x₀=1m、初速度0。</p>
+<canvas id="c" width="520" height="200" style="width:100%;background:#0e1c2c;border-radius:12px;"></canvas>
+<div style="margin-top:12px;"><label style="display:flex;justify-content:space-between;">刚度 k (N/m) <output id="kv">4.00</output></label>
+<input id="k" type="range" min="1" max="20" step="0.1" value="4" style="width:100%;"></div>
+<div style="margin-top:12px;"><label style="display:flex;justify-content:space-between;">时间 t (s) <output id="tv">0.00</output></label>
+<input id="t" type="range" min="0" max="10" step="0.01" value="0" style="width:100%;"></div>
+</div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d'),k=document.getElementById('k'),tS=document.getElementById('t');
+const st=genui.getState();if(st.k!=null)k.value=st.k;if(st.t!=null)tS.value=st.t;
+function draw(){const w=c.width,h=c.height,K=+k.value,T=+tS.value;document.getElementById('kv').textContent=K.toFixed(2);document.getElementById('tv').textContent=T.toFixed(2);
+ctx.clearRect(0,0,w,h);ctx.strokeStyle='#3f5f7a';ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();
+const omega=Math.sqrt(K);ctx.beginPath();ctx.strokeStyle='var(--accent)';ctx.lineWidth=2;
+for(let i=0;i<=500;i++){const tt=i/500*10,x=Math.cos(omega*tt);const px=i/500*w,py=h/2-(x/1.5)*(h/2)*0.8;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+ctx.stroke();
+const curX=Math.cos(omega*T);const cx=(T/10)*w,cy=h/2-(curX/1.5)*(h/2)*0.8;
+ctx.beginPath();ctx.arc(cx,cy,7,0,2*Math.PI);ctx.fillStyle='#ffd966';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+genui.setState({k:K,t:T});}
+k.oninput=draw;tS.oninput=draw;draw();
+</script></body></html>

@@ -1,0 +1,56 @@
+<!-- more-genui: {"version":1,"id":"ohm-1","title":"欧姆定律","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>欧姆定律</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#ffb74d}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:720px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b101b}
+.c{margin-top:10px}.r{display:flex;justify-content:space-between;font-size:.78rem;color:#9aa7c2;margin-bottom:4px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.f{margin-top:8px;font-size:.82rem;line-height:1.6;color:#9aa7c2}
+</style></head><body><div class="w">
+<h1>欧姆定律 I = U / R</h1>
+<p class="s">电流与电压成正比、与电阻成反比。下方曲线为 I–U 关系（固定电阻 R）。</p>
+<canvas id="cv" width="720" height="300"></canvas>
+<div class="c"><div class="r"><span>电压 U (V)</span><span id="ou">6.0</span></div><input id="u" type="range" min="1" max="24" step="0.5" value="6" aria-label="电压"></div>
+<div class="c"><div class="r"><span>电阻 R (Ω)</span><span id="or">10</span></div><input id="r" type="range" min="1" max="50" step="1" value="10" aria-label="电阻"></div>
+<p class="f" id="info"></p>
+</div>
+<script>(function(){
+var D={u:6,r:10},S=Object.assign({},D);
+try{if(genui&&genui.getState){var g=genui.getState();if(g&&typeof g==="object"){if(isFinite(+g.u))S.u=Math.min(24,Math.max(1,+g.u));if(isFinite(+g.r))S.r=Math.min(50,Math.max(1,+g.r));}}}catch(e){}
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+var uE=document.getElementById("u"),rE=document.getElementById("r");
+var ou=document.getElementById("ou"),or=document.getElementById("or"),info=document.getElementById("info");
+function save(){try{genui.setState(S)}catch(e){}}
+function draw(){
+ var W=cv.width,H=cv.height,pad=35;
+ ctx.clearRect(0,0,W,H);
+ ctx.strokeStyle="#3a4a6b";ctx.lineWidth=2;ctx.beginPath();
+ ctx.moveTo(pad,pad);ctx.lineTo(pad,H-pad);ctx.lineTo(W-pad,H-pad);ctx.stroke();
+ ctx.strokeStyle="#1c2538";ctx.beginPath();
+ for(var i=0;i<=5;i++){var y=pad+i*(H-pad*2)/5;ctx.moveTo(pad,y);ctx.lineTo(W-pad,y)}
+ for(var i=0;i<=6;i++){var x=pad+i*(W-pad*2)/6;ctx.moveTo(x,pad);ctx.lineTo(x,H-pad)}ctx.stroke();
+ var maxU=24,Imax=2;var maxI=maxU/S.r;
+ var col=getComputedStyle(document.body).getPropertyValue("--accent");
+ ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.beginPath();
+ var x0=pad,y0=H-pad;
+ var x1=pad+(W-pad*2)*1.0, y1=H-pad-(H-pad*2)*Math.min(1,maxI/Imax);
+ ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+ var px=pad+(W-pad*2)*(S.u/maxU),py=H-pad-(H-pad*2)*(S.u/S.r/Imax);
+ if(py<pad)py=pad;
+ ctx.fillStyle=col;ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--fg");ctx.font="11px system-ui";ctx.textAlign="left";
+ ctx.fillText("I (A)",pad+4,pad-4);ctx.fillText("U (V)",W-pad-10,H-pad+18);
+ ctx.textAlign="center";ctx.fillText("0",pad,H-pad+16);
+}
+function ui(){ou.textContent=S.u.toFixed(1);or.textContent=S.r.toFixed(0);uE.value=S.u;rE.value=S.r;
+ var I=S.u/S.r,P=S.u*I;
+ info.textContent="电流 I = U/R = "+I.toFixed(2)+" A，功率 P = UI = "+P.toFixed(1)+" W。";
+ draw();}
+uE.oninput=function(){S.u=+this.value;ui();save()};
+rE.oninput=function(){S.r=+this.value;ui();save()};
+ui();
+})();</script></body></html>

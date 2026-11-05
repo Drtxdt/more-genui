@@ -1,0 +1,27 @@
+<!-- more-genui: {"version":1,"id":"rectangle-2","title":"矩形长宽与面积周长","stateVersion":1} -->
+<html><body style="margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;">
+<div style="max-width:560px;margin:0 auto;">
+<h2 style="color:var(--accent);font-weight:500;">▭ 矩形·面积与周长</h2>
+<p style="font-size:13px;opacity:0.75;">面积 = 长×宽，周长 = 2×(长+宽)。图形按比例缩放显示。</p>
+<canvas id="c" width="520" height="240" style="width:100%;background:#0e1c2c;border-radius:12px;"></canvas>
+<div style="margin-top:12px;"><label style="display:flex;justify-content:space-between;">长 (m) <output id="lv">6.0</output></label><input id="l" type="range" min="1" max="15" step="0.1" value="6" style="width:100%;"></div>
+<div style="margin-top:8px;"><label style="display:flex;justify-content:space-between;">宽 (m) <output id="wv">4.0</output></label><input id="w" type="range" min="1" max="15" step="0.1" value="4" style="width:100%;"></div>
+<p id="info" style="font-size:15px;margin-top:10px;color:var(--accent);font-weight:600;"></p>
+</div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d'),l=document.getElementById('l'),w=document.getElementById('w');
+const st=genui.getState();if(st.l!=null)l.value=st.l;if(st.w!=null)w.value=st.w;
+function draw(){const cw=c.width,ch=c.height,L=+l.value,W=+w.value;
+document.getElementById('lv').textContent=L.toFixed(1);document.getElementById('wv').textContent=W.toFixed(1);
+ctx.clearRect(0,0,cw,ch);ctx.fillStyle='#0e1c2c';ctx.fillRect(0,0,cw,ch);
+const maxDim=Math.max(L,W);const scale=Math.min((cw-80)/maxDim,(ch-60)/maxDim);
+const pw=L*scale,ph=W*scale;const px=(cw-pw)/2,py=(ch-ph)/2;
+ctx.fillStyle='rgba(107,201,255,0.25)';ctx.fillRect(px,py,pw,ph);
+ctx.strokeStyle='var(--accent)';ctx.lineWidth=2.5;ctx.strokeRect(px,py,pw,ph);
+ctx.fillStyle='#fff';ctx.font='bold 15px system-ui';ctx.textAlign='center';
+ctx.fillText(`${L.toFixed(1)} m`,cw/2,py-8);
+ctx.save();ctx.translate(px-12,py+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText(`${W.toFixed(1)} m`,0,0);ctx.restore();
+document.getElementById('info').textContent=`面积 = ${(L*W).toFixed(2)} m² · 周长 = ${(2*(L+W)).toFixed(2)} m`;
+genui.setState({l:L,w:W});}
+l.oninput=draw;w.oninput=draw;draw();
+</script></body></html>

@@ -1,0 +1,45 @@
+<!-- more-genui: {"version":1,"id":"rectangle-1","title":"矩形长宽与面积周长","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>矩形</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#b388ff}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:720px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b101b}
+.c{margin-top:10px}.r{display:flex;justify-content:space-between;font-size:.78rem;color:#9aa7c2;margin-bottom:4px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.f{margin-top:8px;font-size:.9rem;line-height:1.7}
+</style></head><body><div class="w">
+<h1>矩形的面积与周长</h1>
+<p class="s">面积 A = 长 × 宽；周长 P = 2(长 + 宽)。</p>
+<canvas id="cv" width="720" height="280"></canvas>
+<div class="c"><div class="r"><span>长 l</span><span id="ol">6.0</span></div><input id="l" type="range" min="1" max="10" step="0.1" value="6" aria-label="长"></div>
+<div class="c"><div class="r"><span>宽 w</span><span id="ow">4.0</span></div><input id="w" type="range" min="1" max="10" step="0.1" value="4" aria-label="宽"></div>
+<p class="f" id="info"></p>
+</div>
+<script>(function(){
+var D={l:6,w:4},S=Object.assign({},D);
+try{if(genui&&genui.getState){var g=genui.getState();if(g&&typeof g==="object"){["l","w"].forEach(function(k){if(isFinite(+g[k]))S[k]=Math.min(10,Math.max(1,+g[k]))});}}}catch(e){}
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+var o={l:document.getElementById("ol"),w:document.getElementById("ow")},info=document.getElementById("info");
+function save(){try{genui.setState(S)}catch(e){}}
+function draw(){
+ var W=cv.width,H=cv.height,pad=40;
+ var maxDim=10,sc=Math.min((W-pad*2)/maxDim,(H-pad*2)/maxDim);
+ var rw=S.l*sc,rh=S.w*sc,rx=(W-rw)/2,ry=(H-rh)/2;
+ ctx.clearRect(0,0,W,H);
+ var col=getComputedStyle(document.body).getPropertyValue("--accent");
+ ctx.fillStyle="rgba(179,136,255,.18)";ctx.fillRect(rx,ry,rw,rh);
+ ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.strokeRect(rx,ry,rw,rh);
+ ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--fg");ctx.font="12px system-ui";ctx.textAlign="center";
+ ctx.fillText(S.l.toFixed(1),rx+rw/2,ry-6);
+ ctx.textAlign="left";ctx.fillText(S.w.toFixed(1),rx+rw+6,ry+rh/2);
+}
+function ui(){o.l.textContent=S.l.toFixed(1);o.w.textContent=S.w.toFixed(1);
+ document.getElementById("l").value=S.l;document.getElementById("w").value=S.w;
+ info.innerHTML="面积 A = "+S.l.toFixed(1)+" × "+S.w.toFixed(1)+" = <b>"+(S.l*S.w).toFixed(2)+"</b><br>周长 P = 2("+S.l.toFixed(1)+" + "+S.w.toFixed(1)+") = <b>"+(2*(S.l+S.w)).toFixed(2)+"</b>";
+ draw();}
+["l","w"].forEach(function(k){document.getElementById(k).oninput=function(){S[k]=+this.value;ui();save()}});
+ui();
+})();</script></body></html>

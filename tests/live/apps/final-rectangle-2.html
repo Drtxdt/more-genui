@@ -1,0 +1,303 @@
+<!-- more-genui: {"version":1,"id":"final-rectangle-2","title":"矩形长宽与面积周长","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>矩形长宽与面积周长</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --fg:#e8eef4;
+    --accent:#4cc9f0;
+    --panel:#17222e;
+    --muted:#9fb0c0;
+    --grid:#26364a;
+    --axis:#55708a;
+    --rect:#4cc9f0;
+    --square:#f7b955;
+    --dim:#c792ea;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;padding:16px;
+    background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+  h1{font-size:1.15rem;margin:0 0 4px;font-weight:650;}
+  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px;}
+  .eq{
+    background:var(--panel);border:1px solid var(--grid);border-radius:10px;
+    padding:10px 14px;margin-bottom:12px;font-size:1rem;
+    font-variant-numeric:tabular-nums;overflow-x:auto;white-space:nowrap;
+  }
+  .eq b{color:var(--accent);}
+  .controls{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:12px 14px;margin-bottom:12px;
+  }
+  @media (max-width:600px){ .controls{grid-template-columns:1fr;} }
+  .ctrl{display:flex;flex-direction:column;gap:6px;}
+  .ctrl label{font-size:.9rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .ctrl label b{color:var(--accent);font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:22px;}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+  .canvas-box{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:8px;
+  }
+  canvas{display:block;width:100%;height:auto;border-radius:6px;}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.78rem;color:var(--muted);margin-top:10px;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:11px;height:11px;border-radius:2px;display:inline-block;}
+  .readout{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
+    gap:8px;margin-top:12px;
+  }
+  .stat{background:var(--panel);border:1px solid var(--grid);border-radius:8px;padding:8px 10px;}
+  .stat .k{color:var(--muted);font-size:.75rem;}
+  .stat .v{font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums;}
+  .stat .v.accent{color:var(--accent);}
+  .stat .v.square{color:var(--square);}
+  .note{color:var(--muted);font-size:.78rem;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>矩形：长、宽与面积、周长</h1>
+  <p class="sub">S = w·h，P = 2(w+h)；虚线正方形为“等周长正方形”对比</p>
+
+  <div class="eq" id="eq"></div>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label for="w">长 w <b><output id="wOut">6.0</output></b></label>
+      <input id="w" type="range" min="0.5" max="12" step="0.1" value="6"
+             aria-label="长 w，范围 0.5 到 12，步长 0.1">
+    </div>
+    <div class="ctrl">
+      <label for="h">宽 h <b><output id="hOut">3.0</output></b></label>
+      <input id="h" type="range" min="0.5" max="12" step="0.1" value="3"
+             aria-label="宽 h，范围 0.5 到 12，步长 0.1">
+    </div>
+  </div>
+
+  <div class="canvas-box">
+    <canvas id="cv" width="900" height="440" role="img"
+            aria-label="矩形图形，标注长、宽、对角线，并显示等周长正方形"></canvas>
+  </div>
+
+  <div class="legend" aria-hidden="true">
+    <span><i class="dot" style="background:#4cc9f0"></i>矩形 w×h</span>
+    <span><i class="dot" style="background:#f7b955"></i>等周长正方形</span>
+    <span><i class="dot" style="background:#c792ea"></i>尺寸标注</span>
+  </div>
+
+  <div class="readout">
+    <div class="stat"><div class="k">面积 S = w·h</div><div class="v accent" id="areaOut">18.00</div></div>
+    <div class="stat"><div class="k">周长 P = 2(w+h)</div><div class="v" id="periOut">18.00</div></div>
+    <div class="stat"><div class="k">对角线 d = √(w²+h²)</div><div class="v" id="diagOut">6.71</div></div>
+    <div class="stat"><div class="k">长宽比 w/h</div><div class="v" id="ratioOut">2.00</div></div>
+    <div class="stat"><div class="k">等周长正方形边长 P/4</div><div class="v square" id="sqSideOut">4.50</div></div>
+    <div class="stat"><div class="k">等周长正方形面积</div><div class="v square" id="sqAreaOut">20.25</div></div>
+    <div class="stat"><div class="k">面积差（正方形−矩形）</div><div class="v square" id="diffOut">2.25</div></div>
+  </div>
+
+  <p class="note">画布按比例缩放显示，像素尺寸不等于真实边长。相同周长下正方形面积不小于任何矩形；两者越接近正方形，差值越小。</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var wEl = document.getElementById("w");
+  var hEl = document.getElementById("h");
+  var wOut = document.getElementById("wOut");
+  var hOut = document.getElementById("hOut");
+  var eqEl = document.getElementById("eq");
+  var areaOut = document.getElementById("areaOut");
+  var periOut = document.getElementById("periOut");
+  var diagOut = document.getElementById("diagOut");
+  var ratioOut = document.getElementById("ratioOut");
+  var sqSideOut = document.getElementById("sqSideOut");
+  var sqAreaOut = document.getElementById("sqAreaOut");
+  var diffOut = document.getElementById("diffOut");
+
+  function clamp(v, lo, hi){ return Math.min(hi, Math.max(lo, v)); }
+  function num(v, d){ return (typeof v === "number" && isFinite(v)) ? v : d; }
+  function fmt(v, d){
+    var s = v.toFixed(d === undefined ? 2 : d);
+    if (s === "-0.00") s = "0.00";
+    return s;
+  }
+
+  var state = genui.getState() || {};
+  var w = clamp(num(state.w, 6), 0.5, 12);
+  var h = clamp(num(state.h, 3), 0.5, 12);
+  wEl.value = String(w);
+  hEl.value = String(h);
+
+  function saveState(){ genui.setState({ w: w, h: h }); }
+
+  function updateTexts(){
+    wOut.textContent = fmt(w, 1);
+    hOut.textContent = fmt(h, 1);
+    var S = w * h;
+    var P = 2 * (w + h);
+    var d = Math.sqrt(w*w + h*h);
+    var sqSide = P / 4;
+    var sqArea = sqSide * sqSide;
+
+    eqEl.innerHTML = "S = <b>" + fmt(w,1) + "</b> × <b>" + fmt(h,1) + "</b> = <b>" + fmt(S,2) +
+                     "</b> &nbsp;·&nbsp; P = 2×(" + fmt(w,1) + " + " + fmt(h,1) + ") = <b>" + fmt(P,2) + "</b>";
+
+    areaOut.textContent = fmt(S, 2);
+    periOut.textContent = fmt(P, 2);
+    diagOut.textContent = fmt(d, 2);
+    ratioOut.textContent = fmt(w / h, 2) + " : 1";
+    sqSideOut.textContent = fmt(sqSide, 2);
+    sqAreaOut.textContent = fmt(sqArea, 2);
+    var diff = sqArea - S;
+    diffOut.textContent = (diff < 1e-9 ? "0.00" : "+" + fmt(diff, 2)) + (Math.abs(diff) < 1e-9 ? "（已是正方形）" : "");
+  }
+
+  function draw(){
+    var W = cv.width, H = cv.height;
+    var padL = 60, padR = 60, padT = 40, padB = 60;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#101a24";
+    ctx.fillRect(0, 0, W, H);
+
+    // 统一步长：让矩形和等周长正方形都能放进画布
+    var P = 2 * (w + h);
+    var sqSide = P / 4;
+    var maxDim = Math.max(w, h, sqSide);
+    var scale = Math.min(plotW / (maxDim * 1.15), plotH / (maxDim * 1.15));
+
+    var cx = W / 2, cy = H / 2 + 6;
+    var rw = w * scale, rh = h * scale;
+    var rx = cx - rw / 2, ry = cy - rh / 2;
+
+    // 等周长正方形（虚线），与矩形中心对齐
+    var ss = sqSide * scale;
+    var sx = cx - ss / 2, sy = cy - ss / 2;
+
+    // 等周长正方形
+    ctx.save();
+    ctx.setLineDash([8, 6]);
+    ctx.strokeStyle = "#f7b955";
+    ctx.lineWidth = 2.2;
+    ctx.strokeRect(sx, sy, ss, ss);
+    ctx.restore();
+    ctx.fillStyle = "#f7b955";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText("等周长正方形 边长 " + fmt(sqSide,2), cx, sy - 6);
+
+    // 矩形填充
+    var grad = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
+    grad.addColorStop(0, "rgba(76,201,240,0.30)");
+    grad.addColorStop(1, "rgba(76,201,240,0.12)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.strokeStyle = "#4cc9f0";
+    ctx.lineWidth = 2.6;
+    ctx.strokeRect(rx, ry, rw, rh);
+
+    // 尺寸标注：长（下方）
+    drawDim(rx, ry + rh + 26, rx + rw, ry + rh + 26, "w = " + fmt(w,1), "#c792ea");
+    // 尺寸标注：宽（左侧）
+    drawDim(rx - 26, ry, rx - 26, ry + rh, "h = " + fmt(h,1), "#c792ea", true);
+
+    // 对角线
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = "rgba(199,146,234,0.85)";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(rx, ry + rh);
+    ctx.lineTo(rx + rw, ry);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = "#c792ea";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    var dxc = rx + rw * 0.62, dyc = ry + rh * 0.38;
+    ctx.fillText("d = " + fmt(Math.sqrt(w*w + h*h), 2), dxc + 26, dyc - 10);
+
+    // 面积标注在矩形内部
+    ctx.fillStyle = "#e8eef4";
+    ctx.font = "bold 13px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    if (rw > 70 && rh > 28){
+      ctx.fillText("S = " + fmt(w*h, 2), cx, cy);
+    }
+
+    // 正方形面积标注（若空间允许）
+    if (ss > 80){
+      ctx.fillStyle = "rgba(247,185,85,0.9)";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("S□ = " + fmt(sqSide*sqSide, 2), cx, sy + ss + 6);
+    }
+
+    function drawDim(x1, y1, x2, y2, label, color, vertical){
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      // 端点短线
+      if (vertical){
+        ctx.beginPath(); ctx.moveTo(x1 - 5, y1); ctx.lineTo(x1 + 5, y1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x2 - 5, y2); ctx.lineTo(x2 + 5, y2); ctx.stroke();
+        ctx.save();
+        ctx.translate(x1 - 10, (y1 + y2) / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.font = "12px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+      } else {
+        ctx.beginPath(); ctx.moveTo(x1, y1 - 5); ctx.lineTo(x1, y1 + 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x2, y2 - 5); ctx.lineTo(x2, y2 + 5); ctx.stroke();
+        ctx.font = "12px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(label, (x1 + x2) / 2, y1 + 6);
+      }
+    }
+  }
+
+  function refresh(){ updateTexts(); draw(); }
+
+  wEl.addEventListener("input", function(){
+    w = clamp(parseFloat(wEl.value) || 0.5, 0.5, 12);
+    saveState(); refresh();
+  });
+  hEl.addEventListener("input", function(){
+    h = clamp(parseFloat(hEl.value) || 0.5, 0.5, 12);
+    saveState(); refresh();
+  });
+
+  saveState();
+  refresh();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!-- more-genui: {"version":1,"id":"spring-1","title":"理想弹簧振子","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>弹簧振子</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#7ee081}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:720px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b101b}
+.r{display:flex;justify-content:space-between;font-size:.8rem;color:#9aa7c2;margin:12px 0 4px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.f{margin-top:8px;font-size:.85rem}
+</style></head><body><div class="w">
+<h1>理想弹簧振子（m = 1 kg）</h1>
+<p class="s">无阻尼简谐运动：ω=√(k/m)，周期 T=2π√(m/k)。刚度 k 越大振动越快、周期越短。</p>
+<canvas id="cv" width="700" height="220"></canvas>
+<div class="r"><span>刚度 k (N/m)</span><span id="ok">10.0</span></div>
+<input id="k" type="range" min="1" max="100" step="1" value="20" aria-label="刚度">
+<p class="f">周期 T = <span id="ot">1.40</span> s &nbsp;|&nbsp; 角频率 ω = <span id="ow">4.47</span> rad/s</p>
+</div>
+<script>(function(){
+var D={k:20},S={k:D.k};
+try{if(genui&&genui.getState){var g=genui.getState();if(g&&+g.k)S.k=Math.min(100,Math.max(1,+g.k));}}catch(e){}
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+var kE=document.getElementById("k"),ok=document.getElementById("ok"),ot=document.getElementById("ot"),ow=document.getElementById("ow");
+var m=1,acc=0,last=0;
+function save(){try{genui.setState(S)}catch(e){}}
+function ui(){var w=Math.sqrt(S.k/m),T=2*Math.PI/w;ok.textContent=S.k.toFixed(1);ot.textContent=T.toFixed(2);ow.textContent=w.toFixed(2);kE.value=S.k}
+kE.oninput=function(){S.k=+this.value;ui();save()};
+function draw(){
+ var W=cv.width,H=cv.height,mid=H/2,A=H*0.32,wallX=30,massX=120,massW=60;
+ var w=Math.sqrt(S.k/m),x=A*Math.sin(w*acc);
+ ctx.clearRect(0,0,W,H);
+ ctx.strokeStyle="#3a4a6b";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(wallX,mid-40);ctx.lineTo(wallX,mid+40);ctx.stroke();
+ var cxp=massX+massW/2,mx=cxp+x;
+ ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue("--accent");ctx.lineWidth=2;ctx.beginPath();
+ var coils=12;for(var i=0;i<=coils*2;i++){var t=i/(coils*2),px=wallX+t*(mx-massW/2-wallX);var py=mid+((i%2)?-14:14)*Math.sin(Math.PI*t);i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.stroke();
+ ctx.fillStyle="#233050";ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue("--accent");ctx.lineWidth=2;
+ ctx.fillRect(mx-massW/2,mid-massW/2,massW,massW);ctx.strokeRect(mx-massW/2,mid-massW/2,massW,massW);
+ ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--fg");ctx.font="14px system-ui";ctx.textAlign="center";
+ ctx.fillText("m=1kg",mx,mid+5);
+}
+function loop(ts){if(!last)last=ts;var dt=Math.min(.05,(ts-last)/1000);last=ts;acc+=dt;draw();requestAnimationFrame(loop)}
+ui();draw();requestAnimationFrame(loop);
+})();</script></body></html>

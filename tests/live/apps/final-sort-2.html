@@ -1,0 +1,455 @@
+<!-- more-genui: {"version":1,"id":"final-sort-2","title":"冒泡排序逐步演示","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>冒泡排序逐步演示</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --fg:#e8eef4;
+    --accent:#f7b955;
+    --panel:#17222e;
+    --muted:#9fb0c0;
+    --grid:#26364a;
+    --bar:#3d5a80;
+    --compare:#4cc9f0;
+    --swap:#ff6b6b;
+    --sorted:#7ee787;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;padding:16px;
+    background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+  h1{font-size:1.15rem;margin:0 0 4px;font-weight:650;}
+  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px;}
+  .toolbar{
+    display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:10px 12px;margin-bottom:12px;
+  }
+  button{
+    font:inherit;font-size:.88rem;color:var(--fg);
+    background:#22303f;border:1px solid #35506a;border-radius:8px;
+    padding:7px 13px;cursor:pointer;transition:background .15s,border-color .15s;
+  }
+  button:hover:not(:disabled){background:#2c4054;border-color:var(--accent);}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  button.primary{background:#2f4a33;border-color:#4f7a55;}
+  button.primary:hover:not(:disabled){background:#3a5c40;border-color:var(--accent);}
+  .speed{
+    display:flex;align-items:center;gap:8px;margin-left:auto;
+    font-size:.82rem;color:var(--muted);
+  }
+  .speed input{accent-color:var(--accent);width:110px;cursor:pointer;}
+  .speed input:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+  .canvas-box{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:8px;
+  }
+  canvas{display:block;width:100%;height:auto;border-radius:6px;}
+  .legend{
+    display:flex;flex-wrap:wrap;gap:14px;
+    font-size:.78rem;color:var(--muted);margin-top:10px;
+  }
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .status{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+    gap:8px;margin-top:12px;
+  }
+  .stat{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:8px;padding:8px 10px;
+  }
+  .stat .k{color:var(--muted);font-size:.75rem;}
+  .stat .v{font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums;}
+  .stat .v.accent{color:var(--accent);}
+  .msg{
+    margin-top:10px;padding:9px 12px;border-radius:8px;
+    background:#1b2836;border:1px solid var(--grid);
+    font-size:.86rem;min-height:40px;display:flex;align-items:center;
+  }
+  .msg b{color:var(--accent);}
+  .note{color:var(--muted);font-size:.78rem;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>冒泡排序逐步演示</h1>
+  <p class="sub">相邻比较、逆序交换；每轮把最大元素“冒”到未排序区末尾。</p>
+
+  <div class="toolbar">
+    <button id="prevBtn" type="button" aria-label="上一步">◀ 上一步</button>
+    <button id="nextBtn" type="button" class="primary" aria-label="下一步">下一步 ▶</button>
+    <button id="playBtn" type="button" aria-label="自动播放或暂停">▶ 自动播放</button>
+    <button id="resetBtn" type="button" aria-label="重置到初始数组">↺ 重置</button>
+    <button id="shuffleBtn" type="button" aria-label="随机生成新数组">🎲 随机数组</button>
+    <div class="speed">
+      <label for="speed">速度</label>
+      <input id="speed" type="range" min="1" max="10" step="1" value="4"
+             aria-label="播放速度，1 慢到 10 快">
+      <output id="speedOut">4×</output>
+    </div>
+  </div>
+
+  <div class="canvas-box">
+    <canvas id="cv" width="900" height="330" role="img"
+            aria-label="冒泡排序柱状图，颜色表示比较、交换与已排序状态"></canvas>
+  </div>
+
+  <div class="legend" aria-hidden="true">
+    <span><i class="dot" style="background:#3d5a80"></i>未排序</span>
+    <span><i class="dot" style="background:#4cc9f0"></i>正在比较</span>
+    <span><i class="dot" style="background:#ff6b6b"></i>正在交换</span>
+    <span><i class="dot" style="background:#7ee787"></i>已就位</span>
+  </div>
+
+  <div class="status">
+    <div class="stat"><div class="k">当前轮次</div><div class="v accent" id="roundOut">0</div></div>
+    <div class="stat"><div class="k">比较次数</div><div class="v" id="compOut">0</div></div>
+    <div class="stat"><div class="k">交换次数</div><div class="v" id="swapOut">0</div></div>
+    <div class="stat"><div class="k">步骤</div><div class="v" id="stepOut">0 / 0</div></div>
+    <div class="stat"><div class="k">状态</div><div class="v" id="phaseOut">就绪</div></div>
+  </div>
+
+  <div class="msg" id="msg">点击“下一步”开始逐步演示，或点“自动播放”连续观察。</div>
+
+  <p class="note">假设：整数数组、升序排列、标准相邻交换冒泡、每轮末尾就位、某轮无交换则提前结束。柱高按数值线性映射。</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var prevBtn = document.getElementById("prevBtn");
+  var nextBtn = document.getElementById("nextBtn");
+  var playBtn = document.getElementById("playBtn");
+  var resetBtn = document.getElementById("resetBtn");
+  var shuffleBtn = document.getElementById("shuffleBtn");
+  var speedEl = document.getElementById("speed");
+  var speedOut = document.getElementById("speedOut");
+  var roundOut = document.getElementById("roundOut");
+  var compOut = document.getElementById("compOut");
+  var swapOut = document.getElementById("swapOut");
+  var stepOut = document.getElementById("stepOut");
+  var phaseOut = document.getElementById("phaseOut");
+  var msgEl = document.getElementById("msg");
+
+  var DEFAULT_ARR = [5, 1, 4, 2, 8, 3, 7, 6];
+  var COL = {
+    bar:"#3d5a80", compare:"#4cc9f0", swap:"#ff6b6b", sorted:"#7ee787"
+  };
+
+  function clampInt(v, lo, hi){ return Math.min(hi, Math.max(lo, Math.round(v))); }
+  function isIntArray(a){
+    return Array.isArray(a) && a.length >= 2 && a.length <= 14 &&
+           a.every(function(v){ return typeof v === "number" && isFinite(v) && Math.floor(v) === v; });
+  }
+
+  var state = genui.getState() || {};
+  var speed = clampInt((typeof state.speed === "number" ? state.speed : 4), 1, 10);
+  speedEl.value = String(speed);
+  speedOut.textContent = speed + "×";
+
+  var baseArr = isIntArray(state.arr) ? state.arr.slice() : DEFAULT_ARR.slice();
+
+  var steps = [];        // 全部步骤快照
+  var cursor = 0;        // 当前步骤索引
+  var playing = false;
+  var timer = null;
+
+  function saveState(){
+    genui.setState({ arr: baseArr.slice(), speed: speed });
+  }
+
+  // 生成完整步骤序列：每步包含数组快照与状态标注
+  function buildSteps(arr){
+    var a = arr.slice();
+    var out = [];
+    var n = a.length;
+    var comparisons = 0, swaps = 0, round = 0;
+
+    function snap(opt){
+      out.push({
+        arr: a.slice(),
+        compareIdx: opt.compareIdx || [],
+        swapIdx: opt.swapIdx || [],
+        sortedFrom: (opt.sortedFrom === undefined ? n : opt.sortedFrom),
+        round: round,
+        comparisons: comparisons,
+        swaps: swaps,
+        phase: opt.phase || "就绪",
+        msg: opt.msg || ""
+      });
+    }
+
+    snap({ phase:"就绪", msg:"初始数组，准备开始第一轮。" });
+
+    var end = n - 1;
+    var didSwap = true;
+    while (end > 0 && didSwap){
+      round++;
+      didSwap = false;
+      snap({ sortedFrom: end + 1, phase:"新一轮", msg:"第 " + round + " 轮开始，未排序区间 [0, " + end + "]。" });
+
+      for (var i = 0; i < end; i++){
+        comparisons++;
+        snap({
+          compareIdx: [i, i + 1],
+          sortedFrom: end + 1,
+          phase:"比较",
+          msg:"比较 a[" + i + "]=" + a[i] + " 与 a[" + (i+1) + "]=" + a[i+1] + "。"
+        });
+        if (a[i] > a[i + 1]){
+          var tmp = a[i]; a[i] = a[i + 1]; a[i + 1] = tmp;
+          swaps++;
+          didSwap = true;
+          snap({
+            swapIdx: [i, i + 1],
+            sortedFrom: end + 1,
+            phase:"交换",
+            msg:"逆序，交换 a[" + i + "] 与 a[" + (i+1) + "]。"
+          });
+        } else {
+          snap({
+            compareIdx: [i, i + 1],
+            sortedFrom: end + 1,
+            phase:"不交换",
+            msg:"顺序正确，不交换。"
+          });
+        }
+      }
+
+      snap({
+        sortedFrom: end,
+        phase:"就位",
+        msg:"第 " + round + " 轮结束：a[" + end + "]=" + a[end] + " 已就位。"
+      });
+      end--;
+    }
+
+    if (end > 0){
+      // 提前结束：剩余部分自然有序
+      snap({ sortedFrom: 0, phase:"提前结束", msg:"本轮没有发生交换，数组已有序，提前结束。" });
+    }
+    snap({ sortedFrom: 0, phase:"完成", msg:"排序完成！共 " + comparisons + " 次比较，" + swaps + " 次交换。" });
+    return out;
+  }
+
+  function rebuild(){
+    steps = buildSteps(baseArr);
+    cursor = 0;
+    stopPlay();
+    render();
+  }
+
+  function current(){ return steps[cursor]; }
+
+  function render(){
+    var st = current();
+    draw(st);
+    roundOut.textContent = String(st.round);
+    compOut.textContent = String(st.comparisons);
+    swapOut.textContent = String(st.swaps);
+    stepOut.textContent = (cursor + 1) + " / " + steps.length;
+    phaseOut.textContent = st.phase;
+    msgEl.innerHTML = st.msg || "—";
+
+    prevBtn.disabled = (cursor <= 0);
+    nextBtn.disabled = (cursor >= steps.length - 1);
+    playBtn.textContent = playing ? "⏸ 暂停" : "▶ 自动播放";
+    playBtn.disabled = (cursor >= steps.length - 1 && !playing);
+  }
+
+  function draw(st){
+    var W = cv.width, H = cv.height;
+    var padL = 30, padR = 20, padT = 26, padB = 46;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+    var a = st.arr;
+    var n = a.length;
+    var maxV = Math.max.apply(null, a);
+    maxV = Math.max(maxV, 1);
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#101a24";
+    ctx.fillRect(padL, padT, plotW, plotH);
+
+    // 基线
+    ctx.strokeStyle = "#55708a";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT + plotH);
+    ctx.lineTo(padL + plotW, padT + plotH);
+    ctx.stroke();
+
+    var slot = plotW / n;
+    var barW = Math.max(10, slot * 0.62);
+
+    for (var i = 0; i < n; i++){
+      var h = (a[i] / maxV) * (plotH - 10);
+      var x = padL + slot * i + (slot - barW) / 2;
+      var y = padT + plotH - h;
+
+      var color = COL.bar;
+      if (st.swapIdx.indexOf(i) !== -1) color = COL.swap;
+      else if (st.compareIdx.indexOf(i) !== -1) color = COL.compare;
+      else if (i >= st.sortedFrom) color = COL.sorted;
+
+      // 柱
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, barW, h, Math.min(6, barW/3));
+      else ctx.rect(x, y, barW, h);
+      ctx.fill();
+
+      // 高亮描边
+      if (st.swapIdx.indexOf(i) !== -1 || st.compareIdx.indexOf(i) !== -1){
+        ctx.strokeStyle = "#ffffff";
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      // 数值
+      ctx.fillStyle = "#e8eef4";
+      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(String(a[i]), x + barW / 2, y - 4);
+
+      // 下标
+      ctx.fillStyle = "#9fb0c0";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText(String(i), x + barW / 2, padT + plotH + 8);
+    }
+
+    // 已排序区间括号提示
+    if (st.sortedFrom < n){
+      var sx = padL + slot * st.sortedFrom;
+      var ex = padL + plotW;
+      ctx.strokeStyle = "rgba(126,231,135,0.75)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, padT + plotH + 26);
+      ctx.lineTo(ex, padT + plotH + 26);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(126,231,135,0.9)";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("已就位", (sx + ex) / 2, padT + plotH + 24);
+    }
+
+    // 标题信息
+    ctx.fillStyle = "#9fb0c0";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("第 " + st.round + " 轮 · " + st.phase, padL, 6);
+  }
+
+  function stepForward(){
+    if (cursor < steps.length - 1){
+      cursor++;
+      render();
+      return true;
+    }
+    return false;
+  }
+
+  function stopPlay(){
+    playing = false;
+    if (timer !== null){ clearTimeout(timer); timer = null; }
+    if (playBtn) playBtn.textContent = "▶ 自动播放";
+  }
+
+  function scheduleNext(){
+    if (!playing) return;
+    var delay = Math.round(900 / speed);
+    timer = setTimeout(function(){
+      if (!playing) return;
+      if (!stepForward()){
+        stopPlay();
+        render();
+        return;
+      }
+      if (cursor >= steps.length - 1){
+        stopPlay();
+        render();
+        return;
+      }
+      scheduleNext();
+    }, delay);
+  }
+
+  function startPlay(){
+    if (cursor >= steps.length - 1) return;
+    playing = true;
+    playBtn.textContent = "⏸ 暂停";
+    nextBtn.disabled = true;
+    scheduleNext();
+  }
+
+  prevBtn.addEventListener("click", function(){
+    stopPlay();
+    if (cursor > 0){ cursor--; render(); }
+  });
+
+  nextBtn.addEventListener("click", function(){
+    stopPlay();
+    stepForward();
+    render();
+  });
+
+  playBtn.addEventListener("click", function(){
+    if (playing){ stopPlay(); render(); }
+    else startPlay();
+  });
+
+  resetBtn.addEventListener("click", function(){
+    stopPlay();
+    cursor = 0;
+    render();
+  });
+
+  shuffleBtn.addEventListener("click", function(){
+    stopPlay();
+    var n = 8;
+    var arr = [];
+    for (var i = 0; i < n; i++){
+      arr.push(1 + Math.floor(Math.random() * 9));
+    }
+    baseArr = arr;
+    saveState();
+    rebuild();
+  });
+
+  speedEl.addEventListener("input", function(){
+    speed = clampInt(parseFloat(speedEl.value) || 4, 1, 10);
+    speedOut.textContent = speed + "×";
+    saveState();
+    if (playing){
+      // 以新速度重新排程
+      if (timer !== null){ clearTimeout(timer); timer = null; }
+      scheduleNext();
+    }
+  });
+
+  saveState();
+  rebuild();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "name": "more-genui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/prepare.mjs && wxt",
+    "build": "node scripts/prepare.mjs && wxt build && node scripts/build-harness.mjs",
+    "check": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "verify": "pnpm check && pnpm build && pnpm test && pnpm test:e2e",
+    "pretest": "node scripts/prepare.mjs && node scripts/build-harness.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/dsh-client-ui-chat": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-session": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-theme": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-util-values": "0.2.1-rc.5",
+    "@playwright/test": "^1.64.1",
+    "@types/chrome": "^0.1.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.7",
+    "esbuild": "^0.28.2",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3",
+    "wxt": "^0.21.5"
+  },
+  "version": "0.1.0"
+}

@@ -1,0 +1,20 @@
+这是独立交互应用验收任务，第1轮。请分别完成以下5个题目，各自输出一个独立完整的genui-html代码块，共5块。每个应用尽量紧凑（约60行以内），有简短原理说明、可操作控件和实时可见结果，不要把5个应用合在一个页面。不要为了凑数省略实现。元数据id使用括号内的英文id。
+无空气阻力的抛体运动初速度与角度，g=9.8（projectile-1）
+欧姆定律电压电阻与电流（ohm-1）
+RGB三原色混合（rgb-1）
+矩形长宽与面积周长（rectangle-1）
+独立公平硬币投掷次数与恰好k次正面的概率（coin-1）
+
+[More GenUI v1]
+你正在为 More GenUI 宿主生成回答。普通文字问题直接用文字回答；只有交互有助于理解时才生成应用。正文与交互应用可以交错。以下是运行协议，不是可省略的风格建议：
+1. 每个应用单独放在语言名严格为 genui-html 的 Markdown 代码围栏中，不能使用 html 围栏或原生预览/Artifact。多个独立题目必须各有一个完整应用，不能合并或漏掉。
+2. 围栏内第一行必须是元数据注释，随后才是完整 HTML。例如：
+```genui-html
+<!-- more-genui: {"version":1,"id":"unique-short-id","title":"应用标题","stateVersion":1} -->
+<html><body><label>参数 <input id="x" type="range" min="0" max="10"></label><output id="value"></output><script>const x=document.getElementById("x");x.value=genui.getState().x??5;function update(){document.getElementById("value").textContent=x.value;genui.setState({x:Number(x.value)})}x.oninput=update;update();</script></body></html>
+```
+3. 只能使用原生 HTML/CSS/经典 JavaScript、SVG、canvas。离线运行：禁止外部库、import、fetch、网络图片、链接跳转、表单提交与弹窗。脚本会在 HTML 挂载后执行，不需要等待 load。
+4. 用 genui.getState() 加默认值恢复参数，每次用户操作后用 genui.setState(JSON对象) 保存。不要保存动画帧。更新同一应用时保留 id，状态兼容时保留 stateVersion，不兼容时递增。源码不超过256 KiB，状态不超过64 KiB。
+5. 控件要有可访问标签、响应式布局和实时可见反馈；用 --bg、--fg、--accent 配色，写清数学假设。
+输出前逐块检查：元数据第一行、正确的 genui-html 围栏、完整 </html> 与结束围栏、控件事件已经绑定。不要在正文重复附加指令。
+[/More GenUI]

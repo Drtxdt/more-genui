@@ -1,0 +1,322 @@
+<!-- more-genui: {"version":1,"id":"final-rgb-2","title":"RGB三原色混合","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGB 三原色混合</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --fg:#e8eef4;
+    --accent:#ff8fa3;
+    --panel:#17222e;
+    --muted:#9fb0c0;
+    --grid:#26364a;
+    --r:#ff5c5c;
+    --g:#5cff8a;
+    --b:#5c9bff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;padding:16px;
+    background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:940px;margin:0 auto;}
+  h1{font-size:1.15rem;margin:0 0 4px;font-weight:650;}
+  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px;}
+  .layout{
+    display:grid;grid-template-columns:1.15fr 1fr;gap:12px;align-items:start;
+  }
+  @media (max-width:760px){ .layout{grid-template-columns:1fr;} }
+  .panel{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:12px 14px;
+  }
+  .ctrl{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+  .ctrl:last-child{margin-bottom:0;}
+  .ctrl label{font-size:.9rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .ctrl label b{font-variant-numeric:tabular-nums;}
+  .ctrl label .ch{font-weight:700;}
+  #rLbl .ch{color:var(--r);}
+  #gLbl .ch{color:var(--g);}
+  #bLbl .ch{color:var(--b);}
+  input[type=range]{width:100%;cursor:pointer;height:22px;}
+  #r{accent-color:var(--r);}
+  #g{accent-color:var(--g);}
+  #b{accent-color:var(--b);}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+  .swatch{
+    width:100%;height:150px;border-radius:8px;border:1px solid #33465c;
+    margin-bottom:10px;transition:background-color .08s linear;
+    display:flex;align-items:flex-end;justify-content:flex-end;padding:8px;
+  }
+  .swatch span{
+    font-size:.78rem;padding:3px 7px;border-radius:5px;
+    background:rgba(0,0,0,.55);color:#fff;font-variant-numeric:tabular-nums;
+  }
+  .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;}
+  .chip{
+    background:#101a24;border:1px solid var(--grid);border-radius:8px;padding:7px 9px;
+  }
+  .chip .k{color:var(--muted);font-size:.72rem;}
+  .chip .v{font-size:.98rem;font-weight:600;font-variant-numeric:tabular-nums;word-break:break-all;}
+  .canvas-box{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:8px;margin-top:12px;
+  }
+  canvas{display:block;width:100%;height:auto;border-radius:6px;}
+  .presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .presets button{
+    font:inherit;font-size:.82rem;color:var(--fg);
+    background:#22303f;border:1px solid #35506a;border-radius:8px;
+    padding:6px 12px;cursor:pointer;transition:background .15s,border-color .15s;
+  }
+  .presets button:hover{background:#2c4054;border-color:var(--accent);}
+  .presets button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .note{color:var(--muted);font-size:.78rem;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>RGB 三原色混合</h1>
+  <p class="sub">加色混合：(R, G, B)，各通道 0–255；三色同亮为白，全暗为黑</p>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="ctrl">
+        <label id="rLbl" for="r"><span class="ch">R 红</span> <b><output id="rOut">200</output></b></label>
+        <input id="r" type="range" min="0" max="255" step="1" value="200"
+               aria-label="红色通道 R，范围 0 到 255">
+      </div>
+      <div class="ctrl">
+        <label id="gLbl" for="g"><span class="ch">G 绿</span> <b><output id="gOut">120</output></b></label>
+        <input id="g" type="range" min="0" max="255" step="1" value="120"
+               aria-label="绿色通道 G，范围 0 到 255">
+      </div>
+      <div class="ctrl">
+        <label id="bLbl" for="b"><span class="ch">B 蓝</span> <b><output id="bOut">80</output></b></label>
+        <input id="b" type="range" min="0" max="255" step="1" value="80"
+               aria-label="蓝色通道 B，范围 0 到 255">
+      </div>
+      <div class="presets">
+        <button type="button" data-r="255" data-g="0" data-b="0">红</button>
+        <button type="button" data-r="0" data-g="255" data-b="0">绿</button>
+        <button type="button" data-r="0" data-g="0" data-b="255">蓝</button>
+        <button type="button" data-r="255" data-g="255" data-b="0">黄</button>
+        <button type="button" data-r="0" data-g="255" data-b="255">青</button>
+        <button type="button" data-r="255" data-g="0" data-b="255">品红</button>
+        <button type="button" data-r="255" data-g="255" data-b="255">白</button>
+        <button type="button" data-r="0" data-g="0" data-b="0">黑</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="swatch" id="swatch" aria-live="polite" aria-label="当前混合颜色">
+        <span id="swatchLabel">rgb(200,120,80)</span>
+      </div>
+      <div class="chips">
+        <div class="chip"><div class="k">HEX</div><div class="v" id="hexOut">#C87850</div></div>
+        <div class="chip"><div class="k">归一化 r,g,b</div><div class="v" id="normOut">0.78, 0.47, 0.31</div></div>
+        <div class="chip"><div class="k">亮度 Y（Rec.709）</div><div class="v" id="lumOut">0.52</div></div>
+        <div class="chip"><div class="k">饱和度（max−min）/255</div><div class="v" id="satOut">0.47</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="canvas-box">
+    <canvas id="cv" width="900" height="340" role="img"
+            aria-label="三个原色圆重叠，展示加色混合规律与当前颜色位置"></canvas>
+  </div>
+
+  <p class="note">圆盘重叠区按加色规则显示：红+绿=黄，绿+蓝=青，红+蓝=品红，三者重叠=白。假设为 sRGB、通道线性可加、不做 gamma 校正。</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var rEl = document.getElementById("r");
+  var gEl = document.getElementById("g");
+  var bEl = document.getElementById("b");
+  var rOut = document.getElementById("rOut");
+  var gOut = document.getElementById("gOut");
+  var bOut = document.getElementById("bOut");
+  var swatch = document.getElementById("swatch");
+  var swatchLabel = document.getElementById("swatchLabel");
+  var hexOut = document.getElementById("hexOut");
+  var normOut = document.getElementById("normOut");
+  var lumOut = document.getElementById("lumOut");
+  var satOut = document.getElementById("satOut");
+  var presetBtns = document.querySelectorAll(".presets button");
+
+  function clampInt(v, lo, hi){ return Math.min(hi, Math.max(lo, Math.round(v))); }
+  function num(v, d){ return (typeof v === "number" && isFinite(v)) ? v : d; }
+
+  var state = genui.getState() || {};
+  var R = clampInt(num(state.R, 200), 0, 255);
+  var G = clampInt(num(state.G, 120), 0, 255);
+  var B = clampInt(num(state.B, 80), 0, 255);
+
+  rEl.value = String(R);
+  gEl.value = String(G);
+  bEl.value = String(B);
+
+  function saveState(){ genui.setState({ R: R, G: G, B: B }); }
+
+  function hex2(v){
+    var s = v.toString(16).toUpperCase();
+    return s.length < 2 ? "0" + s : s;
+  }
+
+  function updateTexts(){
+    rOut.textContent = String(R);
+    gOut.textContent = String(G);
+    bOut.textContent = String(B);
+
+    var rgbStr = "rgb(" + R + "," + G + "," + B + ")";
+    swatch.style.backgroundColor = rgbStr;
+    swatchLabel.textContent = rgbStr;
+    hexOut.textContent = "#" + hex2(R) + hex2(G) + hex2(B);
+    normOut.textContent = (R/255).toFixed(2) + ", " + (G/255).toFixed(2) + ", " + (B/255).toFixed(2);
+
+    var rn = R/255, gn = G/255, bn = B/255;
+    var lum = 0.2126*rn + 0.7152*gn + 0.0722*bn;
+    lumOut.textContent = lum.toFixed(2);
+
+    var mx = Math.max(R,G,B), mn = Math.min(R,G,B);
+    satOut.textContent = ((mx - mn) / 255).toFixed(2);
+
+    // 色块上的文字在亮背景时用深色
+    swatchLabel.style.color = (lum > 0.55) ? "#101a24" : "#ffffff";
+    swatchLabel.style.background = (lum > 0.55) ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.55)";
+  }
+
+  function draw(){
+    var W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#101a24";
+    ctx.fillRect(0, 0, W, H);
+
+    var cy = H / 2;
+    var rad = Math.min(H * 0.36, 120);
+    var spread = rad * 0.62;
+    var cR = { x: W/2 - spread, y: cy - spread * 0.5 };
+    var cG = { x: W/2 + spread, y: cy - spread * 0.5 };
+    var cB = { x: W/2, y: cy + spread * 0.85 };
+
+    // 用离屏逐像素合成，保证加色规则准确
+    var img = ctx.createImageData(W, H);
+    var data = img.data;
+    var alphaR = Math.max(R, 70) / 255; // 保证圆可见
+    var alphaG = Math.max(G, 70) / 255;
+    var alphaB = Math.max(B, 70) / 255;
+
+    for (var y = 0; y < H; y++){
+      for (var x = 0; x < W; x++){
+        var idx = (y * W + x) * 4;
+        var inR = (x-cR.x)*(x-cR.x) + (y-cR.y)*(y-cR.y) <= rad*rad;
+        var inG = (x-cG.x)*(x-cG.x) + (y-cG.y)*(y-cG.y) <= rad*rad;
+        var inB = (x-cB.x)*(x-cB.x) + (y-cB.y)*(y-cB.y) <= rad*rad;
+        if (!inR && !inG && !inB){
+          data[idx] = 16; data[idx+1] = 26; data[idx+2] = 36; data[idx+3] = 255;
+          continue;
+        }
+        // 每个圆内部以其通道强度发光；圆的“存在”用强度 alpha 体现
+        var rr = inR ? Math.max(60, R) : 0;
+        var gg = inG ? Math.max(60, G) : 0;
+        var bb = inB ? Math.max(60, B) : 0;
+        // 加色叠加并限制 255
+        data[idx]   = Math.min(255, rr);
+        data[idx+1] = Math.min(255, gg);
+        data[idx+2] = Math.min(255, bb);
+        data[idx+3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // 圆边框与标签
+    function ring(c, color, label){
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, rad, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, c.x, c.y - rad - 12);
+    }
+    ring(cR, "#ff5c5c", "R " + R);
+    ring(cG, "#5cff8a", "G " + G);
+    ring(cB, "#5c9bff", "B " + B);
+
+    // 右下角当前颜色示例条
+    var bx = W - 150, by = H - 54, bw = 132, bh = 38;
+    ctx.fillStyle = "rgb(" + R + "," + G + "," + B + ")";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 8);
+    else ctx.rect(bx, by, bw, bh);
+    ctx.fill();
+    ctx.strokeStyle = "#55708a";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 当前颜色位置点（在 RGB 立方体对角线上的近似投影，仅示意）
+    var t = (R + G + B) / 765;
+    var dotX = 96;
+    var dotY = H - 40;
+    ctx.fillStyle = "rgba(159,176,192,0.9)";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("当前混合", 24, H - 74);
+    ctx.fillStyle = "rgb(" + R + "," + G + "," + B + ")";
+    ctx.beginPath();
+    ctx.arc(dotX, H - 42, 13, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = "#e8eef4";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function refresh(){ updateTexts(); draw(); }
+
+  function bind(el, setter){
+    el.addEventListener("input", function(){
+      setter(clampInt(parseFloat(el.value) || 0, 0, 255));
+      saveState();
+      refresh();
+    });
+  }
+
+  bind(rEl, function(v){ R = v; });
+  bind(gEl, function(v){ G = v; });
+  bind(bEl, function(v){ B = v; });
+
+  for (var i = 0; i < presetBtns.length; i++){
+    (function(btn){
+      btn.addEventListener("click", function(){
+        R = clampInt(parseInt(btn.getAttribute("data-r"), 10) || 0, 0, 255);
+        G = clampInt(parseInt(btn.getAttribute("data-g"), 10) || 0, 0, 255);
+        B = clampInt(parseInt(btn.getAttribute("data-b"), 10) || 0, 0, 255);
+        rEl.value = String(R);
+        gEl.value = String(G);
+        bEl.value = String(B);
+        saveState();
+        refresh();
+      });
+    })(presetBtns[i]);
+  }
+
+  saveState();
+  refresh();
+})();
+</script>
+</body>
+</html>

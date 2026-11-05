@@ -1,0 +1,24 @@
+<!-- more-genui: {"version":1,"id":"linear-2","title":"一次函数斜率与截距","stateVersion":1} -->
+<html><body style="margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;">
+<div style="max-width:560px;margin:0 auto;">
+<h2 style="color:var(--accent);font-weight:500;">📈 一次函数 y = kx + b</h2>
+<p style="font-size:13px;opacity:0.75;">k是斜率（每单位x的y变化量），b是y轴截距（x=0时的y值）。</p>
+<canvas id="c" width="520" height="240" style="width:100%;background:#0e1c2c;border-radius:12px;"></canvas>
+<div style="margin-top:12px;"><label style="display:flex;justify-content:space-between;">斜率 k <output id="kv">1.0</output></label>
+<input id="k" type="range" min="-3" max="3" step="0.1" value="1" style="width:100%;"></div>
+<div style="margin-top:12px;"><label style="display:flex;justify-content:space-between;">截距 b <output id="bv">0.0</output></label>
+<input id="b" type="range" min="-4" max="4" step="0.1" value="0" style="width:100%;"></div>
+</div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d'),sk=document.getElementById('k'),sb=document.getElementById('b');
+const st=genui.getState();if(st.k!=null)sk.value=st.k;if(st.b!=null)sb.value=st.b;
+function draw(){const w=c.width,h=c.height,K=+sk.value,B=+sb.value;
+document.getElementById('kv').textContent=K.toFixed(1);document.getElementById('bv').textContent=B.toFixed(1);
+ctx.clearRect(0,0,w,h);ctx.strokeStyle='#3f5f7a';ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.moveTo(w/2,0);ctx.lineTo(w/2,h);ctx.stroke();
+const sx=w/10,sy=h/10;ctx.beginPath();ctx.strokeStyle='var(--accent)';ctx.lineWidth=2.5;
+const x1=-5,x2=5;const y1=K*x1+B,y2=K*x2+B;
+ctx.moveTo(w/2+x1*sx,h/2-y1*sy);ctx.lineTo(w/2+x2*sx,h/2-y2*sy);ctx.stroke();
+ctx.beginPath();ctx.arc(w/2,h/2-B*sy,7,0,2*Math.PI);ctx.fillStyle='#ffd966';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+genui.setState({k:K,b:B});}
+sk.oninput=draw;sb.oninput=draw;draw();
+</script></body></html>

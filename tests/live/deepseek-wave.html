@@ -1,0 +1,331 @@
+<!-- more-genui: {"version":1,"id":"wave","title":"正弦波实验","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正弦波实验：振幅与频率</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#182032; --line:#2a3550; --text:#e8edf7;
+    --muted:#9aa7c2; --accent:#4fc3f7; --accent2:#ffb74d;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:16px; background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex; justify-content:center;
+  }
+  .wrap{width:100%; max-width:860px;}
+  h1{font-size:1.25rem; margin:0 0 4px; font-weight:650;}
+  .sub{color:var(--muted); font-size:.85rem; margin:0 0 16px; line-height:1.5;}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:14px; margin-bottom:14px;
+  }
+  canvas{width:100%; height:auto; display:block; border-radius:10px; background:#0b101b;}
+  .controls{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media (max-width:560px){ .controls{grid-template-columns:1fr;} }
+  .ctrl label{display:flex; justify-content:space-between; align-items:baseline; font-size:.85rem; margin-bottom:6px; color:var(--muted);}
+  .ctrl label .val{color:var(--text); font-variant-numeric:tabular-nums; font-weight:600;}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:3px;
+    background:var(--line); outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%;
+    background:var(--accent); border:2px solid #0b101b; box-shadow:0 0 0 1px var(--accent);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px; height:16px; border-radius:50%; background:var(--accent);
+    border:2px solid #0b101b; box-shadow:0 0 0 1px var(--accent);
+  }
+  .freq::-webkit-slider-thumb{background:var(--accent2); box-shadow:0 0 0 1px var(--accent2);}
+  .freq::-moz-range-thumb{background:var(--accent2); box-shadow:0 0 0 1px var(--accent2);}
+  .readout{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px;}
+  .stat{background:#0b101b; border:1px solid var(--line); border-radius:10px; padding:8px 10px; text-align:center;}
+  .stat .k{font-size:.72rem; color:var(--muted); letter-spacing:.02em;}
+  .stat .v{font-size:1rem; font-weight:650; font-variant-numeric:tabular-nums; margin-top:2px;}
+  .stat.a .v{color:var(--accent);} .stat.f .v{color:var(--accent2);}
+  .btns{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;}
+  button{
+    background:#233050; color:var(--text); border:1px solid var(--line); border-radius:9px;
+    padding:8px 16px; font-size:.85rem; cursor:pointer; transition:background .15s;
+  }
+  button:hover{background:#2d3c62;}
+  button:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  button.primary{background:#1d5a7a; border-color:#2b7ba3;}
+  button.primary:hover{background:#24688c;}
+  .hint{font-size:.75rem; color:var(--muted); margin-top:8px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>正弦波实验</h1>
+  <p class="sub">拖动滑块改变<strong>振幅</strong>（波形高度）与<strong>频率</strong>（波形疏密），观察下方波形与周期数值的实时变化。</p>
+
+  <div class="card">
+    <canvas id="cv" width="800" height="300" role="img" aria-label="正弦波实时图形"></canvas>
+    <div class="readout">
+      <div class="stat a"><div class="k">振幅 A</div><div class="v" id="outA">1.00</div></div>
+      <div class="stat f"><div class="k">频率 f</div><div class="v" id="outF">1.00 Hz</div></div>
+      <div class="stat"><div class="k">周期 T = 1/f</div><div class="v" id="outT">1.00 s</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl">
+        <label for="amp">振幅 A <span class="val" id="labA">1.00</span></label>
+        <input type="range" id="amp" min="0.1" max="1" step="0.01" value="0.5" aria-describedby="labA">
+      </div>
+      <div class="ctrl">
+        <label for="freq">频率 f <span class="val" id="labF">1.00 Hz</span></label>
+        <input type="range" id="freq" class="freq" min="0.2" max="5" step="0.05" value="1" aria-describedby="labF">
+      </div>
+    </div>
+    <div class="btns">
+      <button id="play" class="primary" aria-pressed="false">▶ 播放音调</button>
+      <button id="pause">⏸ 暂停动画</button>
+      <button id="reset">↺ 重置</button>
+    </div>
+    <p class="hint">提示：振幅只影响波形高低，不改变音高；频率越高，波形越密、听到的音调越高。播放音调需浏览器允许音频。</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var DEFAULTS = { amp: 0.5, freq: 1.0 };
+
+  // ---- 状态恢复 ----
+  var saved = {};
+  try {
+    if (typeof genui !== "undefined" && genui.getState) {
+      var s = genui.getState();
+      if (s && typeof s === "object") saved = s;
+    }
+  } catch(e) { saved = {}; }
+
+  function num(v, d, min, max){
+    var n = Number(v);
+    if (!isFinite(n)) return d;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  var state = {
+    amp: num(saved.amp, DEFAULTS.amp, 0.1, 1),
+    freq: num(saved.freq, DEFAULTS.freq, 0.2, 5)
+  };
+
+  function persist(){
+    try {
+      if (typeof genui !== "undefined" && genui.setState) genui.setState(state);
+    } catch(e) {}
+  }
+
+  // ---- 元素 ----
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var ampEl = document.getElementById("amp");
+  var freqEl = document.getElementById("freq");
+  var labA = document.getElementById("labA");
+  var labF = document.getElementById("labF");
+  var outA = document.getElementById("outA");
+  var outF = document.getElementById("outF");
+  var outT = document.getElementById("outT");
+  var btnPlay = document.getElementById("play");
+  var btnPause = document.getElementById("pause");
+  var btnReset = document.getElementById("reset");
+
+  // ---- 画布尺寸自适应（考虑 DPR）----
+  var W = 800, H = 300, dpr = 1;
+  function resize(){
+    var rect = cv.getBoundingClientRect();
+    var cssW = rect.width || 800;
+    var cssH = Math.max(220, Math.min(360, cssW * 0.36));
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = cssW; H = cssH;
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    cv.style.height = H + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // ---- 绘制 ----
+  var AXIS_Y = 0.5;          // 平衡线位于画布中间
+  var SPAN_SECONDS = 4;      // 横轴显示 4 秒
+  var phase = 0;             // 动画相位（秒）
+
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+    var padL = 10, padR = 10, padT = 14, padB = 22;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+    var midY = padT + plotH * AXIS_Y;
+    var ampPx = (plotH / 2) * 0.9;   // 满振幅 1 时的像素高度
+
+    // 背景网格（竖线每秒一条）
+    ctx.strokeStyle = "#1c2538";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (var t = 0; t <= SPAN_SECONDS; t++){
+      var gx = padL + (t / SPAN_SECONDS) * plotW;
+      ctx.moveTo(gx, padT);
+      ctx.lineTo(gx, padT + plotH);
+    }
+    ctx.stroke();
+
+    // 平衡线
+    ctx.strokeStyle = "#3a4a6b";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, midY);
+    ctx.lineTo(padL + plotW, midY);
+    ctx.stroke();
+
+    // 振幅参考虚线（±A）
+    var Apx = ampPx * state.amp;
+    ctx.setLineDash([4, 5]);
+    ctx.strokeStyle = "rgba(79,195,247,.38)";
+    ctx.beginPath();
+    ctx.moveTo(padL, midY - Apx); ctx.lineTo(padL + plotW, midY - Apx);
+    ctx.moveTo(padL, midY + Apx); ctx.lineTo(padL + plotW, midY + Apx);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 正弦波
+    ctx.strokeStyle = "#4fc3f7";
+    ctx.lineWidth = 2.4;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    var steps = Math.max(200, Math.round(plotW));
+    for (var i = 0; i <= steps; i++){
+      var x = i / steps;
+      var tt = x * SPAN_SECONDS;
+      var y = state.amp * Math.sin(2 * Math.PI * state.freq * (tt + phase));
+      var px = padL + x * plotW;
+      var py = midY - y * ampPx;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // 时间标注
+    ctx.fillStyle = "#7d8aa8";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    for (var s = 0; s <= SPAN_SECONDS; s++){
+      var sx = padL + (s / SPAN_SECONDS) * plotW;
+      ctx.fillText(s + "s", sx, H - 6);
+    }
+    // 振幅标注
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(79,195,247,.85)";
+    ctx.fillText("+" + state.amp.toFixed(2), padL + 2, midY - Apx - 4);
+    ctx.fillText("-" + state.amp.toFixed(2), padL + 2, midY + Apx + 13);
+  }
+
+  // ---- 读数更新 ----
+  function updateUI(){
+    labA.textContent = state.amp.toFixed(2);
+    labF.textContent = state.freq.toFixed(2) + " Hz";
+    outA.textContent = state.amp.toFixed(2);
+    outF.textContent = state.freq.toFixed(2) + " Hz";
+    outT.textContent = (1 / state.freq).toFixed(2) + " s";
+    ampEl.value = state.amp;
+    freqEl.value = state.freq;
+    ampEl.setAttribute("aria-valuetext", state.amp.toFixed(2));
+    freqEl.setAttribute("aria-valuetext", state.freq.toFixed(2) + " 赫兹");
+  }
+
+  // ---- 动画 ----
+  var running = true, lastTs = 0, rafId = 0;
+  function loop(ts){
+    if (!running){ rafId = 0; return; }
+    if (!lastTs) lastTs = ts;
+    var dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
+    phase += dt;                 // 波形匀速向左推进
+    if (phase > 1e6) phase = 0;
+    draw();
+    rafId = requestAnimationFrame(loop);
+  }
+  function startLoop(){ if (!rafId && running){ lastTs = 0; rafId = requestAnimationFrame(loop); } }
+  function stopLoop(){ if (rafId){ cancelAnimationFrame(rafId); rafId = 0; } }
+
+  // ---- 音调（Web Audio）----
+  var actx = null, osc = null, gain = null, audioOn = false;
+  function ensureAudio(){
+    if (!actx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      actx = new AC();
+      osc = actx.createOscillator();
+      gain = actx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = state.freq * 220;  // 映射到可听音高
+      gain.gain.value = 0.0001;
+      osc.connect(gain).connect(actx.destination);
+      osc.start();
+    }
+    return true;
+  }
+  function applyAudio(){
+    if (!osc) return;
+    var f = state.freq * 220;
+    if (osc.frequency.setTargetAtTime) osc.frequency.setTargetAtTime(f, actx.currentTime, 0.03);
+    else osc.frequency.value = f;
+    var vol = audioOn ? 0.06 + state.amp * 0.14 : 0.0001;
+    if (gain.gain.setTargetAtTime) gain.gain.setTargetAtTime(vol, actx.currentTime, 0.05);
+    else gain.gain.value = vol;
+  }
+  function togglePlay(){
+    if (!ensureAudio()){
+      btnPlay.textContent = "✕ 浏览器不支持音频";
+      btnPlay.disabled = true;
+      return;
+    }
+    if (actx.state === "suspended") actx.resume();
+    audioOn = !audioOn;
+    btnPlay.textContent = audioOn ? "⏹ 停止音调" : "▶ 播放音调";
+    btnPlay.setAttribute("aria-pressed", String(audioOn));
+    applyAudio();
+  }
+
+  // ---- 事件 ----
+  ampEl.addEventListener("input", function(){
+    state.amp = num(this.value, DEFAULTS.amp, 0.1, 1);
+    updateUI(); persist(); applyAudio();
+  });
+  freqEl.addEventListener("input", function(){
+    state.freq = num(this.value, DEFAULTS.freq, 0.2, 5);
+    updateUI(); persist(); applyAudio();
+  });
+  btnPlay.addEventListener("click", togglePlay);
+  btnPause.addEventListener("click", function(){
+    running = !running;
+    if (running){ btnPause.textContent = "⏸ 暂停动画"; startLoop(); }
+    else { btnPause.textContent = "▶ 继续动画"; stopLoop(); }
+    btnPause.setAttribute("aria-pressed", String(!running));
+  });
+  btnReset.addEventListener("click", function(){
+    state.amp = DEFAULTS.amp; state.freq = DEFAULTS.freq; phase = 0;
+    updateUI(); persist(); applyAudio(); draw();
+  });
+
+  var rT;
+  window.addEventListener("resize", function(){
+    clearTimeout(rT);
+    rT = setTimeout(function(){ resize(); draw(); }, 120);
+  });
+
+  // ---- 初始化 ----
+  resize();
+  updateUI();
+  draw();
+  startLoop();
+})();
+</script>
+</body>
+</html>

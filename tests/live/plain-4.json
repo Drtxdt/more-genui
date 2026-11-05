@@ -1,0 +1,25 @@
+{
+  "query": "从“阳光照耀森林，小鸟在树枝上唱歌”提取三个关键词。",
+  "codeBlocks": 0,
+  "guidanceContainers": [
+    {
+      "children": 0,
+      "className": "_72b6158",
+      "tags": []
+    },
+    {
+      "children": 2,
+      "className": "_81e7b5e",
+      "tags": [
+        "DIV",
+        "DIV"
+      ]
+    },
+    {
+      "children": 0,
+      "className": "_72b6158",
+      "tags": []
+    }
+  ],
+  "text": "关键词：阳光、森林、小鸟。"
+}

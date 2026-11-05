@@ -1,0 +1,450 @@
+<!-- more-genui: {"version":1,"id":"final-projectile-2","title":"无空气阻力抛体运动","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>无空气阻力抛体运动</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --fg:#e8eef4;
+    --accent:#4cc9f0;
+    --panel:#17222e;
+    --muted:#9fb0c0;
+    --grid:#26364a;
+    --axis:#55708a;
+    --path:#4cc9f0;
+    --apex:#f7b955;
+    --land:#7ee787;
+    --ball:#ff8fa3;
+    --vel:#c792ea;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;padding:16px;
+    background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:940px;margin:0 auto;}
+  h1{font-size:1.15rem;margin:0 0 4px;font-weight:650;}
+  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px;}
+  .controls{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:12px 14px;margin-bottom:12px;
+  }
+  @media (max-width:600px){ .controls{grid-template-columns:1fr;} }
+  .ctrl{display:flex;flex-direction:column;gap:6px;}
+  .ctrl label{font-size:.9rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .ctrl label b{color:var(--accent);font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:22px;}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  button{
+    font:inherit;font-size:.88rem;color:var(--fg);
+    background:#22303f;border:1px solid #35506a;border-radius:8px;
+    padding:7px 14px;cursor:pointer;transition:background .15s,border-color .15s;
+  }
+  button:hover{background:#2c4054;border-color:var(--accent);}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  button.primary{background:#25424f;border-color:#3f7488;}
+  button.primary:hover{background:#2f5263;border-color:var(--accent);}
+  .canvas-box{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:8px;
+  }
+  canvas{display:block;width:100%;height:auto;border-radius:6px;}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.78rem;color:var(--muted);margin-top:10px;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block;}
+  .readout{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
+    gap:8px;margin-top:12px;
+  }
+  .stat{background:var(--panel);border:1px solid var(--grid);border-radius:8px;padding:8px 10px;}
+  .stat .k{color:var(--muted);font-size:.75rem;}
+  .stat .v{font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums;}
+  .stat .v.accent{color:var(--accent);}
+  .stat .v.apex{color:var(--apex);}
+  .stat .v.land{color:var(--land);}
+  .note{color:var(--muted);font-size:.78rem;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>无空气阻力抛体运动</h1>
+  <p class="sub">g = 9.8 m/s²，从地面 (0,0) 发射；水平匀速 + 竖直匀变速</p>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label for="v0">初速度 v₀（m/s） <b><output id="v0Out">20.0</output></b></label>
+      <input id="v0" type="range" min="5" max="50" step="0.5" value="20"
+             aria-label="初速度 v0，范围 5 到 50 米每秒，步长 0.5">
+    </div>
+    <div class="ctrl">
+      <label for="ang">发射角 θ（°） <b><output id="angOut">45</output></b></label>
+      <input id="ang" type="range" min="5" max="90" step="1" value="45"
+             aria-label="发射角 theta，范围 5 到 90 度，步长 1">
+    </div>
+  </div>
+
+  <div class="btns">
+    <button id="playBtn" type="button" class="primary" aria-label="播放或暂停抛体动画">▶ 播放</button>
+    <button id="resetBtn" type="button" aria-label="重置到发射时刻">↺ 重置</button>
+  </div>
+
+  <div class="canvas-box">
+    <canvas id="cv" width="920" height="480" role="img"
+            aria-label="抛体运动轨迹图，标出最高点、落点与速度分量"></canvas>
+  </div>
+
+  <div class="legend" aria-hidden="true">
+    <span><i class="dot" style="background:#4cc9f0"></i>轨迹</span>
+    <span><i class="dot" style="background:#ff8fa3"></i>抛体</span>
+    <span><i class="dot" style="background:#f7b955"></i>最高点</span>
+    <span><i class="dot" style="background:#7ee787"></i>落点</span>
+    <span><i class="dot" style="background:#c792ea"></i>速度分量</span>
+  </div>
+
+  <div class="readout">
+    <div class="stat"><div class="k">飞行时间 T</div><div class="v accent" id="tOut">2.886 s</div></div>
+    <div class="stat"><div class="k">射程 R</div><div class="v land" id="rOut">40.82 m</div></div>
+    <div class="stat"><div class="k">最大高度 H</div><div class="v apex" id="hOut">10.20 m</div></div>
+    <div class="stat"><div class="k">水平速度 vₓ</div><div class="v" id="vxOut">14.14 m/s</div></div>
+    <div class="stat"><div class="k">初始竖直速度 v₀y</div><div class="v" id="v0yOut">14.14 m/s</div></div>
+    <div class="stat"><div class="k">当前时刻 t</div><div class="v" id="tNowOut">0.00 s</div></div>
+    <div class="stat"><div class="k">当前高度 y</div><div class="v" id="yNowOut">0.00 m</div></div>
+    <div class="stat"><div class="k">当前速度 |v|</div><div class="v" id="vNowOut">20.00 m/s</div></div>
+  </div>
+
+  <p class="note">坐标窗口自动缩放以容纳整个轨迹。速度分量箭头按当前速度方向绘制，长度按比例缩放。</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var v0El = document.getElementById("v0");
+  var angEl = document.getElementById("ang");
+  var v0Out = document.getElementById("v0Out");
+  var angOut = document.getElementById("angOut");
+  var playBtn = document.getElementById("playBtn");
+  var resetBtn = document.getElementById("resetBtn");
+  var tOut = document.getElementById("tOut");
+  var rOut = document.getElementById("rOut");
+  var hOut = document.getElementById("hOut");
+  var vxOut = document.getElementById("vxOut");
+  var v0yOut = document.getElementById("v0yOut");
+  var tNowOut = document.getElementById("tNowOut");
+  var yNowOut = document.getElementById("yNowOut");
+  var vNowOut = document.getElementById("vNowOut");
+
+  var G = 9.8;
+
+  function clamp(v, lo, hi){ return Math.min(hi, Math.max(lo, v)); }
+  function num(v, d){ return (typeof v === "number" && isFinite(v)) ? v : d; }
+  function fmt(v, d){
+    var s = v.toFixed(d === undefined ? 2 : d);
+    if (s === "-0.00") s = "0.00";
+    return s;
+  }
+
+  var state = genui.getState() || {};
+  var v0 = clamp(num(state.v0, 20), 5, 50);
+  var ang = clamp(num(state.ang, 45), 5, 90);
+  v0El.value = String(v0);
+  angEl.value = String(ang);
+
+  var flying = false;
+  var tNow = 0;
+  var rafId = null;
+  var lastTs = 0;
+
+  function saveState(){ genui.setState({ v0: v0, ang: ang }); }
+
+  function rad(){ return ang * Math.PI / 180; }
+  function vx(){ return v0 * Math.cos(rad()); }
+  function v0y(){ return v0 * Math.sin(rad()); }
+  function flightTime(){ return 2 * v0y() / G; }
+  function range(){ return v0 * v0 * Math.sin(2 * rad()) / G; }
+  function maxHeight(){ var vy = v0y(); return vy * vy / (2 * G); }
+
+  function updateTexts(){
+    v0Out.textContent = fmt(v0, 1);
+    angOut.textContent = String(Math.round(ang));
+    tOut.textContent = fmt(flightTime(), 3) + " s";
+    rOut.textContent = fmt(range(), 2) + " m";
+    hOut.textContent = fmt(maxHeight(), 2) + " m";
+    vxOut.textContent = fmt(vx(), 2) + " m/s";
+    v0yOut.textContent = fmt(v0y(), 2) + " m/s";
+
+    var T = flightTime();
+    var t = Math.min(tNow, T);
+    var y = v0y() * t - 0.5 * G * t * t;
+    var vyNow = v0y() - G * t;
+    var speed = Math.sqrt(vx()*vx() + vyNow*vyNow);
+    tNowOut.textContent = fmt(t, 2) + " s";
+    yNowOut.textContent = fmt(Math.max(0, y), 2) + " m";
+    vNowOut.textContent = fmt(speed, 2) + " m/s";
+  }
+
+  function computeView(){
+    var R = range();
+    var H = maxHeight();
+    var xMax = Math.max(R * 1.15, 5);
+    var yMax = Math.max(H * 1.25, 5);
+    // 等比例：让 x,y 使用同一像素/米，取较大者作为主导
+    return { xMax: xMax, yMax: yMax };
+  }
+
+  function draw(){
+    var W = cv.width, H = cv.height;
+    var padL = 58, padR = 24, padT = 24, padB = 48;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#101a24";
+    ctx.fillRect(padL, padT, plotW, plotH);
+
+    var view = computeView();
+    // 等比例缩放：同一 scale 用于 x/y
+    var scale = Math.min(plotW / view.xMax, plotH / view.yMax);
+    var xMaxScaled = view.xMax;
+    var yMaxScaled = view.yMax;
+    function xOf(x){ return padL + x * scale; }
+    function yOf(y){ return padT + plotH - y * scale; }
+
+    // 网格：按比例选步长
+    var step = 5;
+    if (view.xMax > 120) step = 20;
+    else if (view.xMax > 60) step = 10;
+    else if (view.xMax > 25) step = 5;
+    else step = 2;
+
+    ctx.strokeStyle = "#26364a";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "#9fb0c0";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (var gx = 0; gx <= xMaxScaled + 0.001; gx += step){
+      var px = xOf(gx);
+      if (px > padL + plotW + 0.5) break;
+      ctx.beginPath(); ctx.moveTo(px, padT); ctx.lineTo(px, padT + plotH); ctx.stroke();
+      ctx.fillText(String(gx), px, padT + plotH + 6);
+    }
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (var gy = 0; gy <= yMaxScaled + 0.001; gy += step){
+      var py = yOf(gy);
+      if (py < padT - 0.5) break;
+      ctx.beginPath(); ctx.moveTo(padL, py); ctx.lineTo(padL + plotW, py); ctx.stroke();
+      ctx.fillText(String(gy), padL - 6, py);
+    }
+
+    // 地面与坐标轴
+    ctx.strokeStyle = "#55708a";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(padL, yOf(0)); ctx.lineTo(padL + plotW, yOf(0)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xOf(0), padT); ctx.lineTo(xOf(0), padT + plotH); ctx.stroke();
+
+    ctx.fillStyle = "#9fb0c0";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+    ctx.fillText("x (m)", padL + plotW, yOf(0) - 5);
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText("y (m)", xOf(0) + 6, padT - 2);
+
+    // 完整轨迹
+    var T = flightTime();
+    var steps = 200;
+    ctx.beginPath();
+    for (var i = 0; i <= steps; i++){
+      var tt = (i / steps) * T;
+      var xx = vx() * tt;
+      var yy = v0y() * tt - 0.5 * G * tt * tt;
+      if (i === 0) ctx.moveTo(xOf(xx), yOf(yy));
+      else ctx.lineTo(xOf(xx), yOf(yy));
+    }
+    ctx.strokeStyle = "rgba(76,201,240,0.55)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 已飞过的轨迹（实线）
+    var tLim = Math.min(tNow, T);
+    ctx.beginPath();
+    var steps2 = Math.max(2, Math.round(200 * tLim / Math.max(T, 1e-6)));
+    for (var j = 0; j <= steps2; j++){
+      var t2 = (j / steps2) * tLim;
+      var x2 = vx() * t2;
+      var y2 = v0y() * t2 - 0.5 * G * t2 * t2;
+      if (j === 0) ctx.moveTo(xOf(x2), yOf(y2));
+      else ctx.lineTo(xOf(x2), yOf(y2));
+    }
+    ctx.strokeStyle = "#4cc9f0";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    // 最高点
+    var tApex = v0y() / G;
+    var xApex = vx() * tApex;
+    var yApex = maxHeight();
+    ctx.fillStyle = "#f7b955";
+    ctx.beginPath(); ctx.arc(xOf(xApex), yOf(yApex), 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#f7b955";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    ctx.fillText("最高点 H=" + fmt(yApex,1) + "m", xOf(xApex), yOf(yApex) - 8);
+
+    // 落点
+    var R = range();
+    ctx.fillStyle = "#7ee787";
+    ctx.beginPath(); ctx.arc(xOf(R), yOf(0), 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#7ee787";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillText("R=" + fmt(R,1) + "m", xOf(R), yOf(0) + 6);
+
+    // 当前抛体位置
+    var tC = Math.min(tNow, T);
+    var xC = vx() * tC;
+    var yC = v0y() * tC - 0.5 * G * tC * tC;
+    if (yC < 0) yC = 0;
+
+    // 速度分量箭头
+    var vyC = v0y() - G * tC;
+    var speed = Math.sqrt(vx()*vx() + vyC*vyC);
+    if (speed > 1e-6 && tC < T + 1e-9){
+      var arrowLen = 55;
+      var ux = vx() / speed, uy = -vyC / speed; // 屏幕 y 向下，速度向上为负
+      var ax = xOf(xC), ay = yOf(yC);
+      // 合速度
+      ctx.strokeStyle = "#c792ea";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax + ux * arrowLen, ay + uy * arrowLen);
+      ctx.stroke();
+      // 箭头
+      var hx = ax + ux * arrowLen, hy = ay + uy * arrowLen;
+      var angA = Math.atan2(hy - ay, hx - ax);
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx - 9 * Math.cos(angA - 0.4), hy - 9 * Math.sin(angA - 0.4));
+      ctx.lineTo(hx - 9 * Math.cos(angA + 0.4), hy - 9 * Math.sin(angA + 0.4));
+      ctx.closePath();
+      ctx.fillStyle = "#c792ea";
+      ctx.fill();
+
+      // 分量虚线
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = "rgba(199,146,234,0.6)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax + ux * arrowLen, ay);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ax + ux * arrowLen, ay);
+      ctx.lineTo(hx, hy);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 抛体
+    ctx.fillStyle = "#ff8fa3";
+    ctx.beginPath(); ctx.arc(xOf(xC), yOf(yC), 7, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "#0f1720"; ctx.lineWidth = 2; ctx.stroke();
+
+    // 发射角标注
+    if (tC < T + 1e-9){
+      var theta = rad();
+      var arcR = 30;
+      ctx.strokeStyle = "rgba(76,201,240,0.8)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(xOf(0), yOf(0), arcR, -theta, 0);
+      ctx.stroke();
+      ctx.fillStyle = "#4cc9f0";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText(Math.round(ang) + "°", xOf(0) + arcR * Math.cos(theta/2) + 3, yOf(0) - arcR * Math.sin(theta/2) - 2);
+    }
+  }
+
+  function updateAll(){ updateTexts(); draw(); }
+
+  function stopAnim(){
+    flying = false;
+    if (rafId !== null){ cancelAnimationFrame(rafId); rafId = null; }
+    playBtn.textContent = "▶ 播放";
+  }
+
+  function loop(ts){
+    if (!flying) return;
+    if (!lastTs) lastTs = ts;
+    var dt = (ts - lastTs) / 1000;
+    lastTs = ts;
+    // 时间缩放：让整个飞行大约 3.5 秒动画完成
+    var T = flightTime();
+    var scale = Math.max(0.2, T / 3.5);
+    tNow += dt * scale;
+    if (tNow >= T){
+      tNow = T;
+      updateAll();
+      stopAnim();
+      return;
+    }
+    updateAll();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function startAnim(){
+    var T = flightTime();
+    if (tNow >= T - 1e-9) tNow = 0;
+    flying = true;
+    lastTs = 0;
+    playBtn.textContent = "⏸ 暂停";
+    rafId = requestAnimationFrame(loop);
+  }
+
+  playBtn.addEventListener("click", function(){
+    if (flying) stopAnim();
+    else startAnim();
+  });
+
+  resetBtn.addEventListener("click", function(){
+    stopAnim();
+    tNow = 0;
+    updateAll();
+  });
+
+  v0El.addEventListener("input", function(){
+    v0 = clamp(parseFloat(v0El.value) || 20, 5, 50);
+    stopAnim();
+    tNow = Math.min(tNow, flightTime());
+    saveState();
+    updateAll();
+  });
+
+  angEl.addEventListener("input", function(){
+    ang = clamp(parseFloat(angEl.value) || 45, 5, 90);
+    stopAnim();
+    tNow = Math.min(tNow, flightTime());
+    saveState();
+    updateAll();
+  });
+
+  saveState();
+  updateAll();
+})();
+</script>
+</body>
+</html>

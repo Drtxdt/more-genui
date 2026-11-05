@@ -1,0 +1,352 @@
+<!-- more-genui: {"version":1,"id":"final-coin-1","title":"硬币投掷：恰好 k 次正面的概率","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>硬币投掷：恰好 k 次正面的概率</title>
+<style>
+  :root{--bg:#0f1720;--fg:#e8eef5;--accent:#4fc3f7;--muted:#8aa0b4;--panel:#18232e;
+        --bar:#3a5570;--target:#ffb74d;--sim:#66bb6a;--peak:#8e9bff;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;}
+  h1{font-size:1.15rem;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:.85rem;margin-bottom:14px;line-height:1.5;}
+  .wrap{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start;}
+  @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:10px;}
+  canvas{width:100%;height:auto;display:block;border-radius:6px;background:#0b131b;}
+  .panel{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:14px;}
+  .ctrl{margin-bottom:14px;}
+  .ctrl:last-of-type{margin-bottom:0;}
+  label{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem;margin-bottom:6px;}
+  .val{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+  .readout{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+  .mini{background:#0b131b;border:1px solid #223141;border-radius:8px;padding:8px 10px;}
+  .mini .k{font-size:.72rem;color:var(--muted);}
+  .mini .v{font-size:.92rem;color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  .mini.wide{grid-column:1 / -1;}
+  .assume{font-size:.75rem;color:var(--muted);line-height:1.6;margin-top:12px;border-top:1px dashed #2c3d4e;padding-top:9px;}
+  .assume b{color:#c7d6e4;}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+  button{background:#22364a;color:var(--fg);border:1px solid #33506b;border-radius:8px;padding:8px;font-size:.8rem;cursor:pointer;font-family:inherit;}
+  button:hover{background:#2c4863;}
+  .hint{font-size:.75rem;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.75rem;color:var(--muted);margin-top:8px;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+</style>
+</head>
+<body>
+  <h1>硬币投掷：恰好 k 次正面的概率</h1>
+  <div class="sub">独立公平硬币（可调偏置）投掷 n 次，观察正面次数 X 的完整分布，并读取 P(X=k)。</div>
+
+  <div class="wrap">
+    <div class="card">
+      <canvas id="cv" width="900" height="560" aria-label="二项分布概率图"></canvas>
+      <div class="legend">
+        <span><i style="background:#3a5570"></i>其他 k</span>
+        <span><i style="background:#ffb74d"></i>目标 k</span>
+        <span><i style="background:#8e9bff"></i>众数（最可能）</span>
+        <span><i style="background:#66bb6a"></i>模拟频率（每格表示模拟）</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl">
+        <label for="n">投掷次数 n <span class="val" id="nOut">10</span></label>
+        <input id="n" type="range" min="1" max="40" step="1" value="10">
+      </div>
+      <div class="ctrl">
+        <label for="k">正面次数 k <span class="val" id="kOut">5</span></label>
+        <input id="k" type="range" min="0" max="10" step="1" value="5">
+      </div>
+      <div class="ctrl">
+        <label for="p">正面概率 p <span class="val" id="pOut">0.50</span></label>
+        <input id="p" type="range" min="0.01" max="0.99" step="0.01" value="0.5">
+      </div>
+
+      <div class="readout">
+        <div class="mini wide"><div class="k">P(X = k)</div><div class="v" id="pkV">0.246094</div></div>
+        <div class="mini"><div class="k">P(X ≤ k)</div><div class="v" id="leV">0.623047</div></div>
+        <div class="mini"><div class="k">P(X ≥ k)</div><div class="v" id="geV">0.623047</div></div>
+        <div class="mini"><div class="k">期望 μ = np</div><div class="v" id="meanV">5.00</div></div>
+        <div class="mini"><div class="k">标准差 σ</div><div class="v" id="sdV">1.58</div></div>
+        <div class="mini wide"><div class="k">C(n,k) / 2ⁿ（公平时）</div><div class="v" id="binomV">252 / 1024</div></div>
+      </div>
+
+      <div class="btns">
+        <button id="btnSim" type="button">▶ 模拟 1000 次</button>
+        <button id="btnClear" type="button">清除模拟</button>
+        <button id="btnFair" type="button">p = 0.5</button>
+        <button id="btnPeak" type="button">k 设为众数</button>
+      </div>
+      <div class="hint">提示：公平硬币时分布关于 n/2 对称；p 偏离 0.5 时分布向一侧倾斜。模拟次数越多，绿色频率越接近橙色理论概率。</div>
+
+      <div class="assume">
+        <b>数学假设：</b>每次投掷相互独立，正面概率恒为 p、反面概率 q=1−p，硬币无记忆。
+        正面次数 \(X\sim\mathrm{Binomial}(n,p)\)，\(P(X=k)=\binom{n}{k}p^k(1-p)^{n-k}\)，k=0…n。
+        期望 \(\mu=np\)，方差 \(\sigma^2=np(1-p)\)。p=0.5 时 \(P(X=k)=\binom{n}{k}/2^n\)。
+        “模拟”用伪随机数生成器逐次投掷，是经验频率，不改变理论值。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const nEl = document.getElementById("n");
+  const kEl = document.getElementById("k");
+  const pEl = document.getElementById("p");
+  const nOut = document.getElementById("nOut");
+  const kOut = document.getElementById("kOut");
+  const pOut = document.getElementById("pOut");
+  const pkV = document.getElementById("pkV");
+  const leV = document.getElementById("leV");
+  const geV = document.getElementById("geV");
+  const meanV = document.getElementById("meanV");
+  const sdV = document.getElementById("sdV");
+  const binomV = document.getElementById("binomV");
+  const btnSim = document.getElementById("btnSim");
+  const btnClear = document.getElementById("btnClear");
+  const btnFair = document.getElementById("btnFair");
+  const btnPeak = document.getElementById("btnPeak");
+
+  let simCounts = null;   // 当前 n 下的模拟计数
+  let simN = 0;
+
+  // 组合数对数，避免大数溢出
+  function logChoose(n, k){
+    if(k < 0 || k > n) return -Infinity;
+    let s = 0;
+    for(let i=1;i<=k;i++){
+      s += Math.log(n - k + i) - Math.log(i);
+    }
+    return s;
+  }
+
+  function binomPMF(n, k, p){
+    if(k < 0 || k > n) return 0;
+    if(p <= 0) return k === 0 ? 1 : 0;
+    if(p >= 1) return k === n ? 1 : 0;
+    const lc = logChoose(n, k);
+    return Math.exp(lc + k * Math.log(p) + (n - k) * Math.log(1 - p));
+  }
+
+  function restore(){
+    let s = {};
+    try { s = genui.getState() || {}; } catch(e){ s = {}; }
+    nEl.value = (typeof s.n === "number") ? s.n : 10;
+    kEl.value = (typeof s.k === "number") ? s.k : 5;
+    pEl.value = (typeof s.p === "number") ? s.p : 0.5;
+  }
+  function save(){
+    try {
+      genui.setState({ n:Number(nEl.value), k:Number(kEl.value), p:Number(pEl.value) });
+    } catch(e){}
+  }
+
+  function resetSim(){
+    const n = Number(nEl.value);
+    simCounts = new Array(n + 1).fill(0);
+    simN = 0;
+  }
+
+  function syncKRanges(){
+    const n = Number(nEl.value);
+    kEl.max = String(n);
+    if(Number(kEl.value) > n) kEl.value = String(n);
+  }
+
+  function draw(){
+    syncKRanges();
+    const n = Number(nEl.value);
+    const k = Number(kEl.value);
+    const p = Number(pEl.value);
+
+    nOut.textContent = n;
+    kOut.textContent = k;
+    pOut.textContent = p.toFixed(2);
+
+    if(!simCounts || simCounts.length !== n + 1) resetSim();
+
+    const pmf = [];
+    for(let i=0;i<=n;i++) pmf.push(binomPMF(n, i, p));
+
+    let pmfK = pmf[k] || 0;
+    let cumLe = 0;
+    for(let i=0;i<=k;i++) cumLe += pmf[i];
+    let cumGe = 0;
+    for(let i=k;i<=n;i++) cumGe += pmf[i];
+    const mean = n * p;
+    const sd = Math.sqrt(n * p * (1 - p));
+
+    let mode = 0;
+    for(let i=1;i<=n;i++) if(pmf[i] > pmf[mode]) mode = i;
+
+    pkV.textContent = pmfK.toFixed(6);
+    leV.textContent = cumLe.toFixed(6);
+    geV.textContent = cumGe.toFixed(6);
+    meanV.textContent = mean.toFixed(2);
+    sdV.textContent = sd.toFixed(2);
+
+    // C(n,k) 精确值（公平情况展示）
+    let cval = 1;
+    for(let i=1;i<=k;i++){ cval = cval * (n - k + i) / i; }
+    cval = Math.round(cval);
+    const denom = Math.pow(2, n);
+    binomV.textContent = (Math.abs(p - 0.5) < 1e-9)
+      ? cval + " / " + (Number.isFinite(denom) ? denom.toLocaleString() : "2^" + n)
+      : "见上方 P(X=k)";
+
+    // ===== 画布 =====
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = "#0b131b";
+    ctx.fillRect(0,0,W,H);
+
+    const pad = { l:64, r:24, t:34, b:70 };
+    const plotW = W - pad.l - pad.r;
+    const plotH = H - pad.t - pad.b;
+
+    const maxP = Math.max.apply(null, pmf.concat([1e-9]));
+    const yMax = Math.max(maxP * 1.15, 0.01);
+
+    const slot = plotW / (n + 1);
+    const barW = Math.max(2, Math.min(46, slot * 0.72));
+
+    // y 网格
+    ctx.font = "11px system-ui, sans-serif";
+    let yTicks = 5;
+    for(let i=0;i<=yTicks;i++){
+      const val = yMax * i / yTicks;
+      const y = pad.t + plotH * (1 - i / yTicks);
+      ctx.strokeStyle = "#1b2a38";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + plotW, y); ctx.stroke();
+      ctx.fillStyle = "#8aa0b4";
+      ctx.textAlign = "right";
+      ctx.fillText(val.toFixed(3), pad.l - 7, y + 4);
+    }
+
+    // 底轴
+    ctx.strokeStyle = "#36506a";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t + plotH); ctx.lineTo(pad.l + plotW, pad.t + plotH); ctx.stroke();
+
+    const maxSim = simN > 0 ? Math.max.apply(null, simCounts) : 0;
+
+    for(let i=0;i<=n;i++){
+      const cx = pad.l + slot * (i + 0.5);
+      const h = (pmf[i] / yMax) * plotH;
+      const y = pad.t + plotH - h;
+
+      // 柱体
+      ctx.fillStyle = (i === k) ? "#ffb74d" : ((i === mode) ? "#8e9bff" : "#3a5570");
+      ctx.fillRect(cx - barW/2, y, barW, h);
+
+      // 目标柱加描边
+      if(i === k){
+        ctx.strokeStyle = "#ffe0a3";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(cx - barW/2, y, barW, h);
+      }
+
+      // 模拟频率：按相对比例叠加细绿色条（同一柱内右侧）
+      if(simN > 0 && maxSim > 0){
+        const freq = simCounts[i] / simN;
+        const hs = (freq / yMax) * plotH;
+        const ys = pad.t + plotH - hs;
+        ctx.fillStyle = "rgba(102,187,106,0.85)";
+        const wS = Math.max(1.5, barW * 0.28);
+        ctx.fillRect(cx + barW/2 - wS, ys, wS, hs);
+      }
+
+      // x 标签（数量多时隔几个标）
+      const stride = n <= 20 ? 1 : Math.ceil(n / 14);
+      if(i % stride === 0){
+        ctx.fillStyle = (i === k) ? "#ffb74d" : "#8aa0b4";
+        ctx.textAlign = "center";
+        ctx.font = (i === k ? "bold " : "") + "11px system-ui, sans-serif";
+        ctx.fillText(String(i), cx, pad.t + plotH + 17);
+      }
+    }
+
+    // 标题与轴标签
+    ctx.fillStyle = "#e8eef5";
+    ctx.font = "13px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("X ~ Binomial(n = " + n + ", p = " + p.toFixed(2) + ")，P(X = k) = C(n,k)pᵏ(1−p)ⁿ⁻ᵏ", pad.l, 22);
+
+    ctx.fillStyle = "#8aa0b4";
+    ctx.textAlign = "center";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.fillText("正面次数 k（共 n+1 = " + (n+1) + " 种可能）", pad.l + plotW/2, H - 34);
+    ctx.save();
+    ctx.translate(18, pad.t + plotH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText("概率 P(X = k)", 0, 0);
+    ctx.restore();
+
+    // 模拟统计
+    if(simN > 0){
+      const simK = simCounts[k] / simN;
+      ctx.fillStyle = "#66bb6a";
+      ctx.textAlign = "left";
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.fillText("模拟 " + simN + " 组：频率(" + k + ") = " + simK.toFixed(4) +
+        "，理论 " + pmfK.toFixed(4) + "，误差 " + Math.abs(simK - pmfK).toFixed(4),
+        pad.l, H - 8);
+    } else {
+      ctx.fillStyle = "#8aa0b4";
+      ctx.textAlign = "left";
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.fillText("尚未模拟。点击“模拟 1000 次”观察经验频率逼近理论概率。", pad.l, H - 8);
+    }
+  }
+
+  function runSim(times){
+    const n = Number(nEl.value);
+    const p = Number(pEl.value);
+    if(!simCounts || simCounts.length !== n + 1) resetSim();
+    for(let t=0;t<times;t++){
+      let heads = 0;
+      for(let i=0;i<n;i++){
+        if(Math.random() < p) heads++;
+      }
+      simCounts[heads]++;
+      simN++;
+    }
+    draw();
+  }
+
+  nEl.addEventListener("input", function(){
+    syncKRanges();
+    resetSim();
+    draw();
+    save();
+  });
+  kEl.addEventListener("input", function(){ draw(); save(); });
+  pEl.addEventListener("input", function(){ draw(); save(); });
+
+  btnSim.addEventListener("click", function(){ runSim(1000); });
+  btnClear.addEventListener("click", function(){ resetSim(); draw(); });
+  btnFair.addEventListener("click", function(){ pEl.value = 0.5; draw(); save(); });
+  btnPeak.addEventListener("click", function(){
+    const n = Number(nEl.value);
+    const p = Number(pEl.value);
+    let mode = 0;
+    for(let i=1;i<=n;i++) if(binomPMF(n,i,p) > binomPMF(n,mode,p)) mode = i;
+    kEl.value = String(mode);
+    draw(); save();
+  });
+
+  restore();
+  resetSim();
+  draw();
+  save();
+})();
+</script>
+</body>
+</html>

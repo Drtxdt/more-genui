@@ -1,0 +1,40 @@
+(() => {
+  'use strict';
+  let initialized=false;
+  addEventListener('message', event => {
+    if(initialized || event.source!==parent || event.data?.type!=='more-genui-init' || event.ports.length!==1)return;
+    initialized=true;
+    const port=event.ports[0], config=event.data;
+    const send=(type,value)=>port.postMessage({type,value});
+    let state=config.state||{}, failed=false;
+    const report=message=>{failed=true;send('error',String(message).slice(0,2000))};
+    const theme=value=>{document.documentElement.dataset.theme=value==='dark'?'dark':'light'};
+    Object.defineProperty(window,'genui',{value:Object.freeze({
+      getState:()=>structuredClone(state),
+      setState(value){const raw=JSON.stringify(value);if(!raw||new TextEncoder().encode(raw).length>65536||!value||Array.isArray(value)||typeof value!=='object')throw Error('State must be a JSON object under 64 KiB');state=JSON.parse(raw);send('state',state)},
+    }),writable:false,configurable:false});
+    addEventListener('error',e=>report(e.message));
+    addEventListener('unhandledrejection',e=>report(e.reason));
+    port.onmessage=e=>{if(e.data?.type==='theme')theme(e.data.value)};
+    const doc=new DOMParser().parseFromString(config.html,'text/html');
+    const scripts=[...doc.querySelectorAll('script')].map(s=>({code:s.textContent,external:s.hasAttribute('src'),type:s.type}));
+    doc.querySelectorAll('script,iframe,frame,object,embed,base,meta,link,form').forEach(n=>n.remove());
+    for(const element of doc.querySelectorAll('*'))for(const attribute of [...element.attributes]){
+      if(['href','srcset','action','formaction','target','ping','download'].includes(attribute.name))element.removeAttribute(attribute.name);
+      if(attribute.name==='src'&&!attribute.value.startsWith('data:'))element.removeAttribute('src');
+    }
+    const style=document.createElement('style');style.textContent=':root{--bg:#fff;--fg:#202124;--accent:#526de0;color-scheme:light}html[data-theme=dark]{--bg:#202124;--fg:#eee;color-scheme:dark}body{margin:16px;font:15px/1.5 system-ui;background:var(--bg);color:var(--fg)}input,select,button{font:inherit}svg,canvas{max-width:100%}*{box-sizing:border-box}';
+    document.head.append(style,...doc.head.childNodes);document.body.replaceChildren(...doc.body.childNodes);for(const a of doc.body.attributes)document.body.setAttribute(a.name,a.value);theme(config.theme);
+    addEventListener('click',e=>{if(e.target instanceof Element&&e.target.closest('a'))e.preventDefault()},true);
+    addEventListener('submit',e=>e.preventDefault(),true);
+    let lastHeight=0;
+    new ResizeObserver(()=>{const height=Math.min(1000,Math.max(200,document.body.scrollHeight+32));if(height!==lastHeight){lastHeight=height;send('resize',height)}}).observe(document.body);
+    for(const script of scripts){
+      if(script.external){report('External scripts are not supported');continue}
+      if(script.type&&script.type!=='text/javascript'&&script.type!=='application/javascript'){report('Only classic JavaScript is supported');continue}
+      const element=document.createElement('script');element.textContent=script.code;document.body.append(element);
+    }
+    document.dispatchEvent(new Event('DOMContentLoaded'));if(!failed)send('ready',true);
+  });
+})();
+

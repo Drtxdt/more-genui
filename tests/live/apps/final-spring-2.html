@@ -1,0 +1,397 @@
+<!-- more-genui: {"version":1,"id":"final-spring-2","title":"理想弹簧振子：刚度与时间","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>理想弹簧振子：刚度与时间</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --fg:#e8eef4;
+    --accent:#7ee787;
+    --panel:#17222e;
+    --muted:#9fb0c0;
+    --grid:#26364a;
+    --axis:#55708a;
+    --mass:#ffb454;
+    --warn:#ffb454;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;padding:16px;
+    background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:900px;margin:0 auto;}
+  h1{font-size:1.15rem;margin:0 0 4px;font-weight:650;}
+  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px;}
+  .controls{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:12px 14px;margin-bottom:12px;
+  }
+  @media (max-width:560px){ .controls{grid-template-columns:1fr;} }
+  .ctrl{display:flex;flex-direction:column;gap:6px;}
+  .ctrl label{font-size:.9rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .ctrl label b{color:var(--accent);font-variant-numeric:tabular-nums;}
+  input[type=range]{
+    width:100%;accent-color:var(--accent);cursor:pointer;height:22px;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+  .stage{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:8px;
+  }
+  canvas{display:block;width:100%;height:auto;border-radius:6px;}
+  .readout{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+    gap:8px;margin-top:12px;
+  }
+  .stat{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:8px;padding:8px 10px;
+  }
+  .stat .k{color:var(--muted);font-size:.75rem;}
+  .stat .v{font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums;}
+  .stat .v.accent{color:var(--accent);}
+  .note{color:var(--muted);font-size:.78rem;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>理想弹簧振子：刚度与时间</h1>
+  <p class="sub">m = 1 kg，无阻尼；x(t) = x₀·cos(√k · t)，T = 2π/√k</p>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label for="k">刚度 k（N/m） <b><output id="kOut">4.0</output></b></label>
+      <input id="k" type="range" min="0.25" max="40" step="0.25" value="4"
+             aria-label="弹簧刚度 k，范围 0.25 到 40 牛顿每米，步长 0.25">
+    </div>
+    <div class="ctrl">
+      <label for="x0">初位移 x₀（m） <b><output id="x0Out">1.00</output></b></label>
+      <input id="x0" type="range" min="0.1" max="2" step="0.05" value="1"
+             aria-label="初位移 x0，范围 0.1 到 2 米，步长 0.05">
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="stage" width="860" height="300" role="img"
+            aria-label="弹簧振子动画：质量块在水平方向往复运动"></canvas>
+  </div>
+
+  <div class="stage" style="margin-top:12px;">
+    <canvas id="plot" width="860" height="260" role="img"
+            aria-label="位移随时间变化曲线，显示周期随刚度变化"></canvas>
+  </div>
+
+  <div class="readout">
+    <div class="stat"><div class="k">角频率 ω = √k</div><div class="v accent" id="omegaOut">2.00 rad/s</div></div>
+    <div class="stat"><div class="k">周期 T = 2π/√k</div><div class="v" id="periodOut">3.142 s</div></div>
+    <div class="stat"><div class="k">频率 f = 1/T</div><div class="v" id="freqOut">0.318 Hz</div></div>
+    <div class="stat"><div class="k">最大速度 vₘₐₓ</div><div class="v" id="vmaxOut">2.00 m/s</div></div>
+    <div class="stat"><div class="k">总机械能 E</div><div class="v" id="energyOut">2.00 J</div></div>
+    <div class="stat"><div class="k">当前位移 x</div><div class="v" id="xNowOut">1.00 m</div></div>
+  </div>
+
+  <p class="note">动画按真实时间播放；调整 k 会立即改变运动快慢与周期。位移曲线窗口固定为 6 秒。</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var stage = document.getElementById("stage");
+  var sctx = stage.getContext("2d");
+  var plot = document.getElementById("plot");
+  var pctx = plot.getContext("2d");
+
+  var kEl = document.getElementById("k");
+  var x0El = document.getElementById("x0");
+  var kOut = document.getElementById("kOut");
+  var x0Out = document.getElementById("x0Out");
+  var omegaOut = document.getElementById("omegaOut");
+  var periodOut = document.getElementById("periodOut");
+  var freqOut = document.getElementById("freqOut");
+  var vmaxOut = document.getElementById("vmaxOut");
+  var energyOut = document.getElementById("energyOut");
+  var xNowOut = document.getElementById("xNowOut");
+
+  var MASS = 1;           // kg
+  var X_MAX = 2.2;        // 位移显示范围（米）
+  var T_WINDOW = 6;       // 曲线窗口（秒）
+  var X_PLOT_MAX = 2.0;   // 曲线纵轴范围
+
+  function clamp(v, lo, hi){ return Math.min(hi, Math.max(lo, v)); }
+  function num(v, d){ return (typeof v === "number" && isFinite(v)) ? v : d; }
+
+  var state = genui.getState() || {};
+  var k = clamp(num(state.k, 4), 0.25, 40);
+  var x0 = clamp(num(state.x0, 1), 0.1, 2);
+
+  kEl.value = String(k);
+  x0El.value = String(x0);
+
+  var startTime = performance.now();
+  var tNow = 0;
+
+  function omega(){ return Math.sqrt(k / MASS); }
+  function period(){ return 2 * Math.PI / omega(); }
+
+  function saveState(){
+    genui.setState({ k: k, x0: x0 });
+  }
+
+  function updateTexts(){
+    var w = omega();
+    var T = period();
+    omegaOut.textContent = w.toFixed(2) + " rad/s";
+    periodOut.textContent = T.toFixed(3) + " s";
+    freqOut.textContent = (1 / T).toFixed(3) + " Hz";
+    vmaxOut.textContent = (x0 * w).toFixed(2) + " m/s";
+    energyOut.textContent = (0.5 * k * x0 * x0).toFixed(2) + " J";
+    xNowOut.textContent = (x0 * Math.cos(w * tNow)).toFixed(2) + " m";
+  }
+
+  function drawStage(x, w){
+    var W = stage.width, H = stage.height;
+    var padL = 60, padR = 60, padT = 40, padB = 40;
+    var wallX = padL;
+    var eqX = W / 2;
+    var scale = (W / 2 - padR) / X_MAX;   // 像素/米
+    var massX = eqX + x * scale;          // 质量块中心
+    var massW = 64, massH = 64;
+    var cy = H / 2;
+
+    sctx.clearRect(0, 0, W, H);
+
+    // 背景
+    sctx.fillStyle = "#101a24";
+    sctx.fillRect(0, 0, W, H);
+
+    // 平衡位置虚线
+    sctx.save();
+    sctx.setLineDash([6, 6]);
+    sctx.strokeStyle = "rgba(159,176,192,0.4)";
+    sctx.lineWidth = 1;
+    sctx.beginPath();
+    sctx.moveTo(eqX, padT);
+    sctx.lineTo(eqX, H - padB);
+    sctx.stroke();
+    sctx.restore();
+    sctx.fillStyle = "#9fb0c0";
+    sctx.font = "12px system-ui, sans-serif";
+    sctx.textAlign = "center";
+    sctx.textBaseline = "top";
+    sctx.fillText("平衡位置 x = 0", eqX, H - padB + 10);
+
+    // 地面/墙
+    sctx.strokeStyle = "#55708a";
+    sctx.lineWidth = 4;
+    sctx.beginPath();
+    sctx.moveTo(wallX, cy - 90);
+    sctx.lineTo(wallX, cy + 90);
+    sctx.stroke();
+
+    // 弹簧（锯齿）
+    var springStart = wallX;
+    var springEnd = massX - massW / 2;
+    var coils = 14;
+    var span = springEnd - springStart;
+    var ampSpring = 22;
+    sctx.strokeStyle = "#7ee787";
+    sctx.lineWidth = 3;
+    sctx.lineJoin = "round";
+    sctx.beginPath();
+    sctx.moveTo(springStart, cy);
+    for (var i = 1; i <= coils * 2; i++){
+      var frac = i / (coils * 2);
+      var px = springStart + span * frac;
+      var py = cy + (i % 2 === 0 ? -ampSpring : ampSpring) * (i === coils*2 ? 0 : 1);
+      sctx.lineTo(px, py);
+    }
+    sctx.lineTo(springEnd, cy);
+    sctx.stroke();
+
+    // 质量块
+    var mx = massX - massW / 2;
+    var my = cy - massH / 2;
+    var grad = sctx.createLinearGradient(mx, my, mx, my + massH);
+    grad.addColorStop(0, "#ffcf7a");
+    grad.addColorStop(1, "#e08a1e");
+    sctx.fillStyle = grad;
+    sctx.strokeStyle = "#c47a10";
+    sctx.lineWidth = 2;
+    sctx.beginPath();
+    if (sctx.roundRect) sctx.roundRect(mx, my, massW, massH, 8);
+    else sctx.rect(mx, my, massW, massH);
+    sctx.fill();
+    sctx.stroke();
+
+    sctx.fillStyle = "#3a2400";
+    sctx.font = "bold 15px system-ui, sans-serif";
+    sctx.textAlign = "center";
+    sctx.textBaseline = "middle";
+    sctx.fillText("1 kg", massX, cy);
+
+    // 位移标注
+    sctx.strokeStyle = "#4cc9f0";
+    sctx.lineWidth = 2;
+    sctx.beginPath();
+    sctx.moveTo(eqX, cy + massH / 2 + 26);
+    sctx.lineTo(massX, cy + massH / 2 + 26);
+    sctx.stroke();
+    sctx.fillStyle = "#4cc9f0";
+    sctx.font = "13px system-ui, sans-serif";
+    sctx.textAlign = "center";
+    sctx.textBaseline = "bottom";
+    sctx.fillText("x = " + x.toFixed(2) + " m", (eqX + massX) / 2, cy + massH / 2 + 22);
+  }
+
+  function drawPlot(){
+    var W = plot.width, H = plot.height;
+    var padL = 52, padR = 16, padT = 16, padB = 34;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    pctx.clearRect(0, 0, W, H);
+    pctx.fillStyle = "#101a24";
+    pctx.fillRect(padL, padT, plotW, plotH);
+
+    function xOf(t){ return padL + (t / T_WINDOW) * plotW; }
+    function yOf(v){ return padT + (X_PLOT_MAX - v) / (2 * X_PLOT_MAX) * plotH; }
+
+    // 横向网格与纵轴刻度
+    pctx.strokeStyle = "#26364a";
+    pctx.lineWidth = 1;
+    pctx.fillStyle = "#9fb0c0";
+    pctx.font = "12px system-ui, sans-serif";
+    pctx.textAlign = "right";
+    pctx.textBaseline = "middle";
+    for (var v = -2; v <= 2; v += 0.5){
+      var y = yOf(v);
+      pctx.beginPath();
+      pctx.moveTo(padL, y);
+      pctx.lineTo(padL + plotW, y);
+      pctx.stroke();
+      pctx.fillText(v.toFixed(1), padL - 8, y);
+    }
+
+    // 纵向网格
+    pctx.textAlign = "center";
+    pctx.textBaseline = "top";
+    for (var i = 0; i <= 6; i++){
+      var t = i;
+      var x = xOf(t);
+      pctx.beginPath();
+      pctx.moveTo(x, padT);
+      pctx.lineTo(x, padT + plotH);
+      pctx.stroke();
+      pctx.fillStyle = "#9fb0c0";
+      pctx.fillText(t + "s", x, padT + plotH + 8);
+    }
+
+    // 零轴
+    pctx.strokeStyle = "#55708a";
+    pctx.lineWidth = 1.5;
+    pctx.beginPath();
+    pctx.moveTo(padL, yOf(0));
+    pctx.lineTo(padL + plotW, yOf(0));
+    pctx.stroke();
+
+    pctx.strokeStyle = "#55708a";
+    pctx.lineWidth = 1;
+    pctx.strokeRect(padL, padT, plotW, plotH);
+
+    // 轴标签
+    pctx.fillStyle = "#9fb0c0";
+    pctx.font = "12px system-ui, sans-serif";
+    pctx.textAlign = "left";
+    pctx.textBaseline = "top";
+    pctx.fillText("x (m)", 8, padT - 2);
+    pctx.textAlign = "right";
+    pctx.fillText("t", padL + plotW, padT + plotH + 8);
+
+    // 位移曲线
+    var w = omega();
+    var steps = Math.max(600, plotW * 2);
+    pctx.beginPath();
+    for (var s = 0; s <= steps; s++){
+      var tt = (s / steps) * T_WINDOW;
+      var xx = x0 * Math.cos(w * tt);
+      var px = xOf(tt);
+      var py = yOf(clamp(xx, -X_PLOT_MAX, X_PLOT_MAX));
+      if (s === 0) pctx.moveTo(px, py);
+      else pctx.lineTo(px, py);
+    }
+    pctx.strokeStyle = "#7ee787";
+    pctx.lineWidth = 2.5;
+    pctx.lineJoin = "round";
+    pctx.lineCap = "round";
+    pctx.stroke();
+
+    // 当前时间游标
+    var curT = tNow % T_WINDOW;
+    var cx = xOf(curT);
+    pctx.strokeStyle = "rgba(76,201,240,0.7)";
+    pctx.lineWidth = 1.5;
+    pctx.beginPath();
+    pctx.moveTo(cx, padT);
+    pctx.lineTo(cx, padT + plotH);
+    pctx.stroke();
+
+    // 当前点
+    var curX = x0 * Math.cos(w * tNow);
+    pctx.fillStyle = "#4cc9f0";
+    pctx.beginPath();
+    pctx.arc(cx, yOf(clamp(curX, -X_PLOT_MAX, X_PLOT_MAX)), 4, 0, Math.PI * 2);
+    pctx.fill();
+  }
+
+  var rafId = null;
+  var lastTextUpdate = 0;
+
+  function frame(now){
+    tNow = (now - startTime) / 1000;
+    var w = omega();
+    var x = x0 * Math.cos(w * tNow);
+    drawStage(x, w);
+    drawPlot();
+    if (now - lastTextUpdate > 100){
+      xNowOut.textContent = x.toFixed(2) + " m";
+      lastTextUpdate = now;
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function restartAnimation(){
+    startTime = performance.now();
+    tNow = 0;
+  }
+
+  kEl.addEventListener("input", function(){
+    k = clamp(parseFloat(kEl.value) || 0.25, 0.25, 40);
+    kOut.textContent = k.toFixed(2);
+    saveState();
+    updateTexts();
+  });
+
+  x0El.addEventListener("input", function(){
+    x0 = clamp(parseFloat(x0El.value) || 0.1, 0.1, 2);
+    x0Out.textContent = x0.toFixed(2);
+    saveState();
+    updateTexts();
+  });
+
+  kOut.textContent = k.toFixed(2);
+  x0Out.textContent = x0.toFixed(2);
+  saveState();
+  updateTexts();
+  restartAnimation();
+  rafId = requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "final-wave-1",
+    "status": "protocol-pass",
+    "characters": 8561
+  },
+  {
+    "id": "final-spring-1",
+    "status": "protocol-pass",
+    "characters": 10723
+  },
+  {
+    "id": "final-sort-1",
+    "status": "protocol-pass",
+    "characters": 13375
+  },
+  {
+    "id": "final-quadratic-1",
+    "status": "protocol-pass",
+    "characters": 14088
+  },
+  {
+    "id": "final-linear-1",
+    "status": "protocol-pass",
+    "characters": 11968
+  },
+  {
+    "id": "final-projectile-1",
+    "status": "protocol-pass",
+    "characters": 10543
+  },
+  {
+    "id": "final-ohm-1",
+    "status": "protocol-pass",
+    "characters": 12423
+  },
+  {
+    "id": "final-rgb-1",
+    "status": "protocol-pass",
+    "characters": 10460
+  },
+  {
+    "id": "final-rectangle-1",
+    "status": "protocol-pass",
+    "characters": 13167
+  },
+  {
+    "id": "final-coin-1",
+    "status": "protocol-pass",
+    "characters": 12828
+  },
+  {
+    "id": "final-wave-2",
+    "status": "protocol-pass",
+    "characters": 8564
+  },
+  {
+    "id": "final-spring-2",
+    "status": "protocol-pass",
+    "characters": 12230
+  },
+  {
+    "id": "final-sort-2",
+    "status": "protocol-pass",
+    "characters": 13819
+  },
+  {
+    "id": "final-quadratic-2",
+    "status": "protocol-pass",
+    "characters": 12859
+  },
+  {
+    "id": "final-linear-2",
+    "status": "protocol-pass",
+    "characters": 11888
+  },
+  {
+    "id": "final-projectile-2",
+    "status": "protocol-pass",
+    "characters": 15386
+  },
+  {
+    "id": "final-ohm-2",
+    "status": "protocol-pass",
+    "characters": 15215
+  },
+  {
+    "id": "final-rgb-2",
+    "status": "protocol-pass",
+    "characters": 11676
+  },
+  {
+    "id": "final-rectangle-2",
+    "status": "protocol-pass",
+    "characters": 10792
+  },
+  {
+    "id": "final-coin-2",
+    "status": "protocol-pass",
+    "characters": 13370
+  }
+]

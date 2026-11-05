@@ -1,0 +1,50 @@
+<!-- more-genui: {"version":1,"id":"quadratic-1","title":"二次函数与抛物线","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>二次函数</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#b388ff}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:720px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b101b}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.r{display:flex;justify-content:space-between;font-size:.75rem;color:#9aa7c2}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.f{margin-top:10px;font-size:.82rem;line-height:1.6}
+</style></head><body><div class="w">
+<h1>二次函数 y = ax² + bx + c</h1>
+<p class="s">顶点 x=−b/(2a)；判别式 Δ=b²−4ac 决定与 x 轴交点个数；a>0 开口向上。</p>
+<canvas id="cv" width="720" height="300"></canvas>
+<div class="g">
+ <div><div class="r"><span>a</span><span id="oa">1.0</span></div><input id="a" type="range" min="-2" max="2" step="0.1" value="1" aria-label="a"></div>
+ <div><div class="r"><span>b</span><span id="ob">0.0</span></div><input id="b" type="range" min="-5" max="5" step="0.2" value="0" aria-label="b"></div>
+ <div><div class="r"><span>c</span><span id="oc">0.0</span></div><input id="c" type="range" min="-5" max="5" step="0.2" value="0" aria-label="c"></div>
+</div>
+<p class="f" id="info"></p>
+</div>
+<script>(function(){
+var D={a:1,b:0,c:0},S=Object.assign({},D);
+try{if(genui&&genui.getState){var g=genui.getState();if(g&&typeof g==="object"){["a","b","c"].forEach(function(k){if(isFinite(+g[k]))S[k]=+g[k]});}}}catch(e){}
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+var aE=document.getElementById("a"),bE=document.getElementById("b"),cE=document.getElementById("c");
+var oa=document.getElementById("oa"),ob=document.getElementById("ob"),oc=document.getElementById("oc"),info=document.getElementById("info");
+function save(){try{genui.setState(S)}catch(e){}}
+function draw(){
+ var W=cv.width,H=cv.height,cx=W/2,cy=H/2,sx=W/20,sy=H/16;
+ ctx.clearRect(0,0,W,H);ctx.strokeStyle="#1c2538";ctx.beginPath();
+ for(var i=-10;i<=10;i++){var x=cx+i*sx,y=cy+i*sy;ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.moveTo(0,y);ctx.lineTo(W,y)}ctx.stroke();
+ ctx.strokeStyle="#3a4a6b";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+ ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue("--accent");ctx.lineWidth=2.4;ctx.beginPath();
+ for(var px=0;px<=W;px++){var xx=(px-cx)/sx;if(xx<-10||xx>10)continue;var yy=S.a*xx*xx+S.b*xx+S.c;var py=cy-yy*sy;if(py<-50||py>H+50){continue}px?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.stroke();
+}
+function ui(){
+ oa.textContent=S.a.toFixed(1);ob.textContent=S.b.toFixed(1);oc.textContent=S.c.toFixed(1);
+ aE.value=S.a;bE.value=S.b;cE.value=S.c;
+ var d=S.b*S.b-4*S.a*S.c,info_txt="Δ = "+d.toFixed(2)+"  ";
+ if(Math.abs(S.a)<1e-9)info_txt+="（a≈0 退化为一次函数）";
+ else{var vx=-S.b/(2*S.a),vy=S.a*vx*vx+S.b*vx+S.c;info_txt+="顶点 ("+vx.toFixed(2)+", "+vy.toFixed(2)+")，"+(d>1e-9?"两个实根":d<-1e-9?"无实根":"一个实根");}
+ info.textContent=info_txt;draw();
+}
+["a","b","c"].forEach(function(k){document.getElementById(k).oninput=function(){S[k]=+this.value;ui();save()}});
+ui();
+})();</script></body></html>

@@ -1,0 +1,375 @@
+{
+  "generatedAt": "2026-11-05T09:35:12.013Z",
+  "method": "20 individual requests, ten topics repeated in two conversations, frozen final prompt, no repairs or generation retries. Unmodified captured HTML tested in Chromium and Edge.",
+  "samples": [
+    {
+      "id": "final-wave-1",
+      "status": "protocol-pass",
+      "characters": 8561,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-spring-1",
+      "status": "protocol-pass",
+      "characters": 10723,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-sort-1",
+      "status": "protocol-pass",
+      "characters": 13375,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-quadratic-1",
+      "status": "protocol-pass",
+      "characters": 14088,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-linear-1",
+      "status": "protocol-pass",
+      "characters": 11968,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-projectile-1",
+      "status": "protocol-pass",
+      "characters": 10543,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-ohm-1",
+      "status": "protocol-pass",
+      "characters": 12423,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-rgb-1",
+      "status": "protocol-pass",
+      "characters": 10460,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-rectangle-1",
+      "status": "protocol-pass",
+      "characters": 13167,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-coin-1",
+      "status": "protocol-pass",
+      "characters": 12828,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-wave-2",
+      "status": "protocol-pass",
+      "characters": 8564,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-spring-2",
+      "status": "protocol-pass",
+      "characters": 12230,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-sort-2",
+      "status": "protocol-pass",
+      "characters": 13819,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-quadratic-2",
+      "status": "protocol-pass",
+      "characters": 12859,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-linear-2",
+      "status": "protocol-pass",
+      "characters": 11888,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-projectile-2",
+      "status": "protocol-pass",
+      "characters": 15386,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-ohm-2",
+      "status": "protocol-pass",
+      "characters": 15215,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-rgb-2",
+      "status": "protocol-pass",
+      "characters": 11676,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-rectangle-2",
+      "status": "protocol-pass",
+      "characters": 10792,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    },
+    {
+      "id": "final-coin-2",
+      "status": "protocol-pass",
+      "characters": 13370,
+      "projects": [
+        {
+          "project": "Chromium",
+          "passed": true
+        },
+        {
+          "project": "Edge",
+          "passed": true
+        }
+      ],
+      "usable": true
+    }
+  ],
+  "plain": [
+    {
+      "query": "把这句话翻译成英文：今天下午三点开会。",
+      "codeBlocks": 0,
+      "passed": true
+    },
+    {
+      "query": "把通知“明天交作业，别忘了”改写得礼貌一些，保持一句话。",
+      "codeBlocks": 0,
+      "passed": true
+    },
+    {
+      "query": "用一句话定义递归。",
+      "codeBlocks": 0,
+      "passed": true
+    },
+    {
+      "query": "从“阳光照耀森林，小鸟在树枝上唱歌”提取三个关键词。",
+      "codeBlocks": 0,
+      "passed": true
+    },
+    {
+      "query": "写一句简短的早安问候。",
+      "codeBlocks": 0,
+      "passed": true
+    }
+  ],
+  "firstUsable": 20,
+  "total": 20,
+  "threshold": 18,
+  "passed": true,
+  "browserStats": {
+    "startTime": "2026-11-05T09:33:13.119Z",
+    "duration": 91086.384,
+    "expected": 100,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "harness": {
+    "passed": true,
+    "errors": [],
+    "checks": [
+      "tool execution",
+      "client node rendering",
+      "same instance across turn close",
+      "state restore after refresh"
+    ]
+  }
+}

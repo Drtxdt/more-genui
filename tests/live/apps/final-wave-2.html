@@ -1,0 +1,268 @@
+<!-- more-genui: {"version":1,"id":"final-wave-2","title":"正弦波振幅与频率交互实验","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正弦波振幅与频率交互实验</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --fg:#e8eef4;
+    --accent:#4cc9f0;
+    --panel:#17222e;
+    --muted:#9fb0c0;
+    --grid:#26364a;
+    --axis:#55708a;
+    --wave:#4cc9f0;
+    --warn:#ffb454;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;padding:16px;
+    background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:900px;margin:0 auto;}
+  h1{font-size:1.15rem;margin:0 0 4px;font-weight:650;}
+  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px;}
+  .controls{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:12px 14px;margin-bottom:12px;
+  }
+  @media (max-width:560px){ .controls{grid-template-columns:1fr;} }
+  .ctrl{display:flex;flex-direction:column;gap:6px;}
+  .ctrl label{font-size:.9rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .ctrl label b{color:var(--accent);font-variant-numeric:tabular-nums;}
+  input[type=range]{
+    width:100%;accent-color:var(--accent);cursor:pointer;height:22px;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+  .canvas-box{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:10px;padding:8px;position:relative;
+  }
+  canvas{display:block;width:100%;height:auto;border-radius:6px;}
+  .readout{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+    gap:8px;margin-top:12px;
+  }
+  .stat{
+    background:var(--panel);border:1px solid var(--grid);
+    border-radius:8px;padding:8px 10px;
+  }
+  .stat .k{color:var(--muted);font-size:.75rem;}
+  .stat .v{font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums;}
+  .stat .v.accent{color:var(--accent);}
+  .note{color:var(--muted);font-size:.78rem;margin-top:10px;}
+  .warn{color:var(--warn);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>正弦波：振幅与频率</h1>
+  <p class="sub">y(t) = A·sin(2π f t)，观察窗口 t ∈ [0, 2] 秒，初相 φ = 0</p>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label for="amp">振幅 A <b><output id="ampOut">2.00</output></b></label>
+      <input id="amp" type="range" min="0" max="8" step="0.1" value="2"
+             aria-label="振幅 A，范围 0 到 8，步长 0.1">
+    </div>
+    <div class="ctrl">
+      <label for="freq">频率 f（Hz） <b><output id="freqOut">1.00</output></b></label>
+      <input id="freq" type="range" min="0.1" max="5" step="0.05" value="1"
+             aria-label="频率 f，范围 0.1 到 5 赫兹，步长 0.05">
+    </div>
+  </div>
+
+  <div class="canvas-box">
+    <canvas id="cv" width="860" height="420" role="img"
+            aria-label="正弦波形图，显示振幅和频率变化"></canvas>
+  </div>
+
+  <div class="readout">
+    <div class="stat"><div class="k">峰值</div><div class="v accent" id="peakOut">+2.00</div></div>
+    <div class="stat"><div class="k">峰峰值</div><div class="v" id="ppOut">4.00</div></div>
+    <div class="stat"><div class="k">周期 T = 1/f</div><div class="v" id="periodOut">1.000 s</div></div>
+    <div class="stat"><div class="k">窗口内周期数</div><div class="v" id="cyclesOut">2.00</div></div>
+    <div class="stat"><div class="k">角频率 ω = 2πf</div><div class="v" id="omegaOut">6.28 rad/s</div></div>
+  </div>
+
+  <p class="note">纵轴固定为 [−5, 5]；振幅超过 5 时波峰会被裁切，这是绘图窗口限制。横轴固定 2 秒。</p>
+  <p class="note warn" id="clipWarn" hidden>当前振幅超过纵轴范围，波形顶部/底部被裁切。</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+
+  var ampEl = document.getElementById("amp");
+  var freqEl = document.getElementById("freq");
+  var ampOut = document.getElementById("ampOut");
+  var freqOut = document.getElementById("freqOut");
+  var peakOut = document.getElementById("peakOut");
+  var ppOut = document.getElementById("ppOut");
+  var periodOut = document.getElementById("periodOut");
+  var cyclesOut = document.getElementById("cyclesOut");
+  var omegaOut = document.getElementById("omegaOut");
+  var clipWarn = document.getElementById("clipWarn");
+
+  var T_WINDOW = 2;      // 秒
+  var Y_MIN = -5, Y_MAX = 5;
+
+  var state = genui.getState() || {};
+  var amp = (typeof state.amp === "number" && isFinite(state.amp)) ? clamp(state.amp, 0, 8) : 2;
+  var freq = (typeof state.freq === "number" && isFinite(state.freq)) ? clamp(state.freq, 0.1, 5) : 1;
+
+  function clamp(v, lo, hi){ return Math.min(hi, Math.max(lo, v)); }
+
+  ampEl.value = String(amp);
+  freqEl.value = String(freq);
+
+  function saveState(){
+    genui.setState({ amp: amp, freq: freq });
+  }
+
+  function updateTexts(){
+    ampOut.textContent = amp.toFixed(2);
+    freqOut.textContent = freq.toFixed(2);
+    peakOut.textContent = "+" + amp.toFixed(2);
+    ppOut.textContent = (2*amp).toFixed(2);
+    var T = 1 / freq;
+    periodOut.textContent = T.toFixed(3) + " s";
+    cyclesOut.textContent = (freq * T_WINDOW).toFixed(2);
+    omegaOut.textContent = (2*Math.PI*freq).toFixed(2) + " rad/s";
+    clipWarn.hidden = !(amp > Y_MAX);
+  }
+
+  function draw(){
+    var W = cv.width, H = cv.height;
+    var padL = 52, padR = 16, padT = 18, padB = 34;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // 绘图区背景
+    ctx.fillStyle = "#101a24";
+    ctx.fillRect(padL, padT, plotW, plotH);
+
+    function xOf(t){ return padL + (t / T_WINDOW) * plotW; }
+    function yOf(v){ return padT + (Y_MAX - v) / (Y_MAX - Y_MIN) * plotH; }
+
+    // 水平网格 + 纵轴刻度
+    ctx.strokeStyle = "#26364a";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "#9fb0c0";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (var v = Y_MIN; v <= Y_MAX; v += 1){
+      var y = yOf(v);
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + plotW, y);
+      ctx.stroke();
+      if (v % 1 === 0){
+        ctx.fillText(String(v), padL - 8, y);
+      }
+    }
+
+    // 垂直网格 + 横轴刻度（每 0.25 s 一条细线，每 0.5 s 标注）
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (var i = 0; i <= 8; i++){
+      var t = i * 0.25;
+      var x = xOf(t);
+      ctx.strokeStyle = (i % 2 === 0) ? "#26364a" : "#1d2a38";
+      ctx.beginPath();
+      ctx.moveTo(x, padT);
+      ctx.lineTo(x, padT + plotH);
+      ctx.stroke();
+      if (i % 2 === 0){
+        ctx.fillStyle = "#9fb0c0";
+        ctx.fillText(t.toFixed(1) + "s", x, padT + plotH + 8);
+      }
+    }
+
+    // 零轴强调
+    ctx.strokeStyle = "#55708a";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(padL, yOf(0));
+    ctx.lineTo(padL + plotW, yOf(0));
+    ctx.stroke();
+
+    // 坐标轴边框
+    ctx.strokeStyle = "#55708a";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(padL, padT, plotW, plotH);
+
+    // 轴标题
+    ctx.fillStyle = "#9fb0c0";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("y", 16, padT - 2);
+    ctx.textAlign = "right";
+    ctx.fillText("t", padL + plotW, padT + plotH + 8);
+
+    // 波形
+    var steps = Math.max(400, plotW * 2);
+    ctx.beginPath();
+    for (var s = 0; s <= steps; s++){
+      var tt = (s / steps) * T_WINDOW;
+      var yy = amp * Math.sin(2 * Math.PI * freq * tt);
+      var px = xOf(tt);
+      var py = yOf(clamp(yy, Y_MIN, Y_MAX));
+      if (s === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = "#4cc9f0";
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    // 峰值虚线辅助
+    if (amp > 0 && amp <= Y_MAX){
+      ctx.save();
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = "rgba(76,201,240,0.35)";
+      ctx.lineWidth = 1;
+      var yTop = yOf(amp), yBot = yOf(-amp);
+      ctx.beginPath(); ctx.moveTo(padL, yTop); ctx.lineTo(padL + plotW, yTop); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, yBot); ctx.lineTo(padL + plotW, yBot); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function refresh(){
+    updateTexts();
+    draw();
+  }
+
+  ampEl.addEventListener("input", function(){
+    amp = clamp(parseFloat(ampEl.value) || 0, 0, 8);
+    saveState();
+    refresh();
+  });
+
+  freqEl.addEventListener("input", function(){
+    freq = clamp(parseFloat(freqEl.value) || 0.1, 0.1, 5);
+    saveState();
+    refresh();
+  });
+
+  saveState();
+  refresh();
+})();
+</script>
+</body>
+</html>

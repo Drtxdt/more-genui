@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "errors": [],
+  "checks": [
+    "tool execution",
+    "client node rendering",
+    "same instance across turn close",
+    "state restore after refresh"
+  ]
+}

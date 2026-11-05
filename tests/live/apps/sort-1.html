@@ -1,0 +1,56 @@
+<!-- more-genui: {"version":1,"id":"sort-1","title":"冒泡排序逐步演示","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>冒泡排序</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#ffb74d}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:720px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+#bars{display:flex;align-items:flex-end;gap:6px;height:200px;background:#0b101b;border-radius:10px;padding:10px}
+.bar{flex:1;background:#2a3550;border-radius:4px;transition:height .15s,background .15s;position:relative}
+.bar span{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:.75rem;color:#9aa7c2}
+.bar.cmp{background:#4fc3f7}.bar.swp{background:var(--accent)}.bar.done{background:#7ee081}
+.btns{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+button{background:#233050;color:var(--fg);border:1px solid #2a3550;border-radius:8px;padding:7px 14px;font-size:.82rem;cursor:pointer}
+button:hover{background:#2d3c62}
+.f{margin-top:8px;font-size:.8rem;color:#9aa7c2}
+</style></head><body><div class="w">
+<h1>冒泡排序逐步演示</h1>
+<p class="s">每趟从左到右比较相邻两项，逆序则交换；一趟结束最大值沉到末尾。</p>
+<div id="bars"></div>
+<div class="btns"><button id="step">单步</button><button id="auto">自动</button><button id="reset">重置</button></div>
+<p class="f" id="st">准备就绪</p>
+</div>
+<script>(function(){
+var BASE=[5,2,9,1,7,3,8,4];
+var arr=[],i=0,j=0,sorted=0,steps=0,autoT=null,last={a:-1,b:-1,swap:false};
+try{if(genui&&genui.getState){var g=genui.getState();}}catch(e){}
+function save(){try{genui.setState({i:i,j:j,sorted:sorted})}catch(e){}}
+var bars=document.getElementById("bars"),st=document.getElementById("st");
+function render(){
+ bars.innerHTML="";
+ arr.forEach(function(v,idx){
+  var d=document.createElement("div");d.className="bar";
+  d.style.height=(20+v*16)+"px";
+  if(idx>=arr.length-sorted)d.classList.add("done");
+  if(idx===last.a||idx===last.b)d.classList.add(last.swap?"swp":"cmp");
+  var s=document.createElement("span");s.textContent=v;d.appendChild(s);bars.appendChild(d);
+ });
+}
+function reset(){arr=BASE.slice();i=0;j=0;sorted=0;steps=0;last={a:-1,b:-1,swap:false};st.textContent="准备就绪";render();}
+function step(){
+ if(sorted>=arr.length-1){st.textContent="已完成，共 "+steps+" 次交换";return;}
+ if(j>=arr.length-1-sorted){sorted++;j=0;render();save();return;}
+ last={a:j,b:j+1,swap:false};
+ if(arr[j]>arr[j+1]){var t=arr[j];arr[j]=arr[j+1];arr[j+1]=t;last.swap=true;steps++;}
+ st.textContent="比较 ("+arr[j+1]+","+arr[j]+") 位置 "+(j+1)+" → "+(j+2)+(last.swap?"，交换":"，保持");
+ j++;render();save();
+}
+document.getElementById("step").onclick=step;
+document.getElementById("auto").onclick=function(){
+ if(autoT){clearInterval(autoT);autoT=null;this.textContent="自动";}
+ else{this.textContent="暂停";autoT=setInterval(step,450);}
+};
+document.getElementById("reset").onclick=function(){if(autoT){clearInterval(autoT);autoT=null;document.getElementById("auto").textContent="自动";}reset();};
+reset();
+})();</script></body></html>

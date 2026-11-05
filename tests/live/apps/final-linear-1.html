@@ -1,0 +1,316 @@
+<!-- more-genui: {"version":1,"id":"final-linear-1","title":"一次函数的斜率与截距","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一次函数的斜率与截距</title>
+<style>
+  :root{--bg:#0f1720;--fg:#e8eef5;--accent:#4fc3f7;--muted:#8aa0b4;--panel:#18232e;
+        --slope:#ffb74d;--intercept:#66bb6a;--xint:#ef5350;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;}
+  h1{font-size:1.15rem;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:.85rem;margin-bottom:14px;line-height:1.5;}
+  .wrap{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start;}
+  @media(max-width:820px){.wrap{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:10px;}
+  canvas{width:100%;height:auto;display:block;border-radius:6px;background:#0b131b;}
+  .panel{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:14px;}
+  .ctrl{margin-bottom:14px;}
+  .ctrl:last-of-type{margin-bottom:0;}
+  label{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem;margin-bottom:6px;}
+  .val{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+  .readout{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+  .mini{background:#0b131b;border:1px solid #223141;border-radius:8px;padding:8px 10px;}
+  .mini .k{font-size:.72rem;color:var(--muted);}
+  .mini .v{font-size:.95rem;color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  .mini.wide{grid-column:1 / -1;}
+  .assume{font-size:.75rem;color:var(--muted);line-height:1.6;margin-top:12px;border-top:1px dashed #2c3d4e;padding-top:9px;}
+  .assume b{color:#c7d6e4;}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+  button{background:#22364a;color:var(--fg);border:1px solid #33506b;border-radius:8px;padding:8px;font-size:.82rem;cursor:pointer;font-family:inherit;}
+  button:hover{background:#2c4863;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.75rem;color:var(--muted);margin-top:8px;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+  .hint{font-size:.75rem;color:var(--muted);margin-top:8px;line-height:1.5;}
+</style>
+</head>
+<body>
+  <h1>一次函数：斜率 k 与截距 b</h1>
+  <div class="sub">拖动滑块，观察直线倾斜方向与陡峭程度（k），以及它与 y 轴交点（b）如何变化。</div>
+
+  <div class="wrap">
+    <div class="card">
+      <canvas id="cv" width="900" height="560" aria-label="一次函数直线图像"></canvas>
+      <div class="legend">
+        <span><i style="background:#ffb74d"></i>斜率三角形（Δx=1）</span>
+        <span><i style="background:#66bb6a"></i>y 轴截距 b</span>
+        <span><i style="background:#ef5350"></i>x 轴交点</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl">
+        <label for="k">斜率 k <span class="val" id="kOut">1.00</span></label>
+        <input id="k" type="range" min="-4" max="4" step="0.05" value="1">
+      </div>
+      <div class="ctrl">
+        <label for="b">截距 b <span class="val" id="bOut">1.00</span></label>
+        <input id="b" type="range" min="-8" max="8" step="0.1" value="1">
+      </div>
+
+      <div class="readout">
+        <div class="mini"><div class="k">倾斜方向</div><div class="v" id="dir">上升</div></div>
+        <div class="mini"><div class="k">倾角 θ</div><div class="v" id="angle">45.0°</div></div>
+        <div class="mini wide"><div class="k">与 y 轴交点</div><div class="v" id="yint">(0, 1.00)</div></div>
+        <div class="mini wide"><div class="k">与 x 轴交点</div><div class="v" id="xintTxt">(−1.00, 0)</div></div>
+      </div>
+
+      <div class="btns">
+        <button id="btnReset" type="button">↺ 重置</button>
+        <button id="btnFit" type="button">⤢ 自动缩放</button>
+      </div>
+      <div class="hint">提示：k 是“每向右走 1 个单位，y 变化多少”。k=0 时直线水平，不再是严格的一次函数（是常函数）。</div>
+
+      <div class="assume">
+        <b>数学假设：</b>函数为 \(y=kx+b\)，定义域为全体实数。k 为斜率，即 \(\Delta y/\Delta x\)；b 为 y 轴截距，即 \(y(0)=b\)。
+        x 轴交点满足 \(kx+b=0\)，当 k≠0 时为 \(x=-b/k\)；k=0 时若 b≠0 则无交点。倾角按 \(\theta=\arctan(k)\) 计算（−90°…90°）。
+        坐标系等比例尺，可自动缩放适配当前直线。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const kEl = document.getElementById("k");
+  const bEl = document.getElementById("b");
+  const kOut = document.getElementById("kOut");
+  const bOut = document.getElementById("bOut");
+  const dirEl = document.getElementById("dir");
+  const angleEl = document.getElementById("angle");
+  const yintEl = document.getElementById("yint");
+  const xintEl = document.getElementById("xintTxt");
+  const btnReset = document.getElementById("btnReset");
+  const btnFit = document.getElementById("btnFit");
+
+  let view = { xmin:-10, xmax:10, ymin:-8, ymax:8 };
+
+  function restore(){
+    let s = {};
+    try { s = genui.getState() || {}; } catch(e){ s = {}; }
+    kEl.value = (typeof s.k === "number") ? s.k : 1;
+    bEl.value = (typeof s.b === "number") ? s.b : 1;
+    if(s.view && typeof s.view.xmin === "number"){
+      view = { xmin:s.view.xmin, xmax:s.view.xmax, ymin:s.view.ymin, ymax:s.view.ymax };
+    }
+  }
+  function save(){
+    try {
+      genui.setState({
+        k: Number(kEl.value),
+        b: Number(bEl.value),
+        view: { xmin:view.xmin, xmax:view.xmax, ymin:view.ymin, ymax:view.ymax }
+      });
+    } catch(e){}
+  }
+
+  function niceStep(span, targetTicks){
+    const raw = span / targetTicks;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    let step;
+    if(norm < 1.5) step = 1;
+    else if(norm < 3) step = 2;
+    else if(norm < 7) step = 5;
+    else step = 10;
+    return step * mag;
+  }
+
+  function w2s(x, y, W, H, pad){
+    const plotW = W - pad.l - pad.r;
+    const plotH = H - pad.t - pad.b;
+    return [
+      pad.l + (x - view.xmin) / (view.xmax - view.xmin) * plotW,
+      pad.t + (view.ymax - y) / (view.ymax - view.ymin) * plotH
+    ];
+  }
+
+  function formatTick(v){
+    const r = Math.round(v*1000)/1000;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  }
+
+  function draw(){
+    const k = Number(kEl.value);
+    const b = Number(bEl.value);
+
+    kOut.textContent = k.toFixed(2);
+    bOut.textContent = b.toFixed(2);
+
+    const horizontal = Math.abs(k) < 1e-9;
+    dirEl.textContent = horizontal ? "水平" : (k > 0 ? "上升" : "下降");
+    angleEl.textContent = (Math.atan(k) * 180 / Math.PI).toFixed(1) + "°";
+    yintEl.textContent = "(0, " + b.toFixed(2) + ")";
+    if(horizontal){
+      xintEl.textContent = Math.abs(b) < 1e-9 ? "与 x 轴重合" : "无交点";
+    } else {
+      xintEl.textContent = "(" + (-b/k).toFixed(2) + ", 0)";
+    }
+
+    const W = cv.width, H = cv.height;
+    const pad = { l:56, r:20, t:22, b:40 };
+    const plotW = W - pad.l - pad.r;
+    const plotH = H - pad.t - pad.b;
+
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = "#0b131b";
+    ctx.fillRect(0,0,W,H);
+
+    // 网格
+    const xStep = niceStep(view.xmax - view.xmin, 10);
+    const yStep = niceStep(view.ymax - view.ymin, 8);
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.lineWidth = 1;
+
+    const xStart = Math.ceil(view.xmin / xStep) * xStep;
+    for(let x = xStart; x <= view.xmax + 1e-9; x += xStep){
+      const [sx] = w2s(x, 0, W, H, pad);
+      ctx.strokeStyle = "#1b2a38";
+      ctx.beginPath(); ctx.moveTo(sx, pad.t); ctx.lineTo(sx, pad.t + plotH); ctx.stroke();
+      ctx.fillStyle = "#8aa0b4";
+      ctx.textAlign = "center";
+      if(Math.abs(x) > 1e-9) ctx.fillText(formatTick(x), sx, pad.t + plotH + 16);
+    }
+    const yStart = Math.ceil(view.ymin / yStep) * yStep;
+    for(let y = yStart; y <= view.ymax + 1e-9; y += yStep){
+      const [, sy] = w2s(0, y, W, H, pad);
+      ctx.strokeStyle = "#1b2a38";
+      ctx.beginPath(); ctx.moveTo(pad.l, sy); ctx.lineTo(pad.l + plotW, sy); ctx.stroke();
+      ctx.fillStyle = "#8aa0b4";
+      ctx.textAlign = "right";
+      if(Math.abs(y) > 1e-9) ctx.fillText(formatTick(y), pad.l - 7, sy + 4);
+    }
+
+    // 坐标轴
+    ctx.strokeStyle = "#4a6480";
+    ctx.lineWidth = 1.5;
+    if(view.ymin < 0 && view.ymax > 0){
+      const [, sy0] = w2s(0, 0, W, H, pad);
+      ctx.beginPath(); ctx.moveTo(pad.l, sy0); ctx.lineTo(pad.l + plotW, sy0); ctx.stroke();
+    }
+    if(view.xmin < 0 && view.xmax > 0){
+      const [sx0] = w2s(0, 0, W, H, pad);
+      ctx.beginPath(); ctx.moveTo(sx0, pad.t); ctx.lineTo(sx0, pad.t + plotH); ctx.stroke();
+    }
+
+    // 直线（延长到视野边界）
+    ctx.strokeStyle = "#4fc3f7";
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    const x1 = view.xmin, y1 = k*x1 + b;
+    const x2 = view.xmax, y2 = k*x2 + b;
+    const [sx1, sy1] = w2s(x1, y1, W, H, pad);
+    const [sx2, sy2] = w2s(x2, y2, W, H, pad);
+    ctx.moveTo(sx1, sy1); ctx.lineTo(sx2, sy2);
+    ctx.stroke();
+
+    // 斜率三角形：从 y 轴截距点出发，向右 1 个单位，向上 k
+    const px0 = 0, py0 = b;
+    const px1 = 1, py1 = b + k;
+    if(!horizontal){
+      const [a0x, a0y] = w2s(px0, py0, W, H, pad);
+      const [a1x, a1y] = w2s(px1, py0, W, H, pad);
+      const [a2x, a2y] = w2s(px1, py1, W, H, pad);
+      // 水平边
+      ctx.strokeStyle = "rgba(255,183,77,0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(a0x, a0y); ctx.lineTo(a1x, a1y); ctx.stroke();
+      // 竖直边
+      ctx.beginPath(); ctx.moveTo(a1x, a1y); ctx.lineTo(a2x, a2y); ctx.stroke();
+      ctx.setLineDash([]);
+      // 标注
+      ctx.fillStyle = "#ffb74d";
+      ctx.textAlign = "center";
+      ctx.fillText("Δx = 1", (a0x + a1x)/2, a0y + (k > 0 ? 16 : -8));
+      ctx.textAlign = "left";
+      ctx.fillText("Δy = " + k.toFixed(2), a1x + 6, (a1y + a2y)/2 + 4);
+    }
+
+    // y 轴截距
+    if(b >= view.ymin && b <= view.ymax){
+      const [sxb, syb] = w2s(0, b, W, H, pad);
+      ctx.fillStyle = "#66bb6a";
+      ctx.beginPath(); ctx.arc(sxb, syb, 6, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#0b131b"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = "#66bb6a";
+      ctx.textAlign = "left";
+      ctx.fillText("b = " + b.toFixed(2), sxb + 9, syb - 8);
+    }
+
+    // x 轴截距
+    if(!horizontal){
+      const xr = -b / k;
+      if(xr >= view.xmin && xr <= view.xmax){
+        const [sxr, syr] = w2s(xr, 0, W, H, pad);
+        ctx.fillStyle = "#ef5350";
+        ctx.beginPath(); ctx.arc(sxr, syr, 5.5, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "#0b131b"; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = "#ef5350";
+        ctx.textAlign = "center";
+        ctx.fillText("x = " + xr.toFixed(2), sxr, syr + 20);
+      }
+    }
+
+    // 轴名
+    ctx.fillStyle = "#8aa0b4";
+    ctx.textAlign = "center";
+    ctx.fillText("x", pad.l + plotW/2, H - 6);
+    ctx.save();
+    ctx.translate(16, pad.t + plotH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText("y", 0, 0);
+    ctx.restore();
+
+    // 公式
+    ctx.fillStyle = "#e8eef5";
+    ctx.font = "13px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("y = " + k.toFixed(2) + "x " + (b >= 0 ? "+ " : "− ") + Math.abs(b).toFixed(2), pad.l + 6, pad.t - 6);
+  }
+
+  function autoFit(){
+    const k = Number(kEl.value), b = Number(bEl.value);
+    let xmin = -10, xmax = 10;
+    let y1 = k*xmin + b, y2 = k*xmax + b;
+    let ymin = Math.min(y1, y2, 0);
+    let ymax = Math.max(y1, y2, 0);
+    if(Math.abs(ymax - ymin) < 1e-9){ ymin -= 1; ymax += 1; }
+    const padY = (ymax - ymin) * 0.15;
+    view = { xmin:xmin, xmax:xmax, ymin:ymin - padY, ymax:ymax + padY };
+    draw(); save();
+  }
+
+  function onChange(){ draw(); save(); }
+
+  kEl.addEventListener("input", onChange);
+  bEl.addEventListener("input", onChange);
+
+  btnReset.addEventListener("click", function(){
+    kEl.value = 1; bEl.value = 1;
+    view = { xmin:-10, xmax:10, ymin:-8, ymax:8 };
+    draw(); save();
+  });
+  btnFit.addEventListener("click", autoFit);
+
+  restore();
+  draw();
+  save();
+})();
+</script>
+</body>
+</html>

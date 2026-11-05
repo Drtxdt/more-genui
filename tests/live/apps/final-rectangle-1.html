@@ -1,0 +1,350 @@
+<!-- more-genui: {"version":1,"id":"final-rectangle-1","title":"矩形长宽与面积周长","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>矩形长宽与面积周长</title>
+<style>
+  :root{--bg:#0f1720;--fg:#e8eef5;--accent:#4fc3f7;--muted:#8aa0b4;--panel:#18232e;
+        --len:#ffb74d;--wid:#8e9bff;--area:#66bb6a;--peri:#ef5350;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;}
+  h1{font-size:1.15rem;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:.85rem;margin-bottom:14px;line-height:1.5;}
+  .wrap{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start;}
+  @media(max-width:820px){.wrap{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:10px;}
+  canvas{width:100%;height:auto;display:block;border-radius:6px;background:#0b131b;}
+  .panel{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:14px;}
+  .ctrl{margin-bottom:14px;}
+  .ctrl:last-of-type{margin-bottom:0;}
+  label{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem;margin-bottom:6px;}
+  .val{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+  .readout{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+  .mini{background:#0b131b;border:1px solid #223141;border-radius:8px;padding:8px 10px;}
+  .mini .k{font-size:.72rem;color:var(--muted);}
+  .mini .v{font-size:.95rem;color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  .mini.wide{grid-column:1 / -1;}
+  .assume{font-size:.75rem;color:var(--muted);line-height:1.6;margin-top:12px;border-top:1px dashed #2c3d4e;padding-top:9px;}
+  .assume b{color:#c7d6e4;}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+  button{background:#22364a;color:var(--fg);border:1px solid #33506b;border-radius:8px;padding:8px;font-size:.8rem;cursor:pointer;font-family:inherit;}
+  button:hover{background:#2c4863;}
+  .hint{font-size:.75rem;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.75rem;color:var(--muted);margin-top:8px;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+</style>
+</head>
+<body>
+  <h1>矩形：长、宽、面积与周长</h1>
+  <div class="sub">调节长 L 与宽 W，实时观察矩形形状、面积 L·W、周长 2(L+W)，以及固定周长时面积随长宽比的变化。</div>
+
+  <div class="wrap">
+    <div class="card">
+      <canvas id="cv" width="900" height="560" aria-label="矩形示意图与面积-长宽关系曲线"></canvas>
+      <div class="legend">
+        <span><i style="background:#ffb74d"></i>长 L</span>
+        <span><i style="background:#8e9bff"></i>宽 W</span>
+        <span><i style="background:#66bb6a"></i>面积</span>
+        <span><i style="background:#ef5350"></i>周长</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl">
+        <label for="len">长 L <span class="val" id="lenOut">8.0</span></label>
+        <input id="len" type="range" min="1" max="20" step="0.1" value="8">
+      </div>
+      <div class="ctrl">
+        <label for="wid">宽 W <span class="val" id="widOut">5.0</span></label>
+        <input id="wid" type="range" min="1" max="20" step="0.1" value="5">
+      </div>
+
+      <div class="readout">
+        <div class="mini"><div class="k">面积 A = L·W</div><div class="v" id="areaV">40.0</div></div>
+        <div class="mini"><div class="k">周长 P = 2(L+W)</div><div class="v" id="periV">26.0</div></div>
+        <div class="mini"><div class="k">长宽比 L/W</div><div class="v" id="ratioV">1.60</div></div>
+        <div class="mini"><div class="k">对角线 d</div><div class="v" id="diagV">9.43</div></div>
+        <div class="mini wide"><div class="k">等周长正方形边长 / 面积</div><div class="v" id="sqV">6.50 / 42.25</div></div>
+      </div>
+
+      <div class="btns">
+        <button id="btnSquare" type="button">变成正方形</button>
+        <button id="btnSwap" type="button">交换长宽</button>
+        <button id="btnDouble" type="button">长宽都翻倍</button>
+        <button id="btnPeri" type="button">保持周长不变</button>
+      </div>
+      <div class="hint">提示：固定周长时，正方形面积最大；长宽越接近，面积越大。长宽同时翻倍，面积变 4 倍、周长只变 2 倍。</div>
+
+      <div class="assume">
+        <b>数学假设：</b>矩形边长 L、W 均为正实数，单位一致（任意长度单位）。
+        面积 \(A=LW\)，周长 \(P=2(L+W)\)，对角线 \(d=\sqrt{L^2+W^2}\)。
+        读数与图形按同一比例尺绘制，长宽比不同会导致视觉形状变化。
+        “保持周长不变”按钮按当前 P 重新分配长宽，使 L 与 W 尽量接近（趋向正方形），从而展示等周长下面积最大化。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const lEl = document.getElementById("len");
+  const wEl = document.getElementById("wid");
+  const lOut = document.getElementById("lenOut");
+  const wOut = document.getElementById("widOut");
+  const areaV = document.getElementById("areaV");
+  const periV = document.getElementById("periV");
+  const ratioV = document.getElementById("ratioV");
+  const diagV = document.getElementById("diagV");
+  const sqV = document.getElementById("sqV");
+  const btnSquare = document.getElementById("btnSquare");
+  const btnSwap = document.getElementById("btnSwap");
+  const btnDouble = document.getElementById("btnDouble");
+  const btnPeri = document.getElementById("btnPeri");
+
+  function restore(){
+    let s = {};
+    try { s = genui.getState() || {}; } catch(e){ s = {}; }
+    lEl.value = (typeof s.len === "number") ? s.len : 8;
+    wEl.value = (typeof s.wid === "number") ? s.wid : 5;
+  }
+  function save(){
+    try { genui.setState({ len:Number(lEl.value), wid:Number(wEl.value) }); } catch(e){}
+  }
+
+  function niceStep(span, targetTicks){
+    const raw = span / targetTicks;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    let step;
+    if(norm < 1.5) step = 1;
+    else if(norm < 3) step = 2;
+    else if(norm < 7) step = 5;
+    else step = 10;
+    return step * mag;
+  }
+
+  function draw(){
+    const L = Number(lEl.value);
+    const W = Number(wEl.value);
+    const A = L * W;
+    const P = 2 * (L + W);
+    const ratio = L / W;
+    const diag = Math.sqrt(L*L + W*W);
+    const side = P / 4;
+    const sqArea = side * side;
+
+    lOut.textContent = L.toFixed(1);
+    wOut.textContent = W.toFixed(1);
+    areaV.textContent = A.toFixed(1);
+    periV.textContent = P.toFixed(1);
+    ratioV.textContent = ratio.toFixed(2);
+    diagV.textContent = diag.toFixed(2);
+    sqV.textContent = side.toFixed(2) + " / " + sqArea.toFixed(2);
+
+    const cw = cv.width, ch = cv.height;
+    ctx.clearRect(0,0,cw,ch);
+    ctx.fillStyle = "#0b131b";
+    ctx.fillRect(0,0,cw,ch);
+
+    // ===== 上半：矩形示意 =====
+    const topH = ch * 0.52;
+    const pad = 46;
+    const maxSide = Math.max(L, W);
+    const scale = Math.min((cw - pad*2 - 120) / maxSide, (topH - pad*2 - 40) / maxSide);
+    const rw = W * scale;   // 屏幕上宽度方向画 W
+    const rh = L * scale;   // 屏幕上高度方向画 L
+    const ox = cw/2 - rw/2;
+    const oy = topH/2 - rh/2 + 6;
+
+    // 填充
+    ctx.fillStyle = "rgba(102,187,106,0.16)";
+    ctx.fillRect(ox, oy, rw, rh);
+
+    // 边框（周长示意）
+    ctx.strokeStyle = "#ef5350";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(ox, oy, rw, rh);
+
+    // 面积标注
+    ctx.fillStyle = "#66bb6a";
+    ctx.font = "bold 15px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("A = " + A.toFixed(1), ox + rw/2, oy + rh/2 + 5);
+    ctx.fillStyle = "#8aa0b4";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.fillText("面积 L·W", ox + rw/2, oy + rh/2 + 22);
+
+    // 宽 W（底部）
+    ctx.strokeStyle = "#8e9bff";
+    ctx.lineWidth = 2;
+    const yb = oy + rh + 22;
+    ctx.beginPath(); ctx.moveTo(ox, yb); ctx.lineTo(ox + rw, yb); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox, yb-5); ctx.lineTo(ox, yb+5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox+rw, yb-5); ctx.lineTo(ox+rw, yb+5); ctx.stroke();
+    ctx.fillStyle = "#8e9bff";
+    ctx.textAlign = "center";
+    ctx.fillText("W = " + W.toFixed(1), ox + rw/2, yb + 18);
+
+    // 长 L（左侧）
+    ctx.strokeStyle = "#ffb74d";
+    const xl = ox - 22;
+    ctx.beginPath(); ctx.moveTo(xl, oy); ctx.lineTo(xl, oy + rh); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xl-5, oy); ctx.lineTo(xl+5, oy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xl-5, oy+rh); ctx.lineTo(xl+5, oy+rh); ctx.stroke();
+    ctx.save();
+    ctx.translate(xl - 10, oy + rh/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillStyle = "#ffb74d";
+    ctx.textAlign = "center";
+    ctx.fillText("L = " + L.toFixed(1), 0, 0);
+    ctx.restore();
+
+    // 对角线
+    ctx.setLineDash([5,4]);
+    ctx.strokeStyle = "rgba(200,215,230,0.4)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox+rw, oy+rh); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 周长说明
+    ctx.fillStyle = "#ef5350";
+    ctx.font = "13px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("周长 P = 2(L+W) = " + P.toFixed(1), 18, 24);
+
+    // ===== 下半：等周长下的面积曲线 =====
+    const lowerTop = topH + 10;
+    const lowerH = ch - lowerTop - 30;
+    const oxL = 62, oyL = lowerTop, bw = cw - oxL - 24, bh = lowerH;
+    const plotPadT = 24, plotPadB = 28;
+    const plotW = bw - 10, plotH = bh - plotPadT - plotPadB;
+
+    ctx.fillStyle = "#18232e";
+    ctx.fillRect(oxL, oyL, bw, bh);
+    ctx.strokeStyle = "#2c3d4e";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(oxL, oyL, bw, bh);
+
+    // 坐标轴范围：x 为 L/W，y 为面积（固定当前 P）
+    const halfP = P / 2;
+    const rMin = Math.max(0.05, 1 / halfP * 1); // 简单取 0.05
+    const rMax = 20;
+    // 固定 P 下 A(r) = r * (halfP/(1+r))^2 * (1+r)^? 直接推导：W=halfP/(1+r), L=rW => A = r*halfP^2/(1+r)^2
+    const areas = [];
+    for(let i=0;i<=200;i++){
+      const rr = 0.05 + (20 - 0.05) * i / 200;
+      const w = halfP / (1 + rr);
+      const l = rr * w;
+      areas.push(l * w);
+    }
+    const Amax = Math.max.apply(null, areas);
+    const yMax = Amax * 1.15;
+
+    const X = r => oxL + 10 + (r - 0.05) / (20 - 0.05) * plotW;
+    const Y = a => oyL + plotPadT + (1 - a / yMax) * plotH;
+
+    // 网格
+    ctx.font = "11px system-ui, sans-serif";
+    const xStep = 5;
+    for(let r = 0; r <= 20; r += xStep){
+      const sx = X(Math.max(r, 0.05));
+      ctx.strokeStyle = "#1b2a38";
+      ctx.beginPath(); ctx.moveTo(sx, oyL + plotPadT); ctx.lineTo(sx, oyL + plotPadT + plotH); ctx.stroke();
+      ctx.fillStyle = "#8aa0b4";
+      ctx.textAlign = "center";
+      ctx.fillText(r, sx, oyL + plotPadT + plotH + 16);
+    }
+    const yStep = niceStep(yMax, 4);
+    for(let a = 0; a <= yMax; a += yStep){
+      const sy = Y(a);
+      ctx.strokeStyle = "#1b2a38";
+      ctx.beginPath(); ctx.moveTo(oxL + 10, sy); ctx.lineTo(oxL + 10 + plotW, sy); ctx.stroke();
+      ctx.fillStyle = "#8aa0b4";
+      ctx.textAlign = "right";
+      ctx.fillText(a.toFixed(0), oxL + 4, sy + 4);
+    }
+
+    // 曲线
+    ctx.strokeStyle = "#66bb6a";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    for(let i=0;i<=200;i++){
+      const rr = 0.05 + (20 - 0.05) * i / 200;
+      const w = halfP / (1 + rr);
+      const l = rr * w;
+      const a = l * w;
+      const sx = X(rr), sy = Y(a);
+      if(i===0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+
+    // 当前点
+    ctx.fillStyle = "#ffb74d";
+    ctx.beginPath(); ctx.arc(X(ratio), Y(A), 6, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "#0b131b"; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // 正方形参考线
+    const sqX = X(1);
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle = "rgba(255,183,77,0.5)";
+    ctx.beginPath(); ctx.moveTo(sqX, oyL + plotPadT); ctx.lineTo(sqX, oyL + plotPadT + plotH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#ffb74d";
+    ctx.textAlign = "left";
+    ctx.fillText("正方形 L/W=1", sqX + 5, oyL + plotPadT + 12);
+
+    // 标题与轴标签
+    ctx.fillStyle = "#e8eef5";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("固定周长 P = " + P.toFixed(1) + " 时，面积随长宽比 L/W 的变化", oxL + 10, oyL + 16);
+    ctx.fillStyle = "#8aa0b4";
+    ctx.textAlign = "center";
+    ctx.fillText("长宽比 L/W", oxL + bw/2, oyL + bh - 6);
+    ctx.save();
+    ctx.translate(oxL - 30, oyL + plotPadT + plotH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText("面积 A", 0, 0);
+    ctx.restore();
+  }
+
+  function setLW(l, w){
+    lEl.value = Math.min(20, Math.max(1, l));
+    wEl.value = Math.min(20, Math.max(1, w));
+    draw(); save();
+  }
+
+  lEl.addEventListener("input", function(){ draw(); save(); });
+  wEl.addEventListener("input", function(){ draw(); save(); });
+
+  btnSquare.addEventListener("click", function(){
+    const L = Number(lEl.value), W = Number(wEl.value);
+    const s = (L + W) / 2;
+    setLW(s, s);
+  });
+  btnSwap.addEventListener("click", function(){
+    const L = Number(lEl.value), W = Number(wEl.value);
+    setLW(W, L);
+  });
+  btnDouble.addEventListener("click", function(){
+    const L = Number(lEl.value), W = Number(wEl.value);
+    setLW(L*2, W*2);
+  });
+  btnPeri.addEventListener("click", function(){
+    const L = Number(lEl.value), W = Number(wEl.value);
+    const half = L + W;
+    const s = half / 2;  // 等周长正方形边长
+    setLW(s, s);
+  });
+
+  restore();
+  draw();
+  save();
+})();
+</script>
+</body>
+</html>

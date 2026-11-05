@@ -1,0 +1,238 @@
+<!-- more-genui: {"version":1,"id":"final-wave-1","title":"正弦波振幅与频率实验","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正弦波振幅与频率实验</title>
+<style>
+  :root{--bg:#0f1720;--fg:#e8eef5;--accent:#4fc3f7;--muted:#8aa0b4;--panel:#18232e;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;}
+  h1{font-size:1.15rem;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:.85rem;margin-bottom:14px;}
+  .wrap{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start;}
+  @media(max-width:760px){.wrap{grid-template-columns:1fr;}}
+  .canvasBox{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:8px;}
+  canvas{width:100%;height:auto;display:block;border-radius:6px;background:#0b131b;}
+  .panel{background:var(--panel);border:1px solid #263646;border-radius:10px;padding:14px;}
+  .ctrl{margin-bottom:16px;}
+  .ctrl:last-child{margin-bottom:0;}
+  label{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem;margin-bottom:6px;}
+  .val{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+  .readout{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;}
+  .card{background:#0b131b;border:1px solid #223141;border-radius:8px;padding:8px 10px;}
+  .card .k{font-size:.72rem;color:var(--muted);}
+  .card .v{font-size:1rem;color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  .assume{font-size:.75rem;color:var(--muted);line-height:1.55;margin-top:10px;border-top:1px dashed #2c3d4e;padding-top:8px;}
+</style>
+</head>
+<body>
+  <h1>正弦波：振幅与频率</h1>
+  <div class="sub">拖动滑块，实时观察波形、周期与峰值的变化。</div>
+
+  <div class="wrap">
+    <div class="canvasBox">
+      <canvas id="cv" width="900" height="420" aria-label="正弦波图像"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl">
+        <label for="amp">振幅 A <span class="val" id="ampOut">1.00</span></label>
+        <input id="amp" type="range" min="0" max="3" step="0.01" value="1">
+      </div>
+      <div class="ctrl">
+        <label for="freq">频率 f <span class="val" id="freqOut">1.00 Hz</span></label>
+        <input id="freq" type="range" min="0.1" max="5" step="0.01" value="1">
+      </div>
+      <div class="ctrl">
+        <label for="phase">初相 φ <span class="val" id="phaseOut">0°</span></label>
+        <input id="phase" type="range" min="-180" max="180" step="1" value="0">
+      </div>
+
+      <div class="readout">
+        <div class="card"><div class="k">峰值 y</div><div class="v" id="peak">±1.00</div></div>
+        <div class="card"><div class="k">峰峰值</div><div class="v" id="pp">2.00</div></div>
+        <div class="card"><div class="k">周期 T</div><div class="v" id="period">1.000 s</div></div>
+        <div class="card"><div class="k">角频率 ω</div><div class="v" id="omega">6.28 rad/s</div></div>
+      </div>
+
+      <div class="assume">
+        假设：信号为 y(t) = A·sin(2πft + φ)，时间轴显示 0–2 s（固定窗口），A 与 f 单位为任意单位/赫兹；绘制的是“静止快照”，不是随时间播放的动画。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const amp = document.getElementById("amp");
+  const freq = document.getElementById("freq");
+  const phase = document.getElementById("phase");
+  const ampOut = document.getElementById("ampOut");
+  const freqOut = document.getElementById("freqOut");
+  const phaseOut = document.getElementById("phaseOut");
+  const peakEl = document.getElementById("peak");
+  const ppEl = document.getElementById("pp");
+  const periodEl = document.getElementById("period");
+  const omegaEl = document.getElementById("omega");
+
+  const T_WINDOW = 2; // 秒
+  const AMP_MAX = 3;
+
+  function restore(){
+    let s = {};
+    try { s = genui.getState() || {}; } catch(e){ s = {}; }
+    amp.value   = (typeof s.amp   === "number") ? s.amp   : 1;
+    freq.value  = (typeof s.freq  === "number") ? s.freq  : 1;
+    phase.value = (typeof s.phase === "number") ? s.phase : 0;
+  }
+
+  function save(){
+    try {
+      genui.setState({
+        amp: Number(amp.value),
+        freq: Number(freq.value),
+        phase: Number(phase.value)
+      });
+    } catch(e){}
+  }
+
+  function draw(){
+    const A = Number(amp.value);
+    const f = Number(freq.value);
+    const phiDeg = Number(phase.value);
+    const phi = phiDeg * Math.PI / 180;
+    const omega = 2 * Math.PI * f;
+    const period = 1 / f;
+
+    // 读数
+    ampOut.textContent = A.toFixed(2);
+    freqOut.textContent = f.toFixed(2) + " Hz";
+    phaseOut.textContent = phiDeg.toFixed(0) + "°";
+    peakEl.textContent = "±" + A.toFixed(2);
+    ppEl.textContent = (2*A).toFixed(2);
+    periodEl.textContent = period.toFixed(3) + " s";
+    omegaEl.textContent = omega.toFixed(2) + " rad/s";
+
+    const W = cv.width, H = cv.height;
+    const padL = 56, padR = 24, padT = 24, padB = 40;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const cy = padT + plotH/2;         // 零线
+    const yScale = (plotH/2) / AMP_MAX; // 每单位振幅像素
+
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = "#0b131b";
+    ctx.fillRect(0,0,W,H);
+
+    // 网格：竖直（时间）
+    ctx.strokeStyle = "#1c2a37";
+    ctx.lineWidth = 1;
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.fillStyle = "#8aa0b4";
+    const nTicks = 8;
+    for(let i=0;i<=nTicks;i++){
+      const x = padL + plotW * i / nTicks;
+      ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT+plotH); ctx.stroke();
+      const t = T_WINDOW * i / nTicks;
+      ctx.textAlign = "center";
+      ctx.fillText(t.toFixed(1), x, padT+plotH+18);
+    }
+    // 水平（振幅）
+    const nY = 6;
+    for(let i=0;i<=nY;i++){
+      const v = -AMP_MAX + 2*AMP_MAX * i / nY;
+      const y = cy - v * yScale;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+plotW, y); ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(v.toFixed(1), padL-8, y+4);
+    }
+
+    // 零线高亮
+    ctx.strokeStyle = "#36506a";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(padL, cy); ctx.lineTo(padL+plotW, cy); ctx.stroke();
+
+    // 振幅包络（虚线）
+    ctx.setLineDash([5,5]);
+    ctx.strokeStyle = "rgba(79,195,247,0.35)";
+    ctx.lineWidth = 1;
+    const yTop = cy - A*yScale, yBot = cy + A*yScale;
+    ctx.beginPath(); ctx.moveTo(padL, yTop); ctx.lineTo(padL+plotW, yTop); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL, yBot); ctx.lineTo(padL+plotW, yBot); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 正弦曲线
+    ctx.strokeStyle = "#4fc3f7";
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    const steps = 1200;
+    for(let i=0;i<=steps;i++){
+      const t = T_WINDOW * i / steps;
+      const yVal = A * Math.sin(2*Math.PI*f*t + phi);
+      const x = padL + plotW * (t / T_WINDOW);
+      const y = cy - yVal * yScale;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // 周期标注：从 t=0 的相位点开始画一个周期
+    if(f > 0){
+      const t0 = 0;
+      const t1 = period;
+      if(t1 <= T_WINDOW){
+        const x0 = padL + plotW * (t0 / T_WINDOW);
+        const x1 = padL + plotW * (t1 / T_WINDOW);
+        const yb = padT + plotH - 8;
+        ctx.strokeStyle = "#ffb74d";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x0, yb); ctx.lineTo(x1, yb); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x0, yb-5); ctx.lineTo(x0, yb+5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x1, yb-5); ctx.lineTo(x1, yb+5); ctx.stroke();
+        ctx.fillStyle = "#ffb74d";
+        ctx.textAlign = "center";
+        ctx.fillText("T = " + period.toFixed(2) + " s", (x0+x1)/2, yb-8);
+      }
+    }
+
+    // 轴标签
+    ctx.fillStyle = "#8aa0b4";
+    ctx.textAlign = "center";
+    ctx.fillText("时间 t (s)", padL + plotW/2, H - 6);
+    ctx.save();
+    ctx.translate(14, padT + plotH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText("y(t)", 0, 0);
+    ctx.restore();
+
+    // 公式
+    ctx.fillStyle = "#e8eef5";
+    ctx.textAlign = "left";
+    ctx.font = "13px system-ui, sans-serif";
+    const sign = phiDeg >= 0 ? "+" : "−";
+    ctx.fillText(
+      "y(t) = " + A.toFixed(2) + " · sin(2π · " + f.toFixed(2) + " · t " + sign + " " + Math.abs(phiDeg).toFixed(0) + "°)",
+      padL + 6, padT + 14
+    );
+  }
+
+  function onChange(){
+    draw();
+    save();
+  }
+
+  restore();
+  amp.addEventListener("input", onChange);
+  freq.addEventListener("input", onChange);
+  phase.addEventListener("input", onChange);
+
+  draw();
+  save();
+})();
+</script>
+</body>
+</html>

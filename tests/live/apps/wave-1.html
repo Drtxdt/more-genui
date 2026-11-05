@@ -1,0 +1,44 @@
+<!-- more-genui: {"version":1,"id":"wave-1","title":"正弦波振幅和频率","stateVersion":1} -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>正弦波</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8edf7;--accent:#4fc3f7}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+.w{max-width:760px;margin:auto}h1{font-size:1.1rem;margin:0 0 6px}
+p.s{font-size:.8rem;color:#9aa7c2;margin:0 0 12px;line-height:1.5}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b101b}
+.c{margin-top:12px}.r{display:flex;justify-content:space-between;font-size:.8rem;color:#9aa7c2;margin-bottom:4px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.f{margin-top:8px;font-size:.8rem;color:#9aa7c2}
+</style></head><body><div class="w">
+<h1>正弦波：y = A·sin(2πf·t)</h1>
+<p class="s">A 为振幅（波峰高度），f 为频率（每秒周期数）；周期 T=1/f。</p>
+<canvas id="cv" width="720" height="260"></canvas>
+<div class="c"><div class="r"><span>振幅 A</span><span id="oa">1.00</span></div>
+<input id="a" type="range" min="0.1" max="1" step="0.01" value="0.6" aria-label="振幅"></div>
+<div class="c"><div class="r"><span>频率 f (Hz)</span><span id="of">1.00</span></div>
+<input id="f" type="range" min="0.2" max="5" step="0.05" value="1" aria-label="频率"></div>
+<p class="f">周期 T = <span id="ot">1.00</span> s</p>
+</div>
+<script>(function(){
+var D={a:0.6,f:1},S=Object.assign({},D);
+try{if(genui&&genui.getState){var g=genui.getState();if(g&&typeof g==="object"){S.a=Math.min(1,Math.max(.1,+g.a||D.a));S.f=Math.min(5,Math.max(.2,+g.f||D.f));}}}catch(e){}
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+var aE=document.getElementById("a"),fE=document.getElementById("f");
+var oa=document.getElementById("oa"),of=document.getElementById("of"),ot=document.getElementById("ot");
+function save(){try{genui.setState(S)}catch(e){}}
+function draw(ph){
+ var W=cv.width,H=cv.height,mid=H/2,ampPx=H*0.42;
+ ctx.clearRect(0,0,W,H);ctx.strokeStyle="#1c2538";ctx.beginPath();
+ for(var i=0;i<=4;i++){var x=i*W/4;ctx.moveTo(x,0);ctx.lineTo(x,H)}ctx.stroke();
+ ctx.strokeStyle="#3a4a6b";ctx.beginPath();ctx.moveTo(0,mid);ctx.lineTo(W,mid);ctx.stroke();
+ ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue("--accent");ctx.lineWidth=2.4;ctx.beginPath();
+ for(var k=0;k<=W;k++){var t=k/W*4,y=mid-S.a*ampPx*Math.sin(2*Math.PI*S.f*(t+ph));
+  k?ctx.lineTo(k,y):ctx.moveTo(k,y)}ctx.stroke();
+}
+function ui(){oa.textContent=S.a.toFixed(2);of.textContent=S.f.toFixed(2);ot.textContent=(1/S.f).toFixed(2);aE.value=S.a;fE.value=S.f}
+aE.oninput=function(){S.a=+this.value;ui();save()};
+fE.oninput=function(){S.f=+this.value;ui();save()};
+ui();var ph=0;
+(function loop(){ph=(ph+0.008)%1000;draw(ph);requestAnimationFrame(loop)})();
+})();</script></body></html>

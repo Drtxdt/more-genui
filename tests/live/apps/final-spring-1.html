@@ -1,0 +1,329 @@
+<!-- more-genui: {"version":1,"id":"final-spring-1","title":"理想弹簧振子：刚度与时间","stateVersion":1} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>理想弹簧振子：刚度与时间</title>
+<style>
+  :root{--bg:#101820;--fg:#e9eff6;--accent:#7ee081;--muted:#8ba1b5;--panel:#17232e;--warn:#ffb74d;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;}
+  h1{font-size:1.15rem;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:.85rem;margin-bottom:14px;line-height:1.5;}
+  .wrap{display:grid;grid-template-columns:1fr 310px;gap:16px;align-items:start;}
+  @media(max-width:780px){.wrap{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid #26374a;border-radius:10px;padding:10px;}
+  canvas{width:100%;height:auto;display:block;border-radius:6px;background:#0a121a;}
+  .panel{background:var(--panel);border:1px solid #26374a;border-radius:10px;padding:14px;}
+  .ctrl{margin-bottom:14px;}
+  .ctrl:last-of-type{margin-bottom:0;}
+  label{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem;margin-bottom:6px;}
+  .val{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+  .readout{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+  .mini{background:#0a121a;border:1px solid #223244;border-radius:8px;padding:8px 10px;}
+  .mini .k{font-size:.72rem;color:var(--muted);}
+  .mini .v{font-size:1rem;color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  .assume{font-size:.75rem;color:var(--muted);line-height:1.6;margin-top:12px;border-top:1px dashed #2c3d4e;padding-top:9px;}
+  .assume b{color:#c7d6e4;}
+</style>
+</head>
+<body>
+  <h1>理想弹簧振子：刚度 k 与时间</h1>
+  <div class="sub">质量固定 m = 1 kg。拖动刚度滑块，观察振子运动快慢、周期 T 与角频率 ω 如何随之改变。</div>
+
+  <div class="wrap">
+    <div class="card">
+      <canvas id="cv" width="900" height="440" aria-label="弹簧振子动画与位移时间曲线"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl">
+        <label for="k">刚度 k <span class="val" id="kOut">10.0 N/m</span></label>
+        <input id="k" type="range" min="1" max="100" step="0.5" value="10">
+      </div>
+      <div class="ctrl">
+        <label for="a0">初始振幅 A <span class="val" id="a0Out">0.60 m</span></label>
+        <input id="a0" type="range" min="0.1" max="0.9" step="0.01" value="0.6">
+      </div>
+
+      <div class="readout">
+        <div class="mini"><div class="k">周期 T</div><div class="v" id="period">1.987 s</div></div>
+        <div class="mini"><div class="k">角频率 ω</div><div class="v" id="omega">3.16 rad/s</div></div>
+        <div class="mini"><div class="k">固有频率 f</div><div class="v" id="freq">0.503 Hz</div></div>
+        <div class="mini"><div class="k">质量 m</div><div class="v">1.000 kg</div></div>
+      </div>
+
+      <div class="assume">
+        <b>数学假设：</b>理想无阻尼弹簧振子，遵守 \(m\ddot{x}=-kx\)，即 \(x(t)=A\cos(\omega t)\)，\(\omega=\sqrt{k/m}\)，\(T=2\pi\sqrt{m/k}=2\pi/\sqrt{k}\)（m=1 kg）。
+        动画初始条件为 t=0 时位移最大、速度为零。忽略摩擦、弹簧质量与重力影响（水平放置）。
+        运动时间按实际秒数推进；位移-时间曲线滚动显示最近 6 s。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const kEl = document.getElementById("k");
+  const aEl = document.getElementById("a0");
+  const kOut = document.getElementById("kOut");
+  const a0Out = document.getElementById("a0Out");
+  const periodEl = document.getElementById("period");
+  const omegaEl = document.getElementById("omega");
+  const freqEl = document.getElementById("freq");
+
+  const M = 1;            // kg
+  const WINDOW = 6;       // 曲线显示时长 s
+  const HIST = [];        // {t, x}
+
+  let simT = 0;
+  let last = 0;
+  let raf = null;
+
+  function restore(){
+    let s = {};
+    try { s = genui.getState() || {}; } catch(e){ s = {}; }
+    kEl.value  = (typeof s.k  === "number") ? s.k  : 10;
+    aEl.value  = (typeof s.a0 === "number") ? s.a0 : 0.6;
+  }
+  function save(){
+    try { genui.setState({ k: Number(kEl.value), a0: Number(aEl.value) }); } catch(e){}
+  }
+
+  function params(){
+    const k = Number(kEl.value);
+    const A = Number(aEl.value);
+    const omega = Math.sqrt(k / M);
+    const T = 2 * Math.PI / omega;
+    return {k, A, omega, T};
+  }
+
+  function updateReadout(){
+    const {omega, T} = params();
+    kOut.textContent = Number(kEl.value).toFixed(1) + " N/m";
+    a0Out.textContent = Number(aEl.value).toFixed(2) + " m";
+    periodEl.textContent = T.toFixed(3) + " s";
+    omegaEl.textContent = omega.toFixed(2) + " rad/s";
+    freqEl.textContent = (omega / (2*Math.PI)).toFixed(3) + " Hz";
+  }
+
+  function resetHistory(){
+    HIST.length = 0;
+    simT = 0;
+  }
+
+  function draw(){
+    const {A, omega} = params();
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = "#0a121a";
+    ctx.fillRect(0,0,W,H);
+
+    const half = H / 2;
+    const padX = 40;
+
+    // ===== 上半部分：振子示意 =====
+    const wallX = padX;
+    const eqX = W * 0.62;        // 平衡位置
+    const maxDispPx = 190;       // A_max=0.9 对应的像素
+    const pxPerM = maxDispPx / 0.9;
+    const x = A * Math.cos(omega * simT);
+    const massX = eqX + x * pxPerM;
+    const massR = 26;
+    const trackY = half * 0.50;
+
+    // 地面/导轨
+    ctx.strokeStyle = "#243448";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(wallX, trackY + massR + 6);
+    ctx.lineTo(W - padX, trackY + massR + 6);
+    ctx.stroke();
+
+    // 墙
+    ctx.fillStyle = "#2b3f55";
+    ctx.fillRect(wallX - 16, trackY - 46, 16, 92);
+
+    // 平衡位置虚线
+    ctx.setLineDash([5,5]);
+    ctx.strokeStyle = "#3a5570";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(eqX, trackY - 60);
+    ctx.lineTo(eqX, trackY + massR + 10);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#8ba1b5";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("平衡位置", eqX, trackY - 68);
+
+    // 弹簧（锯齿）
+    const springStart = wallX;
+    const springEnd = massX - massR;
+    const coils = 14;
+    ctx.strokeStyle = "#7ee081";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const span = springEnd - springStart;
+    ctx.moveTo(springStart, trackY);
+    for(let i=0;i<coils;i++){
+      const t0 = i / coils, t1 = (i + 0.5) / coils, t2 = (i + 1) / coils;
+      ctx.lineTo(springStart + span * t0, trackY);
+      ctx.lineTo(springStart + span * t1, trackY - 12);
+      ctx.lineTo(springStart + span * t2, trackY);
+    }
+    ctx.stroke();
+
+    // 质量块
+    ctx.fillStyle = "#4fc3f7";
+    ctx.beginPath();
+    ctx.arc(massX, trackY, massR, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "#08202c";
+    ctx.font = "bold 13px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("1 kg", massX, trackY);
+    ctx.textBaseline = "alphabetic";
+
+    // 位移标注
+    ctx.strokeStyle = "#ffb74d";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(eqX, trackY + massR + 22);
+    ctx.lineTo(massX, trackY + massR + 22);
+    ctx.stroke();
+    ctx.fillStyle = "#ffb74d";
+    ctx.textAlign = "center";
+    ctx.fillText("x = " + x.toFixed(2) + " m", (eqX + massX)/2, trackY + massR + 40);
+
+    // ===== 下半部分：x-t 曲线 =====
+    const top = half + 16;
+    const plotH = H - top - 34;
+    const padL = 58, padR = 24;
+    const plotW = W - padL - padR;
+    const cy = top + plotH/2;
+    const AMP_MAX = 0.9;
+    const yScale = (plotH/2) / AMP_MAX;
+
+    // 网格
+    ctx.strokeStyle = "#1b2a38";
+    ctx.lineWidth = 1;
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.fillStyle = "#8ba1b5";
+    for(let i=0;i<=6;i++){
+      const xx = padL + plotW * i / 6;
+      ctx.beginPath(); ctx.moveTo(xx, top); ctx.lineTo(xx, top + plotH); ctx.stroke();
+      ctx.textAlign = "center";
+      ctx.fillText((WINDOW * i / 6).toFixed(1), xx, top + plotH + 16);
+    }
+    for(let i=-2;i<=2;i++){
+      const v = i * 0.45;
+      const y = cy - v * yScale;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(v.toFixed(2), padL - 7, y + 4);
+    }
+    ctx.strokeStyle = "#36506a";
+    ctx.beginPath(); ctx.moveTo(padL, cy); ctx.lineTo(padL + plotW, cy); ctx.stroke();
+
+    // 曲线
+    ctx.strokeStyle = "#4fc3f7";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let first = true;
+    for(let i=0;i<HIST.length;i++){
+      const p = HIST[i];
+      const age = simT - p.t;
+      if(age > WINDOW) continue;
+      const xx = padL + plotW * (1 - age / WINDOW);
+      const yy = cy - p.x * yScale;
+      if(first){ ctx.moveTo(xx, yy); first = false; }
+      else ctx.lineTo(xx, yy);
+    }
+    ctx.stroke();
+
+    // 当前点
+    const nowX = padL + plotW;
+    const nowY = cy - x * yScale;
+    ctx.fillStyle = "#ffb74d";
+    ctx.beginPath();
+    ctx.arc(nowX, nowY, 4, 0, Math.PI*2);
+    ctx.fill();
+
+    // 轴标签
+    ctx.fillStyle = "#8ba1b5";
+    ctx.textAlign = "center";
+    ctx.fillText("时间回看 (s)", padL + plotW/2, H - 6);
+    ctx.save();
+    ctx.translate(16, cy);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText("x (m)", 0, 0);
+    ctx.restore();
+
+    // 周期标注
+    const T = 2 * Math.PI / omega;
+    if(T <= WINDOW){
+      const x1 = padL + plotW * (1 - T / WINDOW);
+      const yb = top + plotH - 6;
+      ctx.strokeStyle = "#ffb74d";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x1, yb); ctx.lineTo(nowX, yb); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x1, yb-5); ctx.lineTo(x1, yb+5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(nowX, yb-5); ctx.lineTo(nowX, yb+5); ctx.stroke();
+      ctx.fillStyle = "#ffb74d";
+      ctx.textAlign = "center";
+      ctx.fillText("T = " + T.toFixed(2) + " s", (x1 + nowX)/2, yb - 8);
+    }
+
+    // 提示
+    ctx.fillStyle = "#8ba1b5";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("x(t) = A·cos(ωt)，ω = √(k/m)，m = 1 kg", padL, top - 6);
+  }
+
+  function loop(ts){
+    if(!last) last = ts;
+    let dt = (ts - last) / 1000;
+    last = ts;
+    if(dt > 0.05) dt = 0.05;   // 切页回来避免跳变
+    simT += dt;
+
+    const {A, omega} = params();
+    HIST.push({t: simT, x: A * Math.cos(omega * simT)});
+    // 清理过期数据
+    while(HIST.length && simT - HIST[0].t > WINDOW + 1) HIST.shift();
+
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function onParamChange(){
+    // 参数变化后，重建历史以避免曲线错位
+    resetHistory();
+    updateReadout();
+    draw();
+    save();
+  }
+
+  restore();
+  updateReadout();
+  draw();
+
+  kEl.addEventListener("input", onParamChange);
+  aEl.addEventListener("input", onParamChange);
+
+  // 首次保存状态
+  save();
+
+  // 启动动画（仅动画帧不写入状态）
+  raf = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
