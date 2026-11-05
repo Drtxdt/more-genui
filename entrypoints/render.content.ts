@@ -130,7 +130,7 @@ export default defineContentScript({
         if (!enabled || !element.isConnected || element.textContent !== value.text)
           unfold(element, value);
       if (!enabled) return;
-      for (const code of document.querySelectorAll<HTMLElement>('.md-code-block pre, pre code')) {
+      for (const code of document.querySelectorAll<HTMLElement>('.ds-message .ds-assistant-message-main-content .md-code-block pre, .ds-message .ds-assistant-message-main-content pre code')) {
         const source = code.textContent || '';
         if (
           mounted.has(code) ||
@@ -168,9 +168,9 @@ export default defineContentScript({
         mounted.set(code, { source, host, container, display, dispose: surface.dispose });
       }
       // Fold only the smallest complete text container; retain the original DOM for framework reconciliation.
-      for (const element of document.querySelectorAll<HTMLElement>('p,div')) {
+      for (const element of document.querySelectorAll<HTMLElement>('.ds-message p,.ds-message div')) {
         if (
-          element.closest('.more-genui-guidance,.more-genui-surface') ||
+          element.closest('.more-genui-guidance,.more-genui-surface,.ds-assistant-message-main-content,.ds-think-content') ||
           folded.has(element) ||
           element.querySelector('textarea,pre') ||
           element.children.length > 0
@@ -232,6 +232,7 @@ export default defineContentScript({
       for (const m of mounted.values()) {
         m.dispose();
         m.host.remove();
+        m.container.style.display = m.display;
       }
       for (const [e, v] of folded) unfold(e, v);
       control.remove();
