@@ -6,6 +6,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client';
 import { mountSurface } from '../../../src/surface';
+import { RepairContexts } from '../../../src/repair.mjs';
+import { parseApp } from '../../../src/protocol.mjs';
 import { StateRepository } from '../../../src/state.mjs';
 import { appDefinition } from './events.mjs';
 declare module '@deepseek-ai/dsh-client-ui-chat/client' {
@@ -22,6 +24,7 @@ const repository = new StateRepository({
     localStorage.setItem(key, JSON.stringify(value));
   },
 });
+const repairs = new RepairContexts();
 function App(props: ChatNodeViewProps<'more-genui-app'>) {
   const host = useRef<HTMLDivElement>(null),
     latest = useRef(props);
@@ -33,7 +36,12 @@ function App(props: ChatNodeViewProps<'more-genui-app'>) {
     if (!host.current) return;
     const surface = mountSurface(host.current, {
       source: props.node.data.source,
-      scope: String(props.sessionId),
+      scope: 'harness:' + String(props.sessionId),
+      initialState: repairs.consume(
+        String(props.sessionId),
+        parseApp(props.node.data.source),
+        props.node.data.source,
+      ),
       instance: props.node.id,
       repository,
       draft(text) {
@@ -41,10 +49,18 @@ function App(props: ChatNodeViewProps<'more-genui-app'>) {
         if (!actions.insertText(text, actions.captureInsertion()))
           throw Error('草稿已更改，请重试');
       },
-      repair(text) {
+      repair(text, context) {
         if (latestDraft.current.trim()) throw Error('请先发送或保存现有草稿，再点击修复');
         const actions = latest.current.inputActions;
-        actions.setDraft(text);
+        const token = repairs.create(String(props.sessionId), context.app, context.state);
+        actions.setDraft(
+          text +
+            '\n本次修复标识：' +
+            token +
+            '\n请在返回的 HTML 内保留注释 <!-- more-genui-repair: ' +
+            token +
+            ' -->，仅本次修复使用。',
+        );
         actions.submit();
       },
     });

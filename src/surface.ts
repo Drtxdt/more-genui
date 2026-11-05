@@ -13,13 +13,14 @@ import { StateRepository } from './state.mjs';
 import sandboxHTML from './generated-sandbox';
 export interface SurfaceOptions {
   source: string;
+  initialState?: Record<string, unknown>;
   scope: string;
   instance: string;
   repository: StateRepository;
   sandboxUrl?: string;
   theme?: () => 'light' | 'dark';
   draft: (text: string) => void | Promise<void>;
-  repair: (text: string) => void | Promise<void>;
+  repair: (text: string, context: { app: ReturnType<typeof parseApp>; state: Record<string, unknown> }) => void | Promise<void>;
 }
 export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   const resolvedTheme = () =>
@@ -127,6 +128,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   button('修复', () =>
     options.repair(
       `请修复应用 ${app.id}（${app.title}），保留完整 genui-html 协议，兼容时保留 stateVersion。\n错误：${error || '请检查交互与计算逻辑'}\n当前参数：${JSON.stringify(state)}\n原源码：\n${options.source}`,
+      { app, state: safeState(state) },
     ),
   );
   const pre = document.createElement('pre');
@@ -245,9 +247,11 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
     .then((keys) => options.repository.load(keys))
     .then((value) => {
       if (!disposed) {
-        state = value;
+        state = options.initialState ?? value;
+        if (options.initialState) dirty++;
         stateLoaded = true;
         start();
+        void save();
       }
     })
     .catch((e) => setStatus(`读取状态失败：${e.message}`));

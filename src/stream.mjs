@@ -1,4 +1,5 @@
-import { MAX_SOURCE, bytes, fencedSources } from './protocol.mjs';
+import { FenceScanner } from './fences.mjs';
+import { MAX_SOURCE, bytes } from './protocol.mjs';
 export class SSEDecoder {
   buffer = '';
   constructor(onEvent) {
@@ -60,17 +61,36 @@ export class ReplyAccumulator {
   cursor = new DeltaCursor();
   constructor(onSource) {
     this.onSource = onSource;
+    this.scanner = new FenceScanner((source) => {
+      if (!this.emitted.has(source)) {
+        this.emitted.add(source);
+        this.onSource(source);
+      }
+    });
   }
   accept(event) {
     const delta = event?.choices?.[0]?.delta?.content;
     if (typeof delta === 'string') {
       this.text += delta;
-      this.emit();
+      this.emit(true);
       return;
     }
     for (const patch of this.cursor.parse(event)) {
       this.apply(patch);
-      this.emit();
+      const path = patch.path.replace(/^\/+|\/+$/g, '');
+      const match = /^response\/fragments\/(-?\d+)\/content$/.exec(path);
+      const index = match
+        ? Number(match[1]) < 0
+          ? this.fragments.length + Number(match[1])
+          : Number(match[1])
+        : -1;
+      const last = this.fragments.findLastIndex(
+        (x) => x && ['RESPONSE', 'TEMPLATE_RESPONSE'].includes(x.type),
+      );
+      this.emit(
+        patch.op === 'APPEND' &&
+          (/^(response\/)?content$/.test(path) || (index >= 0 && index === last)),
+      );
     }
   }
   apply({ path, op, value }) {
@@ -117,12 +137,8 @@ export class ReplyAccumulator {
         .join('');
     if (bytes(this.fragments) > MAX_SOURCE * 4) throw Error('Fragments exceed streaming limit');
   }
-  emit() {
+  emit(appendOnly = false) {
     if (bytes(this.text) > MAX_SOURCE * 4) throw Error('Reply exceeds streaming limit');
-    for (const source of fencedSources(this.text))
-      if (!this.emitted.has(source)) {
-        this.emitted.add(source);
-        this.onSource(source);
-      }
+    this.scanner.update(this.text, appendOnly);
   }
 }

@@ -12,7 +12,7 @@ export class StateRepository {
     this.queue = Promise.resolve();
   }
   async keys(scope, instance, app, source) {
-    const family = await digest(JSON.stringify([scope, app.id, app.stateVersion]));
+    const family = await digest(JSON.stringify([scope, instance, app.id, app.stateVersion]));
     const revision = await digest(JSON.stringify([scope, instance, source]));
     return { exact: `mg:state:${revision}`, latest: `mg:latest:${family}` };
   }

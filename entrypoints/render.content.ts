@@ -4,20 +4,35 @@ import { browser } from 'wxt/browser';
 import { parseApp, splitGuidance, MAX_SOURCE } from '../src/protocol.mjs';
 import { StateRepository } from '../src/state.mjs';
 import { mountSurface } from '../src/surface';
+import { messages, codeBlocks, userLeaves, messageIdentity } from '../src/deepseek-dom.mjs';
+import { RepairContexts, memoryRepositoryStorage } from '../src/repair.mjs';
 export default defineContentScript({
   matches: ['https://chat.deepseek.com/*'],
   main(ctx) {
-    let enabled = true,
+    let enabled = false,
       route = location.pathname;
-    const active = new Set<string>(),
-      complete = new Set<string>(),
-      streamCodes = new WeakSet<HTMLElement>();
+    let settingsReady = false;
+    const active = new Set<string>();
+    const requests = new Map<
+      string,
+      { complete: Set<string>; baseline: WeakMap<HTMLElement, string>; repairToken?: string }
+    >();
+    let owners = new WeakMap<HTMLElement, string>(),
+      lastRequest = '';
+    const repairs = new RepairContexts();
+    const temporaryRepository = new StateRepository(memoryRepositoryStorage());
+    const allCodes = () =>
+      messages().flatMap((message: Element) => codeBlocks(message)) as HTMLElement[];
+    const dirtyMessages = new Set<HTMLElement>();
+    const knownSources = new WeakMap<HTMLElement, string>();
     const repository = new StateRepository({
       get: async (key: string) => (await browser.storage.local.get(key))[key],
       set: async (key: string, value: unknown) => {
         await browser.storage.local.set({ [key]: value });
       },
     });
+    const approvals = new WeakMap<HTMLElement, string>();
+    const recovery = new Map<HTMLElement, HTMLButtonElement>();
     const mounted = new Map<
       HTMLElement,
       {
@@ -55,12 +70,36 @@ export default defineContentScript({
       control.setAttribute('aria-pressed', String(enabled));
       window.postMessage({ type: 'more-genui-enabled', enabled }, location.origin);
     };
-    browser.storage.local.get('enabled').then((v) => {
-      enabled = v.enabled !== false;
-      publish();
-      scan();
-    });
+    const loadSettings = async () => {
+      control.disabled = true;
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const value = await Promise.race([
+          browser.storage.local.get('enabled'),
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => reject(Error('storage timeout')), 4000);
+          }),
+        ]);
+        settingsReady = true;
+        enabled = value.enabled !== false;
+        publish();
+        scan();
+      } catch {
+        enabled = false;
+        control.title = '读取开关失败，保持关闭；点击重试';
+        control.setAttribute('aria-label', control.title);
+        control.setAttribute('aria-pressed', 'false');
+      } finally {
+        clearTimeout(timeout);
+        control.disabled = false;
+      }
+    };
+    void loadSettings();
     control.onclick = () => {
+      if (!settingsReady) {
+        void loadSettings();
+        return;
+      }
       enabled = !enabled;
       control.classList.remove('activating');
       void control.offsetWidth;
@@ -70,7 +109,24 @@ export default defineContentScript({
       scan();
     };
     control.addEventListener('animationend', () => control.classList.remove('activating'));
-    const interval = setInterval(publish, 1000);
+    const settingsChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if (area === 'local' && changes.enabled) {
+        enabled = changes.enabled.newValue === true;
+        publish();
+        scan();
+      }
+    };
+    browser.storage.onChanged.addListener(settingsChanged);
+    const readyListener = (e: MessageEvent) => {
+      if (
+        e.source === window &&
+        e.origin === location.origin &&
+        settingsReady &&
+        e.data?.type === 'more-genui-ready'
+      )
+        publish();
+    };
+    window.addEventListener('message', readyListener);
     function composer() {
       const input = document.querySelector<HTMLTextAreaElement>('textarea');
       if (!input) throw Error('未找到 DeepSeek 输入框');
@@ -120,9 +176,18 @@ export default defineContentScript({
       element.style.display = value.display;
       folded.delete(element);
     }
-    function scan() {
+    function scan(changedOnly = false) {
       if (route !== location.pathname) {
         route = location.pathname;
+        active.clear();
+        requests.clear();
+        repairs.clear();
+        owners = new WeakMap();
+        lastRequest = '';
+        for (const button of recovery.values()) button.remove();
+        recovery.clear();
+        for (const [element, value] of folded) unfold(element, value);
+        changedOnly = false;
         for (const [code, m] of mounted) {
           m.dispose();
           m.host.remove();
@@ -140,20 +205,69 @@ export default defineContentScript({
       for (const [element, value] of folded)
         if (!enabled || !element.isConnected || element.textContent !== value.text)
           unfold(element, value);
+      for (const [code, button] of recovery)
+        if (
+          !enabled ||
+          !code.isConnected ||
+          mounted.has(code) ||
+          button.dataset.source !== code.textContent
+        ) {
+          button.remove();
+          recovery.delete(code);
+        }
       if (!enabled) return;
-      for (const code of document.querySelectorAll<HTMLElement>(
-        '.ds-message .ds-assistant-message-main-content .md-code-block pre, .ds-message .ds-assistant-message-main-content pre code',
-      )) {
+      const candidates = changedOnly
+        ? [...dirtyMessages].filter((node) => node.isConnected)
+        : messages();
+      dirtyMessages.clear();
+      for (const code of candidates.flatMap((message: Element) =>
+        codeBlocks(message),
+      ) as HTMLElement[]) {
         const source = code.textContent || '';
+        knownSources.set(code, source);
         if (
           mounted.has(code) ||
           source.length > MAX_SOURCE ||
           !source.trimStart().startsWith('<!-- more-genui:')
         )
           continue;
-        // During a response only the SSE closing fence authorizes execution. History has no active stream.
-        if (active.size) streamCodes.add(code);
-        if (streamCodes.has(code) && !complete.has(source.trim())) continue;
+        if (
+          !owners.has(code) &&
+          lastRequest &&
+          requests.get(lastRequest)?.baseline.get(code) !== source
+        )
+          owners.set(code, lastRequest);
+        const requestId = owners.get(code);
+        if (
+          requestId &&
+          !requests.get(requestId)?.complete.has(source.trim()) &&
+          approvals.get(code) !== source
+        ) {
+          if (!active.size && !recovery.has(code)) {
+            try {
+              parseApp(source);
+            } catch {
+              continue;
+            }
+            const button = document.createElement('button');
+            button.className = 'more-genui-recovery';
+            button.dataset.source = source;
+            button.textContent = '未确认输出边界 · 运行此应用';
+            button.onclick = () => {
+              if (code.textContent !== source || !code.isConnected) {
+                scan();
+                return;
+              }
+              approvals.set(code, source);
+              button.remove();
+              recovery.delete(code);
+              scan();
+            };
+            code.closest('pre')?.after(button);
+            recovery.set(code, button);
+          }
+          continue;
+        }
         try {
           parseApp(source);
         } catch {
@@ -166,33 +280,53 @@ export default defineContentScript({
         if (!host.isConnected) continue;
         const display = container.style.display;
         container.style.display = 'none';
-        const instance = String(
-          Array.from(document.querySelectorAll('.md-code-block pre, pre code')).indexOf(code),
-        );
+        const identity = messageIdentity(code);
+        const blocks = codeBlocks(identity.message);
+        const appMeta = parseApp(source);
+        const sameId = blocks.filter((node: HTMLElement) => {
+          try {
+            return parseApp(node.textContent || '').id === appMeta.id;
+          } catch {
+            return false;
+          }
+        });
+        const instance = JSON.stringify([
+          'deepseek',
+          identity.id,
+          appMeta.id,
+          sameId.indexOf(code),
+          appMeta.stateVersion,
+        ]);
+        // An explicit repair echo must also belong to its captured request when streaming.
+        const token = /<!-- more-genui-repair: ([a-f0-9-]+) -->/.exec(source)?.[1];
+        const allowRepair = requestId && token === requests.get(requestId)?.repairToken;
         const surface = mountSurface(host, {
           source,
-          scope: route,
+          scope: 'deepseek:' + route,
           instance,
-          repository,
+          repository: identity.persistent ? repository : temporaryRepository,
+          initialState: allowRepair ? repairs.consume(route, appMeta, source) : undefined,
           sandboxUrl: chrome.runtime.getURL('sandbox.html'),
           draft,
-          repair,
+          repair(text, context) {
+            const token = repairs.create(route, context.app, context.state);
+            return repair(
+              text +
+                '\n本次修复标识：' +
+                token +
+                '\n请在返回的 HTML 内保留注释 <!-- more-genui-repair: ' +
+                token +
+                ' -->，仅本次修复使用。',
+            );
+          },
         });
         mounted.set(code, { source, host, container, display, dispose: surface.dispose });
       }
       // Fold only the smallest complete text container; retain the original DOM for framework reconciliation.
-      for (const element of document.querySelectorAll<HTMLElement>(
-        '.ds-message p,.ds-message div',
-      )) {
-        if (
-          element.closest(
-            '.more-genui-guidance,.more-genui-surface,.ds-assistant-message-main-content,.ds-think-content',
-          ) ||
-          folded.has(element) ||
-          element.querySelector('textarea,pre') ||
-          element.children.length > 0
-        )
-          continue;
+      for (const element of candidates.flatMap((message: Element) =>
+        userLeaves(message),
+      ) as HTMLElement[]) {
+        if (folded.has(element)) continue;
         const text = element.textContent || '';
         if (!text.includes('[More GenUI v1]')) continue;
         const parts = splitGuidance(text);
@@ -216,46 +350,87 @@ export default defineContentScript({
         element.style.display = 'none';
       }
     }
-    window.addEventListener('message', (e) => {
-      if (e.source !== window || e.origin !== location.origin) return;
+    const streamListener = (e: MessageEvent) => {
+      if (e.source !== window || e.origin !== location.origin || !enabled) return;
       const m = e.data;
-      if (!m || (typeof m.id !== 'string' && m.type !== 'more-genui-unsupported')) return;
-      if (m.type === 'more-genui-start') active.add(m.id);
-      if (m.type === 'more-genui-end') {
-        scan();
-        active.delete(m.id);
-      }
-      if (
+      if (!m || !m.type?.startsWith('more-genui-')) return;
+      if (route !== location.pathname) scan();
+      if (m.route && m.route !== route) return;
+      if (m.type === 'more-genui-start' && typeof m.id === 'string') {
+        requests.set(m.id, {
+          complete: new Set(),
+          baseline: new WeakMap(allCodes().map((code) => [code, knownSources.get(code) || ''])),
+          repairToken: m.repairToken,
+        });
+        active.add(m.id);
+        lastRequest = m.id;
+      } else if (
         m.type === 'more-genui-source' &&
+        requests.has(m.id) &&
         typeof m.source === 'string' &&
         m.source.length <= MAX_SOURCE
-      )
-        complete.add(m.source.trim());
-      if (m.type === 'more-genui-unsupported')
-        control.title = '站点请求格式未识别，已保留原始回答；流式提前渲染可能不可用';
+      ) {
+        requests.get(m.id)!.complete.add(m.source.trim());
+      } else if (m.type === 'more-genui-end' && requests.has(m.id)) {
+        // Attribute DOM already present to this request before dropping its active status.
+        for (const code of allCodes())
+          if (
+            requests.get(m.id)!.baseline.get(code) !== (code.textContent || '') &&
+            !owners.has(code)
+          )
+            owners.set(code, m.id);
+        active.delete(m.id);
+      } else if (m.type === 'more-genui-unsupported') {
+        control.title = '站点请求格式未识别，保留原始回答；完整应用需手动运行';
+      } else return;
       scan();
-    });
+    };
+    window.addEventListener('message', streamListener);
     let timer: ReturnType<typeof setTimeout>;
+    const observed = new Set<HTMLElement>();
     const observer = new MutationObserver((records) => {
-      const relevant = records.some((record) => {
+      for (const record of records) {
         const target =
           record.target instanceof Element ? record.target : record.target.parentElement;
-        if (target?.closest('.ds-message')) return true;
-        return [...record.addedNodes, ...record.removedNodes].some(
-          (node) =>
-            node instanceof Element &&
-            (node.matches('.ds-message') || node.querySelector('.ds-message')),
-        );
-      });
-      if (!relevant && route === location.pathname) return;
+        if (target?.closest('.more-genui-surface,.more-genui-guidance,.more-genui-recovery'))
+          continue;
+        const message = target?.closest<HTMLElement>('.ds-message');
+        if (message) dirtyMessages.add(message);
+      }
+      if (!dirtyMessages.size) return;
       clearTimeout(timer);
-      timer = setTimeout(scan, 100);
+      timer = setTimeout(() => scan(true), 100);
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    const discover = () => {
+      const current = messages() as HTMLElement[];
+      if ([...observed].some((node) => !node.isConnected)) {
+        observer.disconnect();
+        observed.clear();
+      }
+      for (const message of current)
+        if (!observed.has(message)) {
+          observed.add(message);
+          dirtyMessages.add(message);
+          observer.observe(message, { childList: true, subtree: true, characterData: true });
+        }
+      if (dirtyMessages.size || route !== location.pathname) {
+        clearTimeout(timer);
+        timer = setTimeout(() => scan(true), 100);
+      }
+    };
+    // Discovery watches structural changes only; text processing observes confirmed messages.
+    const discovery = new MutationObserver(discover);
+    discovery.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('popstate', discover);
+    discover();
     scan();
     ctx.onInvalidated(() => {
       observer.disconnect();
-      clearInterval(interval);
+      discovery.disconnect();
+      window.removeEventListener('popstate', discover);
+      window.removeEventListener('message', readyListener);
+      window.removeEventListener('message', streamListener);
+      browser.storage.onChanged.removeListener(settingsChanged);
       clearTimeout(timer);
       for (const m of mounted.values()) {
         m.dispose();
@@ -263,6 +438,7 @@ export default defineContentScript({
         m.container.style.display = m.display;
       }
       for (const [e, v] of folded) unfold(e, v);
+      for (const button of recovery.values()) button.remove();
       control.remove();
       toggleStyle.remove();
     });

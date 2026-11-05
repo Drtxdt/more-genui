@@ -30,6 +30,10 @@ test('actual MV3 scripts append instructions once, sandbox renders current DeepS
   let sent;
   await context.route('**/api/v0/chat/completion', async (route) => {
     sent = route.request().postDataJSON();
+    const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)?.[1];
+    const output = token
+      ? source.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>')
+      : source;
     await route.fulfill({
       contentType: 'text/event-stream',
       body:
@@ -37,7 +41,7 @@ test('actual MV3 scripts append instructions once, sandbox renders current DeepS
         JSON.stringify({
           p: 'response/content',
           o: 'APPEND',
-          v: '```genui-html\n' + source + '\n```\n',
+          v: '```genui-html\n' + output + '\n```\n',
         }) +
         '\n\n',
     });
@@ -65,6 +69,19 @@ test('actual MV3 scripts append instructions once, sandbox renders current DeepS
   await expect(frame.getByLabel('振幅')).toHaveValue('1.8');
   await page.getByRole('button', { name: '修复', exact: true }).click();
   await expect.poll(() => sent.prompt).toContain('请修复应用');
+  const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)[1];
+  await page.evaluate(
+    (source) => {
+      const pre = document.createElement('pre');
+      pre.textContent = source;
+      document.querySelector('.ds-assistant-message-main-content').append(pre);
+    },
+    source.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>'),
+  );
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(2);
+  await expect(
+    page.frameLocator('.more-genui-surface iframe').last().getByLabel('振幅'),
+  ).toHaveValue('1.8');
   await page.screenshot({
     path: `test-results/${test.info().project.name}-extension.png`,
     fullPage: true,
@@ -182,4 +199,92 @@ test('navigation duplicates are never folded or modified', async () => {
   await page.locator('#more-genui-toggle').click();
   await expect(page.locator('.more-genui-guidance')).toHaveCount(0);
   await expect(page.locator('.user-body')).toBeVisible();
+});
+
+test('cancelled output requires current-source approval and old-route events cannot run it', async () => {
+  await page.evaluate((source) => {
+    window.postMessage(
+      { type: 'more-genui-start', id: 'cancel', route: location.pathname },
+      location.origin,
+    );
+    setTimeout(() => {
+      const pre = document.createElement('pre');
+      pre.id = 'cancelled';
+      pre.textContent = source;
+      document.querySelector('.ds-assistant-message-main-content').append(pre);
+    }, 20);
+  }, source);
+  await page.waitForTimeout(180);
+  await page.evaluate(() =>
+    window.postMessage(
+      { type: 'more-genui-end', id: 'cancel', status: 'cancelled', route: location.pathname },
+      location.origin,
+    ),
+  );
+  const run = page.getByRole('button', { name: '未确认输出边界 · 运行此应用' });
+  await expect(run).toBeVisible();
+  await page.evaluate(
+    () =>
+      (document.querySelector('#cancelled').textContent = document
+        .querySelector('#cancelled')
+        .textContent.replace('</html>', '')),
+  );
+  await expect(run).toHaveCount(0);
+  await expect(page.locator('.more-genui-surface')).toHaveCount(0);
+  await page.evaluate(
+    (source) => (document.querySelector('#cancelled').textContent = source),
+    source,
+  );
+  await expect(run).toBeVisible();
+  await run.click();
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(1);
+  await page.evaluate((source) => {
+    document.querySelector('.ds-assistant-message-main-content').replaceChildren();
+    history.pushState({}, '', '/a/chat/other');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.postMessage(
+      { type: 'more-genui-start', id: 'new', route: location.pathname },
+      location.origin,
+    );
+    setTimeout(() => {
+      const pre = document.createElement('pre');
+      pre.textContent = source;
+      document.querySelector('.ds-assistant-message-main-content').append(pre);
+      window.postMessage(
+        { type: 'more-genui-source', id: 'cancel', route: '/a/chat/fixture', source },
+        location.origin,
+      );
+    }, 30);
+  }, source);
+  await page.waitForTimeout(200);
+  await expect(page.locator('.more-genui-surface')).toHaveCount(0);
+});
+
+test('same IDs in separate messages stay isolated and stable messages restore after rebuild', async () => {
+  await page.evaluate((source) => {
+    document.querySelector('#messages').outerHTML = ['a', 'b']
+      .map(
+        (id) =>
+          '<article class="ds-message" data-virtual-list-item-key="' +
+          id +
+          '"><div class="ds-assistant-message-main-content"><pre></pre></div></article>',
+      )
+      .join('');
+    document.querySelectorAll('pre').forEach((pre) => (pre.textContent = source));
+  }, source);
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(2);
+  const a = page.frameLocator('[data-virtual-list-item-key=a] iframe'),
+    b = page.frameLocator('[data-virtual-list-item-key=b] iframe');
+  await a.getByLabel('振幅').fill('1.8');
+  await a.getByLabel('振幅').dispatchEvent('input');
+  await expect(b.getByLabel('振幅')).toHaveValue('1');
+  await page.waitForTimeout(250);
+  await page.evaluate(() => {
+    const old = document.querySelector('[data-virtual-list-item-key=a]');
+    const copy = old.cloneNode(true);
+    copy.querySelectorAll('.more-genui-surface').forEach((n) => n.remove());
+    copy.querySelector('pre').style.display = '';
+    old.replaceWith(copy);
+  });
+  await expect(a.getByLabel('振幅')).toHaveValue('1.8');
 });

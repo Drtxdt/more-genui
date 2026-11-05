@@ -16,6 +16,7 @@ export default defineContentScript({
       )
         enabled = e.data.enabled === true;
     });
+    post({ type: 'more-genui-ready' });
     const streamPaths = new Set(
       ['completion', 'regenerate', 'continue', 'resume_stream', 'edit_message'].map(
         (name) => '/api/v0/chat/' + name,
@@ -30,15 +31,17 @@ export default defineContentScript({
       if (typeof body?.prompt !== 'string') throw Error('Unknown prompt');
       return JSON.stringify({ ...body, prompt: augment(body.prompt) });
     };
-    function observe() {
+    function observe(body = '') {
+      const route = location.pathname;
+      const repairToken = /本次修复标识：([a-f0-9-]+)/.exec(body)?.[1];
       const id = crypto.randomUUID();
       let ended = false,
         failed = false;
       const accumulator = new ReplyAccumulator((source: string) =>
-        post({ type: 'more-genui-source', id, source }),
+        post({ type: 'more-genui-source', id, route, source }),
       );
       const sse = new SSEDecoder((event: unknown) => accumulator.accept(event));
-      post({ type: 'more-genui-start', id });
+      post({ type: 'more-genui-start', id, route, repairToken });
       return {
         push(text: string) {
           if (ended || failed) return;
@@ -49,10 +52,10 @@ export default defineContentScript({
             post({ type: 'more-genui-unsupported' });
           }
         },
-        end() {
+        end(status = 'complete') {
           if (ended) return;
           ended = true;
-          post({ type: 'more-genui-end', id });
+          post({ type: 'more-genui-end', id, route, status: failed ? 'unsupported' : status });
         },
       };
     }
@@ -67,14 +70,19 @@ export default defineContentScript({
         if (needsPrompt(url))
           request = new Request(request, { body: rewrite(await request.clone().text()) });
       } catch {
-        post({ type: 'more-genui-unsupported' });
-        return originalFetch.call(window, input, init);
+        const fallback = observe();
+        post({ type: 'more-genui-unsupported', route: location.pathname });
+        try {
+          return await originalFetch.call(window, input, init);
+        } finally {
+          fallback.end('unsupported');
+        }
       }
-      const stream = observe();
+      const stream = observe(await request.clone().text());
       try {
         const response = await originalFetch.call(window, request);
         if (!response.ok || !response.body) {
-          stream.end();
+          stream.end('http-error');
           return response;
         }
         const copy = response.clone();
@@ -99,7 +107,11 @@ export default defineContentScript({
         })();
         return response;
       } catch (error) {
-        stream.end();
+        stream.end(
+          error instanceof DOMException && error.name === 'AbortError'
+            ? 'cancelled'
+            : 'network-error',
+        );
         throw error;
       }
     };
@@ -136,13 +148,20 @@ export default defineContentScript({
           outgoing = rewrite(body);
         }
       } catch {
-        post({ type: 'more-genui-unsupported' });
+        const fallback = observe();
+        this.addEventListener('loadend', () => fallback.end('unsupported'), { once: true });
+        post({ type: 'more-genui-unsupported', route: location.pathname });
         return originalSend.call(this, body);
       }
       const stream = observe();
       let offset = 0;
       const progress = () => {
-        if (this.responseType && this.responseType !== 'text') return;
+        if (
+          this.status < 200 ||
+          this.status >= 300 ||
+          (this.responseType && this.responseType !== 'text')
+        )
+          return;
         try {
           const text = this.responseText;
           stream.push(text.slice(offset));
@@ -155,7 +174,13 @@ export default defineContentScript({
         progress();
         this.removeEventListener('progress', progress);
         this.removeEventListener('loadend', finish);
-        stream.end();
+        stream.end(
+          this.status >= 200 && this.status < 300
+            ? 'complete'
+            : this.status === 0
+              ? 'cancelled'
+              : 'http-error',
+        );
         request.cleanup = undefined;
       };
       request.cleanup = finish;

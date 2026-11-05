@@ -92,8 +92,12 @@ test('state survives updates, separates conversations and schema versions, seria
   const app = parseApp(source),
     first = await repository.keys('sessionA', 'call1', app, source);
   await repository.save(first, { amplitude: 2 });
-  const revision = await repository.keys('sessionA', 'call2', app, source + ' ');
+  const revision = await repository.keys('sessionA', 'call1', app, source + ' ');
   assert.deepEqual(await repository.load(revision), { amplitude: 2 });
+  assert.deepEqual(
+    await repository.load(await repository.keys('sessionA', 'call2', app, source)),
+    {},
+  );
   assert.deepEqual(
     await repository.load(await repository.keys('sessionB', 'call2', app, source)),
     {},
@@ -159,4 +163,29 @@ test('official BATCH deltas inherit operation and child paths without exposing T
   reply.accept({ p: 'response/fragments/-1/content', o: 'SET', v: 'first' });
   reply.accept({ v: 'replacement' });
   assert.equal(reply.text, 'replacement');
+});
+
+import { RepairContexts } from '../src/repair.mjs';
+import { FenceScanner } from '../src/fences.mjs';
+test('repair handoff is explicit, scoped, compatible, snapshotted and single-use', () => {
+  const repairs = new RepairContexts(),
+    app = parseApp(source),
+    state = { x: 2 };
+  const token = repairs.create('A', app, state);
+  state.x = 99;
+  const repaired = source.replace('</html>', `<!-- more-genui-repair: ${token} --></html>`);
+  assert.equal(repairs.consume('A', app, source), undefined);
+  assert.equal(repairs.consume('B', app, repaired), undefined);
+  assert.equal(repairs.consume('A', { ...app, stateVersion: 2 }, repaired), undefined);
+  assert.deepEqual(repairs.consume('A', app, repaired), { x: 2 });
+  assert.equal(repairs.consume('A', app, repaired), undefined);
+});
+test('incremental fence scan handles arbitrary splits and SET replacements', () => {
+  const found = new Set(),
+    scanner = new FenceScanner((s) => found.add(s));
+  const text = 'intro\n```genui-html\n' + source.trim() + '\n```\nend';
+  for (let i = 1; i <= text.length; i++) scanner.update(text.slice(0, i));
+  assert.deepEqual([...found], [source.trim()]);
+  scanner.update('replacement\n~~~genui-html\n' + source.trim() + '\n~~~\n');
+  assert.equal(found.size, 1);
 });
