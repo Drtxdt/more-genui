@@ -1,0 +1,28 @@
+<!-- more-genui: {"version":1,"id":"http-cache-quiz","title":"缓存判断小练习","stateVersion":1} -->
+<!-- more-genui-repair: e2735f9b-7ec8-4b1f-a58d-8725b6fdf502 -->
+<html><body style="margin:0;padding:10px;background:var(--bg);color:var(--fg);font-family:inherit">
+<style>
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}.row{display:flex;gap:8px;flex-wrap:wrap}button{font:inherit;font-size:13px;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);cursor:pointer}button.sel{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--bg))}button:disabled{opacity:.45;cursor:default}.q{font-size:14px;font-weight:600;margin-bottom:8px;line-height:1.5}.step{font-size:13px;line-height:1.6;margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--border)}.step.ok{border-color:var(--chart-2)}.step.bad{border-color:var(--chart-3)}.muted{color:var(--muted);font-size:12px;margin-top:8px;line-height:1.5}.foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}.prog{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+</style>
+<div class="panel"><div id="q" class="q"></div><div id="opts" class="row" role="group" aria-label="选项"></div><div id="step" class="step" style="display:none" role="status"></div><div id="muted" class="muted"></div><div class="foot"><button id="next" type="button" disabled>下一题</button><button id="reset" type="button">重新开始</button><span id="prog" class="prog"></span></div></div>
+<script>
+var SCEN = {
+ fresh: {q:'副本年龄 30 秒，max-age=60。接下来会发生什么？',opts:['直接用缓存','发条件请求，可能 304','直接 200'],ans:0,step:'第 1 步新鲜度判断：30 < 60，仍新鲜 → 直接用缓存，不发请求，因此既不会出现 304 也不会出现 200。'},
+ stale304:{q:'副本年龄 120 秒，max-age=60，ETag 仍在。接下来会发生什么？',opts:['直接用缓存','发条件请求，服务端返回 304','发条件请求，服务端返回 200'],ans:1,step:'第 1 步：120 > 60，已过期 → 进入条件请求；第 2 步：服务端比对 ETag 未变 → 返回 304，无响应体，复用本地副本并刷新新鲜期。'},
+ stale200:{q:'副本年龄 120 秒，max-age=60，服务端 ETag 已变。接下来会发生什么？',opts:['直接用缓存','发条件请求，服务端返回 304','发条件请求，服务端返回 200'],ans:2,step:'第 1 步：已过期 → 发条件请求；第 2 步：服务端发现 ETag 不匹配 → 返回 200 完整响应体，客户端替换缓存。'}
+};
+var order=['fresh','stale304','stale200'];
+var qEl=document.getElementById('q');var optsEl=document.getElementById('opts');var stepEl=document.getElementById('step');var mutedEl=document.getElementById('muted');var nextB=document.getElementById('next');var resetB=document.getElementById('reset');var progEl=document.getElementById('prog');
+var st=genui.getState()||{};var qi=Number(st.qi);if(!isFinite(qi)||qi<0||qi>=order.length)qi=0;var chosen=Number(st.chosen);if(!isFinite(chosen)||chosen< -1||chosen>=3)chosen=-1;
+function render(){
+ var s=SCEN[order[qi]];
+ qEl.textContent='第 '+(qi+1)+'/'+order.length+' 题：'+s.q;
+ progEl.textContent='已答 '+(chosen>=0?1:0)+'/1';
+ optsEl.innerHTML='';
+ s.opts.forEach(function(t,i){var b=document.createElement('button');b.type='button';b.textContent=t;b.setAttribute('aria-pressed',i===chosen?'true':'false');if(i===chosen)b.className='sel';b.onclick=function(){chosen=i;render()};optsEl.appendChild(b)});
+ if(chosen>=0){var right=chosen===s.ans;stepEl.style.display='block';stepEl.className='step '+(right?'ok':'bad');stepEl.textContent=(right?'回答正确。':'再想想：正确路径是「'+s.opts[s.ans]+'」。')+s.step;mutedEl.textContent=qi<order.length-1?'确认后点「下一题」继续。':'三题完成：先判断新鲜度，过期才发条件请求，304 与 200 是条件请求的两个结局。'}else{stepEl.style.display='none';stepEl.textContent='';mutedEl.textContent='选择你认为会发生的结果。'}
+ nextB.disabled=chosen<0;nextB.textContent=qi<order.length-1?'下一题':'已完成';nextB.hidden=qi>=order.length-1&&chosen>=0;genui.setState({qi:qi,chosen:chosen});
+}
+nextB.onclick=function(){if(chosen<0)return;if(qi<order.length-1){qi++;chosen=-1;render()}};
+resetB.onclick=function(){qi=0;chosen=-1;render()};render();
+</script></body></html>

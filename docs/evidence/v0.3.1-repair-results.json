@@ -1,0 +1,12 @@
+{
+  "version": "0.3.1",
+  "scope": "Local Chromium sandbox; user repair quiz, three questions and reset; not live website generation",
+  "stats": {
+    "startTime": "2026-11-05T14:13:53.206Z",
+    "duration": 6365.316,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

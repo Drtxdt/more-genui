@@ -189,3 +189,18 @@ test('incremental fence scan handles arbitrary splits and SET replacements', () 
   scanner.update('replacement\n~~~genui-html\n' + source.trim() + '\n~~~\n');
   assert.equal(found.size, 1);
 });
+
+test('repair comments before html are accepted without allowing incomplete documents or prose', () => {
+  const marker = '<!-- more-genui-repair: e2735f9b-7ec8-4b1f-a58d-8725b6fdf502 -->';
+  const repaired = source.replace('<html>', marker + '\n<html>');
+  assert.equal(parseApp(repaired).id, parseApp(source).id);
+  assert.ok(parseApp(repaired).html.startsWith(marker));
+  assert.throws(() => parseApp(repaired.replace('</html>', '')));
+  assert.throws(() => parseApp(source.replace('<html>', 'not html\n<html>')));
+  assert.throws(() => parseApp(source.replace('<html>', '<!-- unclosed\n<html>')));
+  const contexts = new RepairContexts(),
+    app = parseApp(source),
+    token = contexts.create('test', app, { qi: 1, chosen: -1 });
+  const response = source.replace('<html>', `<!-- more-genui-repair: ${token} -->\n<html>`);
+  assert.deepEqual(contexts.consume('test', parseApp(response), response), { qi: 1, chosen: -1 });
+});

@@ -18,7 +18,8 @@ export function parseApp(source) {
   if (!match) throw Error('缺少 More GenUI 元数据');
   const meta = metadataSchema.parse(JSON.parse(match[1])),
     html = source.slice(match[0].length).trim();
-  if (!/^(?:<!doctype html>\s*)?<html[\s>]/i.test(html) || !/<\/html>\s*$/i.test(html))
+  const documentStart = html.replace(/^(?:<!--[^]*?-->\s*)+/, '');
+  if (!/^(?:<!doctype html>\s*)?<html[\s>]/i.test(documentStart) || !/<\/html>\s*$/i.test(html))
     throw Error('HTML 文档未完成');
   return { ...meta, html };
 }
