@@ -1,4 +1,13 @@
-import { createElement, Maximize, Ellipsis } from 'lucide';
+import {
+  createElement,
+  Maximize,
+  MessageCircle,
+  Wrench,
+  Code,
+  RotateCcw,
+  RefreshCw,
+  Square,
+} from 'lucide';
 import { parseApp, safeState } from './protocol.mjs';
 import { StateRepository } from './state.mjs';
 import sandboxHTML from './generated-sandbox';
@@ -50,16 +59,13 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   title.textContent = app.title;
   title.hidden = true;
   bar.append(title);
-  const menu = document.createElement('details');
-  const menuSummary = document.createElement('summary');
-  menuSummary.setAttribute('aria-label', '更多');
-  menuSummary.title = '更多';
-  menuSummary.append(createElement(Ellipsis));
-  menu.append(menuSummary);
-  bar.append(menu);
+  bar.setAttribute('role', 'group');
+  bar.setAttribute('aria-label', '应用操作');
   panel.append(bar, status);
   style.textContent +=
     ':host{margin:12px 0}section{border:0;border-radius:8px}header{justify-content:flex-end;border:0;padding:2px;gap:2px}header svg{width:16px;height:16px}header button,header summary{border:0;background:transparent;padding:6px;border-radius:6px;cursor:pointer}header details{position:relative;border:0;padding:0}header details>summary{list-style:none}header details[open]{border:1px solid #8883;background:Canvas;padding:4px;z-index:2}header details>button{display:block;width:100%;text-align:left}iframe{height:48px}button:focus-visible,summary:focus-visible{outline:2px solid Highlight;outline-offset:2px}';
+  style.textContent +=
+    'header{flex-wrap:nowrap;height:36px;overflow-x:auto;justify-content:flex-end}header button{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;padding:6px}pre[hidden]{display:none}';
   root.append(style, panel);
   const keysPromise = options.repository.keys(options.scope, options.instance, app, options.source);
   const setStatus = (text: string) => {
@@ -91,12 +97,19 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         b.disabled = false;
       }
     };
-    if (label === '放大') {
-      b.replaceChildren(createElement(Maximize));
-      b.setAttribute('aria-label', label);
-      b.title = label;
-      bar.insertBefore(b, menu);
-    } else menu.append(b);
+    const icons = {
+      放大: Maximize,
+      继续询问: MessageCircle,
+      修复: Wrench,
+      查看源码: Code,
+      重置: RotateCcw,
+      重新运行: RefreshCw,
+      停止: Square,
+    };
+    b.replaceChildren(createElement(icons[label as keyof typeof icons]));
+    b.setAttribute('aria-label', label);
+    b.title = label;
+    bar.append(b);
     return b;
   };
   button('放大', () => {
@@ -116,13 +129,17 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
       `请修复应用 ${app.id}（${app.title}），保留完整 genui-html 协议，兼容时保留 stateVersion。\n错误：${error || '请检查交互与计算逻辑'}\n当前参数：${JSON.stringify(state)}\n原源码：\n${options.source}`,
     ),
   );
-  const details = document.createElement('details'),
-    summary = document.createElement('summary'),
-    pre = document.createElement('pre');
-  summary.textContent = '查看源码';
+  const pre = document.createElement('pre');
+  pre.id = 'source';
+  pre.hidden = true;
   pre.textContent = options.source;
-  details.append(summary, pre);
-  menu.append(details);
+  panel.append(pre);
+  const sourceButton = button('查看源码', () => {
+    pre.hidden = !pre.hidden;
+    sourceButton.setAttribute('aria-expanded', String(!pre.hidden));
+  });
+  sourceButton.setAttribute('aria-expanded', 'false');
+  sourceButton.setAttribute('aria-controls', 'source');
   function start() {
     if (disposed) return;
     const current = ++generation;
@@ -170,8 +187,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         const fix = document.createElement('button');
         fix.textContent = '修复';
         fix.onclick = () => {
-          menu.open = true;
-          const action = [...menu.querySelectorAll('button')].find((b) => b.textContent === '修复');
+          const action = bar.querySelector<HTMLButtonElement>('button[aria-label="修复"]');
           action?.click();
         };
         status.append(fix);
@@ -194,7 +210,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         [connection.port2],
       );
     };
-    panel.append(next);
+    panel.insertBefore(next, pre);
     timeout = setTimeout(() => setStatus('启动超时，可点击重新运行或修复'), 8000);
   }
   button('重置', async () => {

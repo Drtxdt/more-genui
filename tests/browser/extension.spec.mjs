@@ -63,7 +63,6 @@ test('actual MV3 scripts append instructions once, sandbox renders current DeepS
   await expect(page.locator('.more-genui-surface')).toHaveCount(0);
   await page.locator('#more-genui-toggle').click();
   await expect(frame.getByLabel('振幅')).toHaveValue('1.8');
-  await page.getByLabel('更多', { exact: true }).click();
   await page.getByRole('button', { name: '修复', exact: true }).click();
   await expect.poll(() => sent.prompt).toContain('请修复应用');
   await page.screenshot({
