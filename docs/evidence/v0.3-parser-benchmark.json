@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-05T13:38:51.874Z",
+  "node": "v24.18.0",
+  "scope": "Parser-only, fixed synthetic reply, seven runs; excludes model/network/DOM/iframe cost.",
+  "rows": [
+    {
+      "apps": 1,
+      "characters": 26437,
+      "chunkSize": 512,
+      "baselineMedianMs": 1.8747000000000043,
+      "incrementalMedianMs": 0.09620000000001028
+    },
+    {
+      "apps": 10,
+      "characters": 264370,
+      "chunkSize": 512,
+      "baselineMedianMs": 164.56140000000005,
+      "incrementalMedianMs": 0.8181999999999334
+    }
+  ]
+}

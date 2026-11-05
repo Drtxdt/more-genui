@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-05T13:42:08.453Z",
+  "scope": "Synthetic DOM text scans only; full conversation versus one changed message; excludes discovery, rendering, network and model latency.",
+  "rows": [
+    {
+      "apps": 1,
+      "messages": 100,
+      "fullMedianMs": 0.41199999999953435,
+      "changedMedianMs": 0.003999999999068677,
+      "nodesVisited": {
+        "full": 1101,
+        "changed": 12
+      }
+    },
+    {
+      "apps": 10,
+      "messages": 100,
+      "fullMedianMs": 0.4075,
+      "changedMedianMs": 0.00400000000023283,
+      "nodesVisited": {
+        "full": 1110,
+        "changed": 12
+      }
+    }
+  ]
+}
