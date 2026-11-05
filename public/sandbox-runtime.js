@@ -54,7 +54,7 @@
       type: s.type,
     }));
     doc
-      .querySelectorAll('script,iframe,frame,object,embed,base,meta,link,form')
+      .querySelectorAll('script,iframe,frame,object,embed,base,meta,link')
       .forEach((n) => n.remove());
     for (const element of doc.querySelectorAll('*'))
       for (const attribute of [...element.attributes]) {
@@ -84,6 +84,40 @@
       true,
     );
     addEventListener('submit', (e) => e.preventDefault(), true);
+    const submitLocal = (form, submitter = null) => {
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter }));
+    };
+    addEventListener(
+      'click',
+      (e) => {
+        const button =
+          e.target instanceof Element ? e.target.closest('button,input[type=submit]') : null;
+        if (button && button.type === 'submit' && button.form && !button.disabled) {
+          e.preventDefault();
+          queueMicrotask(() => submitLocal(button.form, button));
+        }
+      },
+      true,
+    );
+    addEventListener(
+      'keydown',
+      (e) => {
+        const input = e.target;
+        if (e.key === 'Enter' && input instanceof HTMLInputElement && input.form) {
+          e.preventDefault();
+          submitLocal(input.form);
+        }
+      },
+      true,
+    );
+    HTMLFormElement.prototype.requestSubmit = function (submitter) {
+      submitLocal(this, submitter ?? null);
+    };
+
     const content = document.createElement('div');
     content.style.display = 'flow-root';
     content.id = 'genui-content';
@@ -91,7 +125,7 @@
     document.body.append(content);
     let lastHeight = 0;
     new ResizeObserver(() => {
-      const height = Math.min(1000, Math.max(24, content.getBoundingClientRect().height + 32));
+      const height = Math.max(24, content.getBoundingClientRect().height + 32);
       if (height !== lastHeight) {
         lastHeight = height;
         send('resize', height);

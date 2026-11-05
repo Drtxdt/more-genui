@@ -20,7 +20,10 @@ export interface SurfaceOptions {
   sandboxUrl?: string;
   theme?: () => 'light' | 'dark';
   draft: (text: string) => void | Promise<void>;
-  repair: (text: string, context: { app: ReturnType<typeof parseApp>; state: Record<string, unknown> }) => void | Promise<void>;
+  repair: (
+    text: string,
+    context: { app: ReturnType<typeof parseApp>; state: Record<string, unknown> },
+  ) => void | Promise<void>;
 }
 export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   const resolvedTheme = () =>
@@ -51,8 +54,19 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
     saveTimer: ReturnType<typeof setTimeout> | undefined;
   const root = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
   const style = document.createElement('style');
-  style.textContent =
-    ':host{display:block;margin:14px 0;font:14px/1.5 system-ui}*{box-sizing:border-box}section{border:1px solid #8b92a644;border-radius:14px;background:Canvas;color:CanvasText;overflow:hidden}header{padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #8b92a633}strong{margin-right:auto}button{font:inherit;border:1px solid #8b92a655;border-radius:7px;padding:4px 9px;background:Canvas;color:CanvasText;cursor:pointer}button:hover{background:color-mix(in srgb,CanvasText 8%,Canvas)}button:disabled{opacity:.5;cursor:wait}iframe{display:block;width:100%;height:360px;border:0;background:Canvas}section:popover-open{position:fixed;inset:3vh 3vw;width:94vw;height:94vh;max-height:94vh;margin:0;overflow:auto}section:popover-open iframe{min-height:70vh}section::backdrop{background:#0008}pre{white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;padding:12px}output{display:block;padding:0 12px;color:#b45309}details{border-top:1px solid #8883;padding:8px}summary{cursor:pointer}';
+  style.textContent = `
+:host{display:block;margin:12px 0;font:14px/1.5 system-ui}*{box-sizing:border-box}
+section{border:0;border-radius:8px;background:Canvas;color:CanvasText;overflow:hidden}
+header{display:flex;align-items:center;justify-content:safe flex-end;gap:2px;height:36px;padding:2px;overflow-x:auto}
+button{font:inherit;border:1px solid #8b92a655;border-radius:7px;padding:4px 9px;background:Canvas;color:CanvasText;cursor:pointer}
+button:hover{background:color-mix(in srgb,CanvasText 8%,Canvas)}button:disabled{opacity:.5;cursor:wait}
+button:focus-visible{outline:2px solid Highlight;outline-offset:2px}
+header button{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;padding:6px;border:0;border-radius:6px;background:transparent}
+header svg{width:16px;height:16px}iframe{display:block;width:100%;height:48px;border:0;background:Canvas}
+section:popover-open{position:fixed;inset:3vh 3vw;width:94vw;height:94vh;max-height:94vh;margin:0;overflow:auto}
+section::backdrop{background:#0008}pre{white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;padding:12px}
+pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
+`;
   const panel = document.createElement('section'),
     bar = document.createElement('header'),
     title = document.createElement('strong'),
@@ -63,10 +77,18 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   bar.setAttribute('role', 'group');
   bar.setAttribute('aria-label', '应用操作');
   panel.append(bar, status);
-  style.textContent +=
-    ':host{margin:12px 0}section{border:0;border-radius:8px}header{justify-content:flex-end;border:0;padding:2px;gap:2px}header svg{width:16px;height:16px}header button,header summary{border:0;background:transparent;padding:6px;border-radius:6px;cursor:pointer}header details{position:relative;border:0;padding:0}header details>summary{list-style:none}header details[open]{border:1px solid #8883;background:Canvas;padding:4px;z-index:2}header details>button{display:block;width:100%;text-align:left}iframe{height:48px}button:focus-visible,summary:focus-visible{outline:2px solid Highlight;outline-offset:2px}';
-  style.textContent +=
-    'header{flex-wrap:nowrap;height:36px;overflow-x:auto;justify-content:flex-end}header button{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;padding:6px}pre[hidden]{display:none}';
+  const viewport = document.createElement('div');
+  viewport.style.overflow = 'hidden';
+  const expand = document.createElement('button');
+  expand.textContent = '展开全部';
+  expand.hidden = true;
+  let expanded = false;
+  expand.onclick = () => {
+    expanded = !expanded;
+    viewport.style.maxHeight = expanded ? '' : '1200px';
+    expand.textContent = expanded ? '收起' : '展开全部';
+  };
+  panel.append(viewport, expand);
   root.append(style, panel);
   const keysPromise = options.repository.keys(options.scope, options.instance, app, options.source);
   const setStatus = (text: string) => {
@@ -83,7 +105,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
       })
       .catch((e) => setStatus(`保存失败：${e.message}`));
   };
-  const button = (label: string, action: () => void | Promise<void>) => {
+  const button = (label: string, icon: typeof Maximize, action: () => void | Promise<void>) => {
     const b = document.createElement('button');
     b.textContent = label;
     b.type = 'button';
@@ -98,22 +120,13 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         b.disabled = false;
       }
     };
-    const icons = {
-      放大: Maximize,
-      继续询问: MessageCircle,
-      修复: Wrench,
-      查看源码: Code,
-      重置: RotateCcw,
-      重新运行: RefreshCw,
-      停止: Square,
-    };
-    b.replaceChildren(createElement(icons[label as keyof typeof icons]));
+    b.replaceChildren(createElement(icon));
     b.setAttribute('aria-label', label);
     b.title = label;
     bar.append(b);
     return b;
   };
-  button('放大', () => {
+  button('放大', Maximize, () => {
     if (panel.matches(':popover-open')) {
       panel.hidePopover();
       panel.removeAttribute('popover');
@@ -122,10 +135,10 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
       panel.showPopover();
     }
   });
-  button('继续询问', () =>
+  button('继续询问', MessageCircle, () =>
     options.draft(`请进一步解释“${app.title}”。当前参数：\n${JSON.stringify(state)}`),
   );
-  button('修复', () =>
+  button('修复', Wrench, () =>
     options.repair(
       `请修复应用 ${app.id}（${app.title}），保留完整 genui-html 协议，兼容时保留 stateVersion。\n错误：${error || '请检查交互与计算逻辑'}\n当前参数：${JSON.stringify(state)}\n原源码：\n${options.source}`,
       { app, state: safeState(state) },
@@ -136,7 +149,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   pre.hidden = true;
   pre.textContent = options.source;
   panel.append(pre);
-  const sourceButton = button('查看源码', () => {
+  const sourceButton = button('查看源码', Code, () => {
     pre.hidden = !pre.hidden;
     sourceButton.setAttribute('aria-expanded', String(!pre.hidden));
   });
@@ -159,7 +172,8 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
     else next.srcdoc = sandboxHTML;
     channel = new MessageChannel();
     const connection = channel;
-    let loaded = false;
+    let loaded = false,
+      sizeWarning = '';
     connection.port1.onmessage = (e) => {
       if (disposed || current !== generation) return;
       const message = e.data;
@@ -180,9 +194,14 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         message.type === 'resize' &&
         typeof message.value === 'number' &&
         Number.isFinite(message.value)
-      )
-        next.style.height = `${Math.min(1000, Math.max(24, message.value))}px`;
-      else if (message.type === 'error') {
+      ) {
+        next.style.height = `${Math.min(20000, Math.max(24, message.value))}px`;
+        next.setAttribute('scrolling', 'no');
+        expand.hidden = message.value <= 1200;
+        viewport.style.maxHeight = !expanded && message.value > 1200 ? '1200px' : '';
+        sizeWarning = message.value > 20000 ? '内容尺寸超过 20000px 显示上限，超出部分未展示' : '';
+        if (sizeWarning) setStatus(sizeWarning);
+      } else if (message.type === 'error') {
         clearTimeout(timeout);
         error = String(message.value).slice(0, 2000);
         setStatus(`运行错误：${error}`);
@@ -195,7 +214,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         status.append(fix);
       } else if (message.type === 'ready') {
         clearTimeout(timeout);
-        if (!error) setStatus('');
+        if (!error) setStatus(sizeWarning);
       }
     };
     next.onload = () => {
@@ -212,17 +231,17 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         [connection.port2],
       );
     };
-    panel.insertBefore(next, pre);
+    viewport.append(next);
     timeout = setTimeout(() => setStatus('启动超时，可点击重新运行或修复'), 8000);
   }
-  button('重置', async () => {
+  button('重置', RotateCcw, async () => {
     clearTimeout(saveTimer);
     state = {};
     await options.repository.reset(await keysPromise);
     start();
   });
-  button('重新运行', () => start());
-  button('停止', () => {
+  button('重新运行', RefreshCw, () => start());
+  button('停止', Square, () => {
     clearTimeout(timeout);
     channel?.port1.close();
     frame?.remove();

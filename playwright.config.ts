@@ -7,15 +7,15 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ['json', { outputFile: 'test-results/results.json' }]],
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: 'http://127.0.0.1:4183',
     headless: true,
     launchOptions: { timeout: 15000 },
     screenshot: 'only-on-failure',
   },
   webServer: {
     command: 'node tests/browser/server.mjs',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: true,
+    url: 'http://127.0.0.1:4183',
+    reuseExistingServer: false,
   },
   projects: [
     { name: 'Chromium', use: { browserName: 'chromium' } },
