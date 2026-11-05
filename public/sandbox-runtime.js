@@ -1,40 +1,120 @@
 (() => {
   'use strict';
-  let initialized=false;
-  addEventListener('message', event => {
-    if(initialized || event.source!==parent || event.data?.type!=='more-genui-init' || event.ports.length!==1)return;
-    initialized=true;
-    const port=event.ports[0], config=event.data;
-    const send=(type,value)=>port.postMessage({type,value});
-    let state=config.state||{}, failed=false;
-    const report=message=>{failed=true;send('error',String(message).slice(0,2000))};
-    const theme=value=>{document.documentElement.dataset.theme=value==='dark'?'dark':'light'};
-    Object.defineProperty(window,'genui',{value:Object.freeze({
-      getState:()=>structuredClone(state),
-      setState(value){const raw=JSON.stringify(value);if(!raw||new TextEncoder().encode(raw).length>65536||!value||Array.isArray(value)||typeof value!=='object')throw Error('State must be a JSON object under 64 KiB');state=JSON.parse(raw);send('state',state)},
-    }),writable:false,configurable:false});
-    addEventListener('error',e=>report(e.message));
-    addEventListener('unhandledrejection',e=>report(e.reason));
-    port.onmessage=e=>{if(e.data?.type==='theme')theme(e.data.value)};
-    const doc=new DOMParser().parseFromString(config.html,'text/html');
-    const scripts=[...doc.querySelectorAll('script')].map(s=>({code:s.textContent,external:s.hasAttribute('src'),type:s.type}));
-    doc.querySelectorAll('script,iframe,frame,object,embed,base,meta,link,form').forEach(n=>n.remove());
-    for(const element of doc.querySelectorAll('*'))for(const attribute of [...element.attributes]){
-      if(['href','srcset','action','formaction','target','ping','download'].includes(attribute.name))element.removeAttribute(attribute.name);
-      if(attribute.name==='src'&&!attribute.value.startsWith('data:'))element.removeAttribute('src');
+  let initialized = false;
+  addEventListener('message', (event) => {
+    if (
+      initialized ||
+      event.source !== parent ||
+      event.data?.type !== 'more-genui-init' ||
+      event.ports.length !== 1
+    )
+      return;
+    initialized = true;
+    const port = event.ports[0],
+      config = event.data;
+    const send = (type, value) => port.postMessage({ type, value });
+    let state = config.state || {},
+      failed = false;
+    const report = (message) => {
+      failed = true;
+      send('error', String(message).slice(0, 2000));
+    };
+    const theme = (value) => {
+      document.documentElement.dataset.theme = value === 'dark' ? 'dark' : 'light';
+    };
+    Object.defineProperty(window, 'genui', {
+      value: Object.freeze({
+        getState: () => structuredClone(state),
+        setState(value) {
+          const raw = JSON.stringify(value);
+          if (
+            !raw ||
+            new TextEncoder().encode(raw).length > 65536 ||
+            !value ||
+            Array.isArray(value) ||
+            typeof value !== 'object'
+          )
+            throw Error('State must be a JSON object under 64 KiB');
+          state = JSON.parse(raw);
+          send('state', state);
+        },
+      }),
+      writable: false,
+      configurable: false,
+    });
+    addEventListener('error', (e) => report(e.message));
+    addEventListener('unhandledrejection', (e) => report(e.reason));
+    port.onmessage = (e) => {
+      if (e.data?.type === 'theme') theme(e.data.value);
+    };
+    const doc = new DOMParser().parseFromString(config.html, 'text/html');
+    const scripts = [...doc.querySelectorAll('script')].map((s) => ({
+      code: s.textContent,
+      external: s.hasAttribute('src'),
+      type: s.type,
+    }));
+    doc
+      .querySelectorAll('script,iframe,frame,object,embed,base,meta,link,form')
+      .forEach((n) => n.remove());
+    for (const element of doc.querySelectorAll('*'))
+      for (const attribute of [...element.attributes]) {
+        if (
+          ['href', 'srcset', 'action', 'formaction', 'target', 'ping', 'download'].includes(
+            attribute.name,
+          )
+        )
+          element.removeAttribute(attribute.name);
+        if (attribute.name === 'src' && !attribute.value.startsWith('data:'))
+          element.removeAttribute('src');
+      }
+    const style = document.createElement('style');
+    style.textContent =
+      ':root{--bg:#fff;--fg:#202124;--accent:#526de0;color-scheme:light}html[data-theme=dark]{--bg:#202124;--fg:#eee;color-scheme:dark}body{margin:16px;font:15px/1.5 system-ui;background:var(--bg);color:var(--fg)}input,select,button{font:inherit}svg,canvas{max-width:100%}*{box-sizing:border-box}';
+    style.textContent +=
+      ':root{--muted:#687078;--surface:#f5f6f7;--border:#e4e7eb;--accent:#3569c8;--chart-1:#3569c8;--chart-2:#218477;--chart-3:#b57927}html[data-theme=dark]{--muted:#a4aab2;--surface:#292c30;--border:#41454b;--accent:#8cb4ff;--chart-1:#8cb4ff;--chart-2:#65c7b3;--chart-3:#e5b26b}body{margin:0;padding:16px;font:14px/1.6 system-ui}h1,h2,h3{font-size:1rem;font-weight:600;margin:0 0 10px}p{margin:6px 0}button,select,input[type=number]{border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--fg);padding:5px 9px}input{accent-color:var(--accent)}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}label{display:block;color:var(--muted)}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.stack{display:grid;gap:12px}.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}.muted,figcaption{color:var(--muted);font-size:12px}.panel{background:var(--surface);padding:12px;border-radius:8px}output{font-variant-numeric:tabular-nums}';
+    document.head.append(style, ...doc.head.childNodes);
+    document.body.replaceChildren(...doc.body.childNodes);
+    for (const a of doc.body.attributes) document.body.setAttribute(a.name, a.value);
+    theme(config.theme);
+    addEventListener(
+      'click',
+      (e) => {
+        if (e.target instanceof Element && e.target.closest('a')) e.preventDefault();
+      },
+      true,
+    );
+    addEventListener('submit', (e) => e.preventDefault(), true);
+    const content = document.createElement('div');
+    content.style.display = 'flow-root';
+    content.id = 'genui-content';
+    content.append(...document.body.childNodes);
+    document.body.append(content);
+    let lastHeight = 0;
+    new ResizeObserver(() => {
+      const height = Math.min(1000, Math.max(24, content.getBoundingClientRect().height + 32));
+      if (height !== lastHeight) {
+        lastHeight = height;
+        send('resize', height);
+      }
+    }).observe(content);
+    for (const script of scripts) {
+      if (script.external) {
+        report('External scripts are not supported');
+        continue;
+      }
+      if (
+        script.type &&
+        script.type !== 'text/javascript' &&
+        script.type !== 'application/javascript'
+      ) {
+        report('Only classic JavaScript is supported');
+        continue;
+      }
+      const element = document.createElement('script');
+      element.textContent = script.code;
+      document.body.append(element);
     }
-    const style=document.createElement('style');style.textContent=':root{--bg:#fff;--fg:#202124;--accent:#526de0;color-scheme:light}html[data-theme=dark]{--bg:#202124;--fg:#eee;color-scheme:dark}body{margin:16px;font:15px/1.5 system-ui;background:var(--bg);color:var(--fg)}input,select,button{font:inherit}svg,canvas{max-width:100%}*{box-sizing:border-box}';
-    document.head.append(style,...doc.head.childNodes);document.body.replaceChildren(...doc.body.childNodes);for(const a of doc.body.attributes)document.body.setAttribute(a.name,a.value);theme(config.theme);
-    addEventListener('click',e=>{if(e.target instanceof Element&&e.target.closest('a'))e.preventDefault()},true);
-    addEventListener('submit',e=>e.preventDefault(),true);
-    let lastHeight=0;
-    new ResizeObserver(()=>{const height=Math.min(1000,Math.max(200,document.body.scrollHeight+32));if(height!==lastHeight){lastHeight=height;send('resize',height)}}).observe(document.body);
-    for(const script of scripts){
-      if(script.external){report('External scripts are not supported');continue}
-      if(script.type&&script.type!=='text/javascript'&&script.type!=='application/javascript'){report('Only classic JavaScript is supported');continue}
-      const element=document.createElement('script');element.textContent=script.code;document.body.append(element);
-    }
-    document.dispatchEvent(new Event('DOMContentLoaded'));if(!failed)send('ready',true);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    if (!failed) send('ready', true);
   });
 })();
-

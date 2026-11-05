@@ -1,3 +1,4 @@
+import { createElement, Maximize, Ellipsis } from 'lucide';
 import { parseApp, safeState } from './protocol.mjs';
 import { StateRepository } from './state.mjs';
 import sandboxHTML from './generated-sandbox';
@@ -14,6 +15,10 @@ export interface SurfaceOptions {
 export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   const resolvedTheme = () =>
     options.theme?.() ??
+    (document.documentElement.dataset.theme === 'light' ||
+    getComputedStyle(document.documentElement).colorScheme === 'light'
+      ? 'light'
+      : undefined) ??
     (document.body.hasAttribute('data-ds-dark-theme') ||
     document.documentElement.classList.contains('dark') ||
     document.documentElement.dataset.theme === 'dark' ||
@@ -43,8 +48,18 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
     title = document.createElement('strong'),
     status = document.createElement('output');
   title.textContent = app.title;
+  title.hidden = true;
   bar.append(title);
+  const menu = document.createElement('details');
+  const menuSummary = document.createElement('summary');
+  menuSummary.setAttribute('aria-label', '更多');
+  menuSummary.title = '更多';
+  menuSummary.append(createElement(Ellipsis));
+  menu.append(menuSummary);
+  bar.append(menu);
   panel.append(bar, status);
+  style.textContent +=
+    ':host{margin:12px 0}section{border:0;border-radius:8px}header{justify-content:flex-end;border:0;padding:2px;gap:2px}header svg{width:16px;height:16px}header button,header summary{border:0;background:transparent;padding:6px;border-radius:6px;cursor:pointer}header details{position:relative;border:0;padding:0}header details>summary{list-style:none}header details[open]{border:1px solid #8883;background:Canvas;padding:4px;z-index:2}header details>button{display:block;width:100%;text-align:left}iframe{height:48px}button:focus-visible,summary:focus-visible{outline:2px solid Highlight;outline-offset:2px}';
   root.append(style, panel);
   const keysPromise = options.repository.keys(options.scope, options.instance, app, options.source);
   const setStatus = (text: string) => {
@@ -76,7 +91,12 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         b.disabled = false;
       }
     };
-    bar.append(b);
+    if (label === '放大') {
+      b.replaceChildren(createElement(Maximize));
+      b.setAttribute('aria-label', label);
+      b.title = label;
+      bar.insertBefore(b, menu);
+    } else menu.append(b);
     return b;
   };
   button('放大', () => {
@@ -102,7 +122,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   summary.textContent = '查看源码';
   pre.textContent = options.source;
   details.append(summary, pre);
-  panel.append(details);
+  menu.append(details);
   function start() {
     if (disposed) return;
     const current = ++generation;
@@ -142,11 +162,19 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         typeof message.value === 'number' &&
         Number.isFinite(message.value)
       )
-        next.style.height = `${Math.min(1000, Math.max(200, message.value))}px`;
+        next.style.height = `${Math.min(1000, Math.max(24, message.value))}px`;
       else if (message.type === 'error') {
         clearTimeout(timeout);
         error = String(message.value).slice(0, 2000);
         setStatus(`运行错误：${error}`);
+        const fix = document.createElement('button');
+        fix.textContent = '修复';
+        fix.onclick = () => {
+          menu.open = true;
+          const action = [...menu.querySelectorAll('button')].find((b) => b.textContent === '修复');
+          action?.click();
+        };
+        status.append(fix);
       } else if (message.type === 'ready') {
         clearTimeout(timeout);
         if (!error) setStatus('');
@@ -166,7 +194,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
         [connection.port2],
       );
     };
-    panel.insertBefore(next, details);
+    panel.append(next);
     timeout = setTimeout(() => setStatus('启动超时，可点击重新运行或修复'), 8000);
   }
   button('重置', async () => {
