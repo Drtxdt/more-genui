@@ -1,4 +1,5 @@
 import { RequestLifecycle } from '../src/request-lifecycle.mjs';
+import { SourceCards } from '../src/source-cards.mjs';
 import { PreviewRenderer } from '../src/preview-renderer.mjs';
 import { createElement, Power } from 'lucide';
 import { defineContentScript } from 'wxt/utils/define-content-script';
@@ -13,6 +14,8 @@ export default defineContentScript({
   main(ctx) {
     let enabled = false,
       route = location.pathname;
+    const cards = new SourceCards(browser.storage.local);
+    let showCards = true;
     let previewImages = true;
     let settingsReady = false;
     const ledger = new RequestLifecycle(() => scan());
@@ -88,12 +91,13 @@ export default defineContentScript({
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
         const value = await Promise.race([
-          browser.storage.local.get(['enabled', 'previewImages']),
+          browser.storage.local.get(['enabled', 'previewImages','sourceMode']),
           new Promise<never>((_, reject) => {
             timeout = setTimeout(() => reject(Error('storage timeout')), 4000);
           }),
         ]);
         settingsReady = true;
+        showCards = value.sourceMode !== 'off';
         previewImages = value.previewImages !== false;
         enabled = value.enabled !== false;
         publish();
@@ -124,6 +128,7 @@ export default defineContentScript({
     };
     control.addEventListener('animationend', () => control.classList.remove('activating'));
     const settingsChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if(area==='local' && changes.sourceMode){showCards=changes.sourceMode.newValue!=='off'; if(!showCards)cards.clear();scan();}
       if (area === 'local' && changes.previewImages) {
         previewImages = changes.previewImages.newValue !== false;
         if (!previewImages) previews.clear();
@@ -201,6 +206,7 @@ export default defineContentScript({
         rebuildMessages();
         ledger.clear();
         approvals = new WeakMap();
+        cards.clear();
         previews.clear();
         repairs.clear();
         for (const button of recovery.values()) button.remove();
@@ -237,6 +243,7 @@ export default defineContentScript({
       if (!enabled) {
         approvals = new WeakMap();
         for (const id of active) ledger.end(id);
+        cards.clear();
         previews.clear();
         return;
       }
@@ -252,6 +259,7 @@ export default defineContentScript({
         });
       }
       dirtyMessages.clear();
+      if(showCards) for(const message of candidates)cards.render(message);
       if (previewImages) for (const message of candidates) previews.render(message);
       for (const code of candidates.flatMap((message: Element) =>
         codeBlocks(message),
@@ -397,8 +405,10 @@ export default defineContentScript({
         );
       } else if (m.type === 'more-genui-identity' && requests.has(m.id)) {
         ledger.identify(m.id, m.key);
+        if(showCards)cards.update(m.id,{key:m.key});
         if (previewImages) previews.identify(m.id, m.key);
       } else if (m.type === 'more-genui-search' && requests.has(m.id)) {
+        if(showCards)cards.update(m.id,{sources:m.sources});
         if (previewImages) previews.sources(m.id, m.sources);
       } else if (
         m.type === 'more-genui-source' &&
@@ -410,6 +420,7 @@ export default defineContentScript({
       } else if (m.type === 'more-genui-end' && requests.has(m.id)) {
         scan();
         ledger.end(m.id);
+        cards.requests.delete(m.id);
         if (previewImages) previews.end(m.id);
       } else if (m.type === 'more-genui-unsupported') {
         control.title = '站点请求格式未识别，保留原始回答；完整应用需手动运行';

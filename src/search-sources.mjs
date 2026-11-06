@@ -28,14 +28,17 @@ export function searchSources(fragments) {
       ? (f.results ?? f.search_results)
       : []) {
       const url = publicURL(r?.url);
-      if (url && !sources.has(url))
-        sources.set(url, {
+      const href = url ? new URL(r.url).href : null;
+      const key = JSON.stringify([href,r?.cite_index ?? r?.citeIndex]);
+      if (url && !sources.has(key))
+        sources.set(key, {
+          href,
           url,
           index: r.cite_index ?? r.citeIndex ?? null,
           image: publicURL(r.image_url ?? r.thumbnail_url ?? r.image?.url),
           title: String(r.title ?? '').slice(0, 200),
         });
-      if (sources.size === 12) return [...sources.values()];
+
     }
   }
   return [...sources.values()];

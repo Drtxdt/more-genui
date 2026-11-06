@@ -341,6 +341,8 @@ test('official search replay decorates citations, falls back at end, and restore
   );
   await page.getByTestId('send-button').click();
   await expect(page.locator('.more-genui-preview[data-inline] img')).toHaveCount(1);
+  await expect(page.locator('.more-genui-sources details a')).toHaveCount(3);
+  await expect(page.locator('.more-genui-sources details a').nth(1)).toHaveAttribute('href',/#3243471#1$/);
   await expect(page.getByText('来源预览', { exact: true })).toBeVisible();
   await expect(page.locator('.more-genui-preview img')).toHaveCount(2);
   await page.setViewportSize({ width: 390, height: 720 });
@@ -520,9 +522,9 @@ test('migrates yesterday’s image after worker restart and restores cached tab 
     expect(state).toEqual([at, null, null]);
     const popup = await context.newPage();
     await popup.goto(new URL('popup.html', fresh.url()).href);
-    await popup.getByRole('checkbox').uncheck();
+    await popup.locator('#sources').selectOption('text');
     await expect(other.locator('.more-genui-preview img')).toHaveCount(0);
-    await popup.getByRole('checkbox').check();
+    await popup.locator('#sources').selectOption('images');
     await expect(other.locator('.more-genui-preview img')).toHaveCount(1);
   } finally {
     release();
