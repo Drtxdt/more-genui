@@ -1,0 +1,58 @@
+{
+  "version": "0.5.1",
+  "typecheck": "passed",
+  "build": "passed",
+  "quickTestsPassed": 18,
+  "chromium": [
+    {
+      "scenario": "fetch repairs preserve parameters",
+      "status": "passed"
+    },
+    {
+      "scenario": "xhr repairs preserve parameters",
+      "status": "passed"
+    },
+    {
+      "scenario": "unfinished streaming documents never execute; plain prose and disabled mode stay ordinary",
+      "status": "passed"
+    },
+    {
+      "scenario": "XHR transport rewrites only known prompt fields and decodes official BATCH events",
+      "status": "passed"
+    },
+    {
+      "scenario": "navigation duplicates are never folded or modified",
+      "status": "passed"
+    },
+    {
+      "scenario": "cancelled output requires current-source approval and old-route events cannot run it",
+      "status": "passed"
+    },
+    {
+      "scenario": "same IDs in separate messages stay isolated and stable messages restore after rebuild",
+      "status": "passed"
+    },
+    {
+      "scenario": "official search replay decorates citations, falls back at end, and restores cached previews",
+      "status": "passed"
+    },
+    {
+      "scenario": "ambiguous complete HTML waits across cancellation and virtual rebuilding",
+      "status": "passed"
+    },
+    {
+      "scenario": "migrates yesterday’s image after worker restart and restores cached tab during a slow download",
+      "status": "passed"
+    },
+    {
+      "scenario": "source fetch rejects public hostname resolving to loopback",
+      "status": "passed"
+    },
+    {
+      "scenario": "prediction exercises resume feedback, retry, reveal, advance and finish",
+      "status": "passed"
+    }
+  ],
+  "liveEdge": "Browser is not available: edge; neither prompt sent",
+  "remoteCI": "not run"
+}
