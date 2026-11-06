@@ -1,3 +1,4 @@
+import { composePolicy } from '../src/prompt-policy.mjs';
 import { GenerationIntent } from '../src/generation-intent.mjs';
 import { searchSources } from '../src/search-sources.mjs';
 import { defineContentScript } from 'wxt/utils/define-content-script';
@@ -9,7 +10,9 @@ export default defineContentScript({
   runAt: 'document_start',
   main() {
     let enabled = false,
-      mode = 'auto';
+      mode = 'auto',
+      policy = 'A',
+      diagnostics = false;
     const intents = new GenerationIntent();
     document.addEventListener('more-genui-intent', (event) => {
       try {
@@ -24,7 +27,54 @@ export default defineContentScript({
         /* Invalid bridge messages do not alter a prepared intent. */
       }
     });
+    const capture = () => {
+      const input = document.querySelector<HTMLTextAreaElement>('textarea');
+      if (input) {
+        const snapshot = intents.capture(location.pathname, input.value);
+        if (snapshot)
+          document.dispatchEvent(
+            new CustomEvent('more-genui-intent-submitted', {
+              detail: JSON.stringify({ intentId: snapshot.id, revision: snapshot.revision }),
+            }),
+          );
+      }
+    };
+    document.addEventListener(
+      'click',
+      (e) => {
+        if ((e.target as Element)?.closest?.('[data-testid=send-button],button[aria-label=发送]'))
+          capture();
+      },
+      true,
+    );
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        if (
+          e.key === 'Enter' &&
+          !e.shiftKey &&
+          !e.isComposing &&
+          e.target instanceof HTMLTextAreaElement
+        )
+          capture();
+      },
+      true,
+    );
     const post = (data: object) => window.postMessage(data, location.origin);
+    const routeChanged = () => {
+      intents.arm(null);
+      post({ type: 'more-genui-route', route: location.pathname });
+    };
+    for (const name of ['pushState', 'replaceState'] as const) {
+      const original = history[name];
+      history[name] = function (...args: Parameters<History['pushState']>) {
+        const before = location.pathname;
+        const result = original.apply(this, args);
+        if (before !== location.pathname) routeChanged();
+        return result;
+      };
+    }
+    window.addEventListener('popstate', routeChanged);
     window.addEventListener('message', (e) => {
       if (
         e.source === window &&
@@ -32,8 +82,10 @@ export default defineContentScript({
         e.data?.type === 'more-genui-enabled'
       ) {
         enabled = e.data.enabled === true;
+        diagnostics = e.data.diagnostics === true;
         mode = e.data.mode ?? 'auto';
-        if (!enabled) intents.arm(null);
+        policy = e.data.policy ?? 'A';
+        if (!enabled) intents.clear();
       }
     });
     post({ type: 'more-genui-ready' });
@@ -43,27 +95,73 @@ export default defineContentScript({
       ),
     );
     const target = (url: URL) =>
-      enabled && url.origin === location.origin && streamPaths.has(url.pathname);
+      (enabled || diagnostics) && url.origin === location.origin && streamPaths.has(url.pathname);
     const needsPrompt = (url: URL) =>
       ['/api/v0/chat/completion', '/api/v0/chat/edit_message'].includes(url.pathname);
-    const rewrite = (text: string) => {
+    const rewrite = (text: string, allowIntent = true) => {
       const body = JSON.parse(text);
       if (typeof body?.prompt !== 'string') throw Error('Unknown prompt');
-      const match = intents.consume(location.pathname, body.prompt);
-      if (match)
-        post({ type: 'more-genui-consumed', intentId: match.id, revision: match.revision });
-      if (mode === 'demand' && !match && !/本次修复标识：[a-f0-9-]+/.test(body.prompt)) return text;
-      return JSON.stringify({ ...body, prompt: augment(body.prompt, true, match?.kind) });
+      if (!enabled) return { text, enhanced: false };
+      const match = allowIntent ? intents.consume(location.pathname, body.prompt) : null;
+      if (match) {
+        const receipt = { intentId: match.id, revision: match.revision };
+        document.dispatchEvent(
+          new CustomEvent('more-genui-intent-consumed', { detail: JSON.stringify(receipt) }),
+        );
+        post({ type: 'more-genui-consumed', ...receipt });
+      }
+      if (mode === 'demand' && !match && !/本次修复标识：[a-f0-9-]+/.test(body.prompt))
+        return { text, enhanced: false };
+      return {
+        text: JSON.stringify({
+          ...body,
+          prompt:
+            mode === 'visual'
+              ? composePolicy(body.prompt, 'C', match?.kind)
+              : policy === 'B'
+                ? composePolicy(body.prompt, 'B', match?.kind)
+                : augment(body.prompt, true, match?.kind),
+        }),
+        enhanced: true,
+      };
     };
-    function observe(body = '') {
+    function observe(body = '', enhanced = false) {
       const route = location.pathname;
       const repairToken = /本次修复标识：([a-f0-9-]+)/.exec(body)?.[1];
       const id = crypto.randomUUID();
+      const diagnose = (stage: string, bytes?: number) => {
+        if (diagnostics) post({ type: 'more-genui-diagnostic', id, route, stage, bytes });
+      };
+      diagnose('recognized');
+      if (diagnostics && body) {
+        try {
+          const prompt = JSON.parse(body).prompt;
+          const guide =
+            typeof prompt === 'string'
+              ? /\[More GenUI v1\][^]*?\[\/More GenUI\]/.exec(prompt)?.[0]
+              : null;
+          if (guide)
+            void crypto.subtle.digest('SHA-256', new TextEncoder().encode(guide)).then((hash) =>
+              post({
+                type: 'more-genui-diagnostic',
+                id,
+                route,
+                stage: 'policy',
+                policyHash: Array.from(new Uint8Array(hash), (b) =>
+                  b.toString(16).padStart(2, '0'),
+                ).join(''),
+              }),
+            );
+        } catch {}
+      }
+      diagnose(enhanced ? 'enhanced' : 'skipped');
+      let firstText = false;
       let ended = false,
         failed = false;
-      const accumulator = new ReplyAccumulator((source: string) =>
-        post({ type: 'more-genui-source', id, route, source }),
-      );
+      const accumulator = new ReplyAccumulator((source: string) => {
+        diagnose('ui-output', new TextEncoder().encode(source).length);
+        post({ type: 'more-genui-source', id, route, source });
+      });
       let sourcesKey = '';
       const sse = new SSEDecoder(
         (event: any) => {
@@ -80,6 +178,10 @@ export default defineContentScript({
             return;
           }
           accumulator.accept(event);
+          if (!firstText && accumulator.text.trim()) {
+            firstText = true;
+            diagnose('text');
+          }
           const sources = searchSources(accumulator.fragments);
           const key = JSON.stringify(sources);
           if (sources.length && sourcesKey !== key) {
@@ -105,6 +207,8 @@ export default defineContentScript({
         end(status = 'complete') {
           if (ended) return;
           ended = true;
+          diagnose(failed ? 'unsupported' : status);
+          if (!accumulator.emitted.size) diagnose('no-ui');
           if (!failed && !sse.buffer.trim() && status === 'complete') accumulator.scanner.finish();
           post({ type: 'more-genui-end', id, route, status: failed ? 'unsupported' : status });
         },
@@ -115,11 +219,18 @@ export default defineContentScript({
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
       if (!target(url)) return originalFetch.call(window, input, init);
       let request: Request;
+      let enhanced = false;
       try {
         request = new Request(input instanceof Request ? input.clone() : input, init);
         if (request.method !== 'POST') return originalFetch.call(window, input, init);
-        if (needsPrompt(url))
-          request = new Request(request, { body: rewrite(await request.clone().text()) });
+        if (needsPrompt(url)) {
+          const result = rewrite(
+            await request.clone().text(),
+            url.pathname === '/api/v0/chat/completion',
+          );
+          enhanced = result.enhanced;
+          request = new Request(request, { body: result.text });
+        }
       } catch {
         const fallback = observe();
         post({ type: 'more-genui-unsupported', route: location.pathname });
@@ -129,7 +240,7 @@ export default defineContentScript({
           fallback.end('unsupported');
         }
       }
-      const stream = observe(await request.clone().text());
+      const stream = observe(await request.clone().text(), enhanced);
       try {
         const response = await originalFetch.call(window, request);
         if (!response.ok || !response.body) {
@@ -192,11 +303,14 @@ export default defineContentScript({
       const request = requests.get(this);
       if (!request || request.method !== 'POST' || !target(request.url))
         return originalSend.call(this, body);
-      let outgoing = body;
+      let outgoing = body,
+        enhanced = false;
       try {
         if (needsPrompt(request.url)) {
           if (typeof body !== 'string') throw Error('Unsupported XHR body');
-          outgoing = rewrite(body);
+          const result = rewrite(body, request.url.pathname === '/api/v0/chat/completion');
+          outgoing = result.text;
+          enhanced = result.enhanced;
         }
       } catch {
         const fallback = observe();
@@ -204,7 +318,7 @@ export default defineContentScript({
         post({ type: 'more-genui-unsupported', route: location.pathname });
         return originalSend.call(this, body);
       }
-      const stream = observe(typeof outgoing === 'string' ? outgoing : '');
+      const stream = observe(typeof outgoing === 'string' ? outgoing : '', enhanced);
       const hooks = new AbortController();
       let offset = 0;
       const progress = () => {

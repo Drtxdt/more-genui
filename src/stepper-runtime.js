@@ -1,16 +1,21 @@
 function createStepperAPI(read, save, report) {
+  const mounts = new WeakMap();
   return Object.freeze({
-    mount(container, { id, steps }) {
+    mount(container, { id, steps, scene }) {
       try {
+        mounts.get(container)?.dispose();
         if (
           !(container instanceof HTMLElement) ||
           !id ||
           !Array.isArray(steps) ||
           !steps.length ||
+          steps.length > 2048 ||
           steps.some((s) => typeof s?.title !== 'string' || typeof s.text !== 'string')
         )
-          throw Error('分步演示需要 id 和含 title、text 的步骤');
-        const key = JSON.stringify(steps);
+          throw Error('分步演示需要 id 和 1–2048 个含 title、text 的步骤');
+        if (scene) scene = FastValidation.validateView(scene);
+        for (const step of steps) if (step.frame) FastValidation.validateView(step.frame);
+        const key = JSON.stringify(scene ? { steps, scene } : steps);
         let hash = 2166136261;
         for (const c of key) hash = Math.imul(hash ^ c.charCodeAt(0), 16777619);
         const old = read(id);
@@ -24,7 +29,13 @@ function createStepperAPI(read, save, report) {
           tools = document.createElement('div');
         text.setAttribute('role', 'status');
         tools.className = 'row';
-        container.replaceChildren(title, text, tools);
+        const graphic = document.createElement('div');
+        container.replaceChildren(title, text, graphic, tools);
+        let sceneRenderer;
+        const pause = (e) => {
+          if (e.detail === false) stop();
+        };
+        document.addEventListener('genui-visibility', pause);
         function button(label, fn) {
           const b = document.createElement('button');
           b.type = 'button';
@@ -45,6 +56,17 @@ function createStepperAPI(read, save, report) {
           next.disabled = index === steps.length - 1;
           play.disabled = next.disabled;
           if (next.disabled) stop();
+          sceneRenderer?.dispose();
+          sceneRenderer = undefined;
+          graphic.replaceChildren();
+          if (steps[index].frame || scene)
+            sceneRenderer = createFastRenderer(
+              graphic,
+              steps[index].frame || scene,
+              () => ({}),
+              () => {},
+              report,
+            );
           save(id, { index, hash });
         }
         const prev = button('上一步', () => {
@@ -92,6 +114,19 @@ function createStepperAPI(read, save, report) {
           draw();
         });
         draw();
+        const api = {
+          dispose() {
+            stop();
+            sceneRenderer?.dispose();
+            document.removeEventListener('genui-visibility', pause);
+            if (mounts.get(container) === api) {
+              mounts.delete(container);
+              container.replaceChildren();
+            }
+          },
+        };
+        mounts.set(container, api);
+        return api;
       } catch (e) {
         report(e.message);
       }

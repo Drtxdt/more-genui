@@ -8,7 +8,15 @@ export function composerTools({ settings, setDraft, arm }) {
     input;
   let intentId = crypto.randomUUID(),
     revision = 0;
+  const acknowledge = (event) => {
+    try {
+      const value = JSON.parse(event.detail);
+      if (value?.id === intentId && value.revision === revision) once.dataset.ready = 'true';
+    } catch {}
+  };
+  document.addEventListener('more-genui-intent-ack', acknowledge);
   function sync() {
+    once.dataset.ready = 'false';
     once.setAttribute('aria-pressed', String(armed));
     arm(
       armed && input
@@ -29,6 +37,13 @@ export function composerTools({ settings, setDraft, arm }) {
     kind = '';
     sync();
   }
+  const consumed = (event) => {
+    try {
+      reset(JSON.parse(event.detail));
+    } catch {}
+  };
+  document.addEventListener('more-genui-intent-consumed', consumed);
+  document.addEventListener('more-genui-intent-submitted', consumed);
   once.onclick = () => {
     armed = !armed;
     sync();
@@ -116,6 +131,9 @@ export function composerTools({ settings, setDraft, arm }) {
       } else once.remove();
     },
     dispose() {
+      document.removeEventListener('more-genui-intent-ack', acknowledge);
+      document.removeEventListener('more-genui-intent-consumed', consumed);
+      document.removeEventListener('more-genui-intent-submitted', consumed);
       once.remove();
       panel.remove();
       document.removeEventListener('mouseup', selection);

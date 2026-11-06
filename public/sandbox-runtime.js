@@ -22,6 +22,15 @@
     const theme = (value) => {
       document.documentElement.dataset.theme = value === 'dark' ? 'dark' : 'light';
     };
+    for (const event of ['click', 'input'])
+      document.addEventListener(
+        event,
+        (e) => {
+          if (e.isTrusted) send('interaction', true);
+        },
+        true,
+      );
+    let fastRenderer;
     const quizKey = '__moreGenuiQuizV1';
     function commit(value) {
       if (!value || Array.isArray(value) || typeof value !== 'object')
@@ -48,7 +57,15 @@
         quiz,
         stepper,
         experiment: experiment.api,
-        capabilities: Object.freeze({ quiz: 2, stepper: 1, experiment: 1, state: 1, export: 1 }),
+        capabilities: Object.freeze({
+          quiz: 2,
+          stepper: 2,
+          fast: 1,
+          grammar: 1,
+          experiment: 1,
+          state: 1,
+          export: 1,
+        }),
         getState() {
           const result = structuredClone(state);
           delete result[quizKey];
@@ -74,13 +91,29 @@
     port.onmessage = (e) => {
       if (e.data?.type === 'png') {
         const id = e.data.id;
-        experiment.png().then(
+        (config.spec ? fastRenderer.png() : experiment.png()).then(
           (blob) => send('png', { id, blob }),
           (e) => send('png', { id, error: String(e.message) }),
         );
       }
+      if (e.data?.type === 'visibility')
+        document.dispatchEvent(new CustomEvent('genui-visibility', { detail: e.data.visible }));
       if (e.data?.type === 'theme') theme(e.data.value);
     };
+    if (config.spec) {
+      theme(config.theme);
+      fastRenderer = createFastRenderer(document.body, config.spec, () => state, commit, report);
+      let height = 0;
+      new ResizeObserver(() => {
+        const next = Math.ceil(document.body.getBoundingClientRect().height + 32);
+        if (height !== next) {
+          height = next;
+          send('resize', next);
+        }
+      }).observe(document.body);
+      if (!failed) send('ready', true);
+      return;
+    }
     const leadingComments = /^\s*(?:<!--[^]*?-->\s*)*/.exec(config.html)[0];
     const requirement = [...leadingComments.matchAll(/<!--([^]*?)-->/g)]
       .map((match) => /^\s*more-genui-requires:\s*([^]*)$/.exec(match[1]))

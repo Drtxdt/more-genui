@@ -1,8 +1,30 @@
+import { build } from 'esbuild';
 import { readFile, writeFile, copyFile } from 'node:fs/promises';
 const csp =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'";
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'; worker-src blob:";
 const quiz = await readFile(new URL('../src/quiz-runtime.js', import.meta.url), 'utf8');
+const grammar = await readFile(new URL('../src/grammar.mjs', import.meta.url), 'utf8');
+const worker =
+  grammar.replaceAll('export function ', 'function ') +
+  `\nonmessage = e => { const {revision, grammar, input, transform} = e.data; try { const next = transform ? eliminateDirectLeftRecursion(grammar) : grammar; postMessage({revision, analysis:analyzeGrammar(next), trace:traceGrammar(next,input), transformed:transform?next:undefined}); } catch(error) { postMessage({revision,error:String(error.message)}); } };`;
+const validation = await build({
+  entryPoints: ['src/sandbox-validation.mjs'],
+  bundle: true,
+  write: false,
+  format: 'iife',
+  globalName: 'FastValidation',
+  minify: true,
+});
+const fast =
+  validation.outputFiles[0].text +
+  '\n' +
+  'const GRAMMAR_WORKER_SOURCE = ' +
+  JSON.stringify(worker) +
+  ';\n' +
+  (await readFile(new URL('../src/fast-runtime.js', import.meta.url), 'utf8'));
 const script =
+  fast +
+  '\n' +
   (await readFile(new URL('../src/stepper-runtime.js', import.meta.url), 'utf8')) +
   '\n' +
   (await readFile(new URL('../src/experiment-runtime.js', import.meta.url), 'utf8')) +

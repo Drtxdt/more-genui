@@ -1,1 +1,45 @@
-<!doctype html><html lang="zh"><meta charset="utf-8"><title>More GenUI</title><style>:root{color-scheme:light dark}body{font:14px system-ui;width:210px;margin:16px}label{display:flex;align-items:center;justify-content:space-between}p{color:GrayText;font-size:12px}</style><label>回答增强<select id="mode"><option value="auto">自动</option><option value="demand">按需</option><option value="off">关闭</option></select></label><label>检索来源<select id="sources" disabled><option value="images">图文</option><option value="text">仅文字</option><option value="off">关闭</option></select></label><p>为 DeepSeek 检索回答加载来源缩略图。</p><script type="module" src="./main.ts"></script></html>
+<!doctype html>
+<html lang="zh">
+  <meta charset="utf-8" /><title>More GenUI</title
+  ><style>
+    :root {
+      color-scheme: light dark;
+    }
+    body {
+      font: 14px system-ui;
+      width: 210px;
+      margin: 16px;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    p {
+      color: GrayText;
+      font-size: 12px;
+    }</style
+  ><label
+    >回答增强<select id="mode">
+      <option value="auto">自动</option>
+      <option value="visual">偏好可视化（实验）</option>
+      <option value="demand">按需</option>
+      <option value="off">关闭</option>
+    </select></label
+  ><label
+    >检索来源<select id="sources" disabled>
+      <option value="images">图文</option>
+      <option value="text">仅文字</option>
+      <option value="off">关闭</option>
+    </select></label
+  >
+  <p>图文模式会访问来源页和图片，目标网站可见 IP 与访问时间。不会发送聊天正文。</p>
+  <button id="revoke">撤销来源网站授权</button>
+  <p id="permission-status" role="status"></p>
+  <details>
+    <summary>开发者选项</summary>
+    <label>生成诊断<input type="checkbox" id="diagnostics" /></label>
+    <label>实验 Auto B<input type="checkbox" id="lab-policy" /></label>
+  </details>
+  <script type="module" src="./main.ts"></script>
+</html>

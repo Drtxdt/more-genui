@@ -30,3 +30,46 @@ async function show(name = 'wave', source?: string) {
 }
 Object.assign(window, { show });
 void show();
+
+Object.assign(window, {
+  mountStress: async () => {
+    const container = document.createElement('div');
+    container.id = 'stress';
+    document.body.append(container);
+    for (let i = 0; i < 100; i++) {
+      const article = document.createElement('article');
+      article.className = 'ds-message';
+      article.textContent = '消息 ' + i + ' ' + '说明 '.repeat(20);
+      container.append(article);
+    }
+    const surfaces = [];
+    for (let i = 0; i < 20; i++) {
+      const host = document.createElement('div');
+      container.append(host);
+      surfaces.push(
+        mountSurface(host, {
+          source: JSON.stringify({
+            version: 1,
+            id: 'stress-' + i,
+            title: '压力测试',
+            stateVersion: 1,
+            kind: 'compare',
+            before: { label: '前', lines: ['A'] },
+            after: { label: '后', lines: ['B'] },
+          }),
+          scope: 'stress',
+          instance: String(i),
+          repository,
+          draft: () => {},
+          repair: () => {},
+        }),
+      );
+    }
+    Object.assign(window, {
+      disposeStress: () => {
+        for (const surface of surfaces) surface.dispose();
+        container.remove();
+      },
+    });
+  },
+});

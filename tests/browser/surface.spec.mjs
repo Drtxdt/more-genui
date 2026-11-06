@@ -54,6 +54,7 @@ test('sandbox blocks parent access and fetch, errors are actionable, reset and s
   await expect(page.locator('#app output')).toHaveText(/broken example/);
   await page.locator('#app output').getByRole('button', { name: '修复', exact: true }).click();
   await expect(page.getByLabel('草稿')).toHaveValue(/broken example/);
+  if (!await page.getByRole('button', {name:'停止',exact:true}).first().isVisible()) await page.getByRole('button', {name:'更多',exact:true}).first().click();
   await page.getByRole('button', { name: '停止', exact: true }).click();
   await expect(page.locator('#app iframe')).toHaveCount(0);
 });
@@ -62,6 +63,7 @@ test('reset, schema change, theme and source updates remain isolated', async ({ 
   await frame(page).getByLabel('振幅').fill('1.9');
   await frame(page).getByLabel('振幅').dispatchEvent('input');
   await page.waitForTimeout(250);
+  if (!await page.getByRole('button', {name:'重置',exact:true}).first().isVisible()) await page.getByRole('button', {name:'更多',exact:true}).first().click();
   await page.getByRole('button', { name: '重置', exact: true }).click();
   await expect(frame(page).getByLabel('振幅')).toHaveValue('1');
   await page.evaluate(() => (document.documentElement.dataset.theme = 'dark'));

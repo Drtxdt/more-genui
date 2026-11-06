@@ -20,12 +20,16 @@ test('compact static visual, accessible menu, theme and same-frame enlargement',
   await expect(frame.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.evaluate(() => (document.documentElement.dataset.theme = 'light'));
   await expect(frame.locator('html')).toHaveAttribute('data-theme', 'light');
-  const toolbar = page.getByRole('group', { name: '应用操作' });
-  await expect(toolbar.getByRole('button')).toHaveCount(8);
+  const toolbar = page.getByRole('group', { name: '应用操作', exact: true });
+  await expect(toolbar.getByRole('button')).toHaveCount(3);
   expect((await toolbar.boundingBox()).height).toBeLessThan(50);
+  if (!(await page.getByRole('button', { name: '查看源码', exact: true }).first().isVisible()))
+    await page.getByRole('button', { name: '更多', exact: true }).first().click();
   await page.getByRole('button', { name: '查看源码', exact: true }).click();
   await expect(page.locator('#app pre')).toBeVisible();
   expect((await toolbar.boundingBox()).height).toBeLessThan(50);
+  if (!(await page.getByRole('button', { name: '查看源码', exact: true }).first().isVisible()))
+    await page.getByRole('button', { name: '更多', exact: true }).first().click();
   await page.getByRole('button', { name: '查看源码', exact: true }).click();
   await page.screenshot({ path: 'test-results/inline-toolbar.png' });
 });

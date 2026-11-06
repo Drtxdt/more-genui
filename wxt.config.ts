@@ -4,12 +4,13 @@ export default defineConfig({
     name: 'More GenUI',
     description: 'Interactive applications inside DeepSeek replies.',
     permissions: ['storage', 'alarms'],
-    host_permissions: ['https://*/*'],
+    host_permissions: ['https://chat.deepseek.com/*'],
+    optional_host_permissions: ['https://*/*'],
     sandbox: { pages: ['sandbox.html'] },
     content_security_policy: {
       extension_pages: "script-src 'self'; object-src 'none'",
       sandbox:
-        "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'",
+        "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; worker-src blob:",
     },
     web_accessible_resources: [
       { resources: ['sandbox.html'], matches: ['https://chat.deepseek.com/*'] },

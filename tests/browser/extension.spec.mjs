@@ -1,3 +1,4 @@
+import { authorizedExtension } from './authorized-extension.mjs';
 import { test, expect, chromium } from '@playwright/test';
 import { readFile, mkdtemp } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -6,7 +7,8 @@ let context, page;
 const source = (await readFile('examples/wave.html', 'utf8')).trim();
 const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><main id="messages" class="ds-message"><div class="ds-assistant-message-main-content"></div></main><textarea placeholder="给 DeepSeek 发送消息 " aria-label="输入"></textarea><button data-testid="send-button">发送</button><script>document.querySelector('button').onclick=async()=>{const input=document.querySelector('textarea');const prompt=input.value;input.value='';const response=await fetch(new Request('/api/v0/chat/completion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,chat_session_id:'fixture'})}));await response.text();};</script></body></html>`;
 test.beforeEach(async ({}, info) => {
-  const path = resolve('.output/chrome-mv3');
+  const images = /official search replay|migrates yesterday/.test(info.title);
+  const path = images ? await authorizedExtension() : resolve('.output/chrome-mv3');
   context = await chromium.launchPersistentContext(
     await mkdtemp(resolve(tmpdir(), 'more-genui-test-')),
     {
@@ -16,6 +18,12 @@ test.beforeEach(async ({}, info) => {
       args: [`--disable-extensions-except=${path}`, `--load-extension=${path}`],
     },
   );
+  if (images) {
+    const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
+    await worker.evaluate(() =>
+      chrome.storage.local.set({ sourceMode: 'images', previewImages: true }),
+    );
+  }
   await context.route('https://chat.deepseek.com/**', (route) =>
     route.fulfill({ contentType: 'text/html', body: html }),
   );
@@ -78,6 +86,8 @@ for (const transport of ['fetch', 'xhr'])
     await expect(page.locator('.more-genui-surface')).toHaveCount(0);
     await page.locator('#more-genui-toggle').click();
     await expect(frame.getByLabel('振幅')).toHaveValue('1.8');
+    if (!(await page.getByRole('button', { name: '修复', exact: true }).first().isVisible()))
+      await page.getByRole('button', { name: '更多', exact: true }).first().click();
     await page.getByRole('button', { name: '修复', exact: true }).click();
     await expect.poll(() => sent.prompt).toContain('请修复应用');
     const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)[1];
@@ -607,4 +617,169 @@ test('demand intent survives unrelated requests and normalizes client whitespace
   expect(sent[1].prompt).toContain('[More GenUI v1]');
   expect(sent[1].untouched).toBe(23);
   await expect(once).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('production source permissions default to text and denial makes no third-party request', async () => {
+  const worker = context.serviceWorkers()[0];
+  expect(
+    await worker.evaluate(() => chrome.permissions.contains({ origins: ['https://*/*'] })),
+  ).toBe(false);
+  const external = [];
+  await context.route('https://source.example.com/**', (r) => {
+    external.push(r.request().url());
+    return r.fulfill({ body: 'unexpected' });
+  });
+  await worker.evaluate(() =>
+    chrome.storage.local.set({ previewImages: true, sourceMode: 'images' }),
+  );
+  await page.evaluate(() => {
+    for (const event of [
+      { type: 'more-genui-start' },
+      { type: 'more-genui-identity', key: 'permission' },
+      {
+        type: 'more-genui-search',
+        sources: [{ url: 'https://source.example.com/article', title: 'Source', index: 1 }],
+      },
+    ])
+      window.postMessage({ ...event, id: 'permission', route: location.pathname }, location.origin);
+  });
+  await page.waitForTimeout(250);
+  expect(external).toEqual([]);
+  const popup = await context.newPage();
+  await popup.goto('chrome-extension://' + new URL(worker.url()).host + '/popup.html');
+  await popup.evaluate(() => {
+    chrome.permissions.request = async () => false;
+  });
+  await popup.locator('#sources').selectOption('images');
+  await expect(popup.locator('#sources')).toHaveValue('text');
+  expect(
+    (await worker.evaluate(() => chrome.storage.local.get('previewImages'))).previewImages,
+  ).toBe(false);
+  await popup.evaluate(() => {
+    chrome.permissions.remove = async () => {
+      throw Error('simulated refusal');
+    };
+  });
+  await popup.locator('#revoke').click();
+  await expect(popup.locator('#permission-status')).toContainText('已关闭图文');
+  expect(
+    (await worker.evaluate(() => chrome.storage.local.get('previewImages'))).previewImages,
+  ).toBe(false);
+});
+
+test('diagnostics opt in without exposing prompt or THINK content and visualize appends a draft', async () => {
+  const worker = context.serviceWorkers()[0];
+  await worker.evaluate(() => chrome.storage.local.set({ diagnostics: true }));
+  await context.route('**/api/v0/chat/completion', (r) =>
+    r.fulfill({
+      contentType: 'text/event-stream',
+      body:
+        'data: ' +
+        JSON.stringify({
+          v: {
+            response: {
+              fragments: [
+                { type: 'THINK', content: 'PRIVATE_THINK' },
+                { type: 'RESPONSE', content: '公开回答' },
+              ],
+            },
+          },
+        }) +
+        '\n\ndata: [DONE]\n\n',
+    }),
+  );
+  await page.getByLabel('输入').fill('PRIVATE_PROMPT');
+  await page.getByTestId('send-button').click();
+  const panel = page.locator('.more-genui-diagnostics');
+  await expect(panel).toContainText('enhanced');
+  await expect(panel).toContainText('no-ui');
+  await expect(panel).not.toContainText('PRIVATE_PROMPT');
+  await expect(panel).not.toContainText('PRIVATE_THINK');
+  await page.getByLabel('输入').fill('原草稿');
+  await page.getByRole('button', { name: '请求可视化', exact: true }).click();
+  await expect(page.getByLabel('输入')).toHaveValue(/原草稿[^]*图解/);
+});
+
+for (const send of ['button', 'enter', 'ime'])
+  test(
+    'demand draft revisions and ' + send + ' sending preserve a newer intent after an old receipt',
+    async () => {
+      const worker = context.serviceWorkers()[0];
+      await worker.evaluate(() => chrome.storage.local.set({ generationMode: 'demand' }));
+      const once = page.getByRole('button', { name: '仅增强本条', exact: true });
+      await expect(once).toBeVisible();
+      await page.evaluate(() => {
+        window.lastIntent = null;
+        document.addEventListener('more-genui-intent', (e) => {
+          const value = JSON.parse(e.detail);
+          if (value) window.lastIntent = value;
+        });
+        document.querySelector('textarea').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey && !e.isComposing)
+            document.querySelector('[data-testid=send-button]').click();
+        });
+      });
+      const sent = [];
+      await context.route('**/api/v0/chat/completion', (r) => {
+        sent.push(r.request().postDataJSON().prompt);
+        return r.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
+      });
+      await page.getByLabel('输入').fill('旧草稿');
+      await once.click();
+      const old = await page.evaluate(() => window.lastIntent);
+      await page.getByLabel('输入').fill('新草稿');
+      await page.evaluate(
+        (old) =>
+          window.postMessage(
+            { type: 'more-genui-consumed', intentId: old.id, revision: old.revision },
+            location.origin,
+          ),
+        old,
+      );
+      await expect(once).toHaveAttribute('aria-pressed', 'true');
+      if (send === 'ime') {
+        await page.getByLabel('输入').dispatchEvent('keydown', { key: 'Enter', isComposing: true });
+        expect(sent).toHaveLength(0);
+      }
+      if (send === 'button') await page.getByTestId('send-button').click();
+      else await page.getByLabel('输入').press('Enter');
+      await expect.poll(() => sent.length).toBe(1);
+      expect(sent[0]).toContain('新草稿');
+      expect(sent[0]).toContain('[More GenUI v1]');
+      await page.getByLabel('输入').fill('下一条');
+      await page.getByTestId('send-button').click();
+      await expect.poll(() => sent.length).toBe(2);
+      expect(sent[1]).toBe('下一条');
+    },
+  );
+
+test('history edit and regenerate do not consume the current composer intent; navigation clears it', async () => {
+  const worker = context.serviceWorkers()[0];
+  await worker.evaluate(() => chrome.storage.local.set({ generationMode: 'demand' }));
+  const once = page.getByRole('button', { name: '仅增强本条', exact: true });
+  await expect(once).toBeVisible();
+  const sent = [];
+  await context.route('**/api/v0/chat/**', (r) => {
+    sent.push({
+      path: new URL(r.request().url()).pathname,
+      prompt: r.request().postDataJSON().prompt,
+    });
+    return r.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
+  });
+  await page.getByLabel('输入').fill('当前草稿');
+  await once.click();
+  await page.evaluate(async () => {
+    for (const path of ['edit_message', 'regenerate'])
+      await fetch('/api/v0/chat/' + path, {
+        method: 'POST',
+        body: JSON.stringify({ prompt: '当前草稿' }),
+      });
+  });
+  expect(sent.every((r) => r.prompt === '当前草稿')).toBe(true);
+  await expect(once).toHaveAttribute('aria-pressed', 'true');
+  await page.evaluate(() => history.pushState({}, '', '/a/chat/another'));
+  await expect(once).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('send-button').click();
+  await expect.poll(() => sent.length).toBe(3);
+  expect(sent[2].prompt).toBe('当前草稿');
 });

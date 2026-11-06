@@ -24,7 +24,16 @@ export default defineBackground(() => {
       /* The next cache read retries migration. */
     });
   });
-  const pool = new PreviewPool(imageFor);
+  const pool = new PreviewPool(async (source: any, signal: AbortSignal) => {
+    if (!(await chrome.permissions.contains({ origins: ['https://*/*'] }))) return;
+    return imageFor(source, signal);
+  });
+  chrome.permissions.onRemoved.addListener(() => {
+    for (const controller of jobs.values()) controller.abort();
+    jobs.clear();
+    registered.clear();
+    void chrome.storage.local.set({ previewImages: false, sourceMode: 'text' });
+  });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (
       area === 'local' &&
@@ -90,10 +99,12 @@ export default defineBackground(() => {
     const controller = jobs.get(tab) ?? new AbortController();
     jobs.set(tab, controller);
     const run = async () => {
-      const settings = await chrome.storage.local.get(['enabled', 'previewImages']);
+      const settings = await chrome.storage.local.get(['enabled', 'previewImages', 'sourceMode']);
       if (
         settings.enabled === false ||
-        settings.previewImages === false ||
+        settings.previewImages !== true ||
+        settings.sourceMode === 'off' ||
+        !(await chrome.permissions.contains({ origins: ['https://*/*'] })) ||
         controller.signal.aborted
       )
         return [];

@@ -5,6 +5,7 @@ test('lock A, apply preset to B, export actual results and restore snapshot', as
   await page.evaluate(() => window.show('perimeter'));
   const frame = page.frameLocator('#app iframe');
   await expect(frame.locator('output')).toContainText('25');
+  if (!await page.getByRole('button', {name:'实验工具',exact:true}).first().isVisible()) await page.getByRole('button', {name:'更多',exact:true}).first().click();
   await page.getByRole('button', { name: '实验工具' }).click();
   await page.getByLabel('快照名称').fill('正方形');
   await page.getByText('保存快照', { exact: true }).click();
@@ -28,6 +29,7 @@ test('lock A, apply preset to B, export actual results and restore snapshot', as
   await page.reload();
   await page.evaluate(() => window.show('perimeter'));
   await expect(frame.locator('output')).toContainText('21');
+  if (!await page.getByRole('button', {name:'实验工具',exact:true}).first().isVisible()) await page.getByRole('button', {name:'更多',exact:true}).first().click();
   await page.getByRole('button', { name: '实验工具' }).click();
   await page.getByText('恢复', { exact: true }).click();
   await expect(frame.locator('output')).toContainText('25');

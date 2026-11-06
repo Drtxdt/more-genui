@@ -1,3 +1,5 @@
+import { GenerationDiagnostics } from '../src/diagnostics.mjs';
+import { parseRenderable as parseApp } from '../src/renderable.mjs';
 import { RequestLifecycle } from '../src/request-lifecycle.mjs';
 import { TableCharts } from '../src/charts.mjs';
 import { composerTools } from '../src/composer-tools.mjs';
@@ -6,7 +8,7 @@ import { PreviewRenderer } from '../src/preview-renderer.mjs';
 import { createElement, Power } from 'lucide';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { browser } from 'wxt/browser';
-import { parseApp, splitGuidance, MAX_SOURCE } from '../src/protocol.mjs';
+import { splitGuidance, MAX_SOURCE } from '../src/protocol.mjs';
 import { StateRepository } from '../src/state.mjs';
 import { mountSurface } from '../src/surface';
 import { messages, codeBlocks, userLeaves, messageIdentity } from '../src/deepseek-dom.mjs';
@@ -16,11 +18,37 @@ export default defineContentScript({
   main(ctx) {
     let enabled = false,
       route = location.pathname;
+    const diagnostics = new GenerationDiagnostics();
+    const diagnosticPanel = document.createElement('aside');
+    diagnosticPanel.className = 'more-genui-diagnostics';
+    diagnosticPanel.hidden = true;
+    diagnosticPanel.style.cssText =
+      'position:fixed;right:12px;bottom:64px;max-width:340px;max-height:40vh;overflow:auto;z-index:2147483646;background:Canvas;color:CanvasText;padding:12px;border:1px solid GrayText;font:12px system-ui';
+    document.body.append(diagnosticPanel);
+    function diagnostic(event: any) {
+      const record = diagnostics.update(event);
+      if (!record) return;
+      diagnosticPanel.replaceChildren();
+      for (const row of [...diagnostics.records.values()].slice(-8)) {
+        const line = document.createElement('p');
+        line.textContent =
+          row.id.slice(0, 8) +
+          ' · ' +
+          row.events.map((e: any) => e.stage + ' ' + Math.round(e.ms) + 'ms').join(' → ');
+        diagnosticPanel.append(line);
+      }
+      const retry = document.createElement('button');
+      retry.textContent = '追加可视化提问';
+      retry.onclick = () =>
+        draft('请将上一条回答中适合观察变化、关系或冲突的部分生成一块紧凑可视化。');
+      diagnosticPanel.append(retry);
+    }
     const tables = new TableCharts();
     const cards = new SourceCards((m: any) => browser.runtime.sendMessage(m));
     let showCards = true;
-    let previewImages = true;
-    let generationMode = 'auto';
+    let previewImages = false;
+    let generationMode = 'auto',
+      labPolicy = 'A';
     const composition = composerTools({
       settings: () => ({ enabled, mode: generationMode }),
       setDraft,
@@ -71,6 +99,7 @@ export default defineContentScript({
         dispose: () => void;
       }
     >();
+    const visualizeActions = new Map<HTMLElement, HTMLButtonElement>();
     const folded = new Map<HTMLElement, { view: HTMLElement; text: string; display: string }>();
     const control = document.createElement('button');
     control.type = 'button';
@@ -97,7 +126,13 @@ export default defineContentScript({
       control.setAttribute('aria-label', control.title);
       control.setAttribute('aria-pressed', String(enabled));
       window.postMessage(
-        { type: 'more-genui-enabled', enabled, mode: generationMode },
+        {
+          type: 'more-genui-enabled',
+          enabled,
+          mode: generationMode,
+          diagnostics: diagnostics.enabled,
+          policy: labPolicy,
+        },
         location.origin,
       );
     };
@@ -106,15 +141,25 @@ export default defineContentScript({
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
         const value = await Promise.race([
-          browser.storage.local.get(['enabled', 'previewImages', 'sourceMode', 'generationMode']),
+          browser.storage.local.get([
+            'enabled',
+            'previewImages',
+            'sourceMode',
+            'generationMode',
+            'diagnostics',
+            'labPolicy',
+          ]),
           new Promise<never>((_, reject) => {
             timeout = setTimeout(() => reject(Error('storage timeout')), 4000);
           }),
         ]);
+        labPolicy = value.labPolicy === 'B' ? 'B' : 'A';
+        diagnostics.configure(value.diagnostics);
+        diagnosticPanel.hidden = !diagnostics.enabled;
         settingsReady = true;
         generationMode = String(value.generationMode ?? 'auto');
         showCards = value.sourceMode !== 'off';
-        previewImages = value.previewImages !== false;
+        previewImages = value.previewImages === true;
         enabled = value.enabled !== false;
         publish();
         scan();
@@ -144,6 +189,15 @@ export default defineContentScript({
     };
     control.addEventListener('animationend', () => control.classList.remove('activating'));
     const settingsChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if (area === 'local' && changes.labPolicy) {
+        labPolicy = changes.labPolicy.newValue === 'B' ? 'B' : 'A';
+        publish();
+      }
+      if (area === 'local' && changes.diagnostics) {
+        diagnostics.configure(changes.diagnostics.newValue);
+        diagnosticPanel.hidden = !diagnostics.enabled;
+        publish();
+      }
       if (area === 'local' && changes.generationMode) {
         generationMode = String(changes.generationMode.newValue);
         composition.reset();
@@ -289,6 +343,23 @@ export default defineContentScript({
         });
       }
       dirtyMessages.clear();
+      for (const [message, action] of visualizeActions)
+        if (!message.isConnected || !enabled) {
+          action.remove();
+          visualizeActions.delete(message);
+        }
+      for (const message of candidates) {
+        const body = message.querySelector('.ds-assistant-message-main-content');
+        if (body && !visualizeActions.has(message as HTMLElement)) {
+          const action = document.createElement('button');
+          action.className = 'more-genui-visualize';
+          action.textContent = '请求可视化';
+          action.onclick = () =>
+            draft('请用最合适的一块图解解释上面这条回答中的变化、关系或冲突。');
+          body.after(action);
+          visualizeActions.set(message as HTMLElement, action);
+        }
+      }
       for (const message of candidates) tables.render(message);
       if (showCards) for (const message of candidates) cards.render(message);
       if (previewImages) for (const message of candidates) previews.render(message);
@@ -301,7 +372,7 @@ export default defineContentScript({
         if (
           mounted.has(code) ||
           source.length > MAX_SOURCE ||
-          !source.trimStart().startsWith('<!-- more-genui:')
+          !(source.trimStart().startsWith('<!-- more-genui:') || source.trimStart().startsWith('{'))
         )
           continue;
         const key = code
@@ -309,6 +380,8 @@ export default defineContentScript({
           ?.getAttribute('data-virtual-list-item-key');
         const origin = ledger.classify(code, key, source);
         const owner = origin.owner;
+        if (origin.kind === 'unknown')
+          for (const id of active) diagnostic({ id, stage: 'ambiguous' });
         const requestId = owner?.id;
         if (
           origin.kind !== 'history' &&
@@ -343,6 +416,7 @@ export default defineContentScript({
         try {
           parseApp(source);
         } catch {
+          if (requestId) diagnostic({ id: requestId, stage: 'invalid-protocol' });
           continue;
         }
         const host = document.createElement('div');
@@ -374,6 +448,9 @@ export default defineContentScript({
         const allowRepair = requestId && token === requests.get(requestId)?.repairToken;
         const surface = mountSurface(host, {
           source,
+          diagnostic: (stage: string) => {
+            if (requestId) diagnostic({ id: requestId, stage });
+          },
           scope: 'deepseek:' + route,
           instance,
           repository: identity.persistent ? repository : temporaryRepository,
@@ -392,6 +469,7 @@ export default defineContentScript({
             );
           },
         });
+        if (requestId) diagnostic({ id: requestId, stage: 'mounted' });
         mounted.set(code, { source, host, container, display, dispose: surface.dispose });
       }
       // Fold only the smallest complete text container; retain the original DOM for framework reconciliation.
@@ -423,7 +501,12 @@ export default defineContentScript({
       }
     }
     const streamListener = (e: MessageEvent) => {
-      if (e.source !== window || e.origin !== location.origin || !enabled) return;
+      if (e.source !== window || e.origin !== location.origin) return;
+      if (e.data?.type === 'more-genui-diagnostic') {
+        diagnostic(e.data);
+        return;
+      }
+      if (!enabled) return;
       const m = e.data;
       if (m?.type === 'more-genui-consumed') {
         composition.reset(m);
@@ -451,6 +534,11 @@ export default defineContentScript({
         typeof m.source === 'string' &&
         m.source.length <= MAX_SOURCE
       ) {
+        try {
+          parseApp(m.source);
+        } catch {
+          diagnostic({ id: m.id, stage: 'invalid-protocol' });
+        }
         ledger.source(m.id, m.source.trim());
       } else if (m.type === 'more-genui-end' && requests.has(m.id)) {
         scan();
@@ -522,6 +610,10 @@ export default defineContentScript({
       publish();
       ledger.clear();
       previews.clear();
+      for (const action of visualizeActions.values()) action.remove();
+      visualizeActions.clear();
+      diagnosticPanel.remove();
+      diagnostics.clear();
       composition.dispose();
       cards.clear();
       tables.clear();

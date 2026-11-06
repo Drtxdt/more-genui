@@ -1,3 +1,4 @@
+import { authorizedExtension } from './authorized-extension.mjs';
 import { test, expect, chromium } from '@playwright/test';
 import { createServer } from 'node:https';
 import { execFileSync } from 'node:child_process';
@@ -41,7 +42,7 @@ test('source fetch rejects public hostname resolving to loopback', async () => {
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   let ctx;
   try {
-    const path = resolve('.output/chrome-mv3');
+    const path = await authorizedExtension();
     ctx = await chromium.launchPersistentContext(join(dir, 'profile'), {
       channel: 'chromium',
       args: [
@@ -52,6 +53,10 @@ test('source fetch rejects public hostname resolving to loopback', async () => {
         '--load-extension=' + path,
       ],
     });
+    const setupWorker = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker'));
+    await setupWorker.evaluate(() =>
+      chrome.storage.local.set({ sourceMode: 'images', previewImages: true }),
+    );
     const page = await ctx.newPage();
     await page.goto('https://source.example.com/control');
     expect(hits).toContain('/control');

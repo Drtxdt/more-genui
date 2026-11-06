@@ -1,3 +1,4 @@
+import { parseRenderable as parseApp } from './renderable.mjs';
 import {
   createElement,
   Maximize,
@@ -8,13 +9,16 @@ import {
   RotateCcw,
   RefreshCw,
   Square,
+  MoreHorizontal,
 } from 'lucide';
-import { parseApp, safeState } from './protocol.mjs';
+import { safeState } from './protocol.mjs';
 import { StateRepository } from './state.mjs';
 import { appParams, experimentPanel } from './experiment-panel.mjs';
 import sandboxHTML from './generated-sandbox';
 export interface SurfaceOptions {
   source: string;
+  format?: 'html' | 'fast';
+  diagnostic?: (stage: string) => void;
   initialState?: Record<string, unknown>;
   scope: string;
   instance: string;
@@ -42,7 +46,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
       : matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
         : 'light');
-  const app = parseApp(options.source);
+  const app = parseApp(options.source, options.format);
   let dirty = 0,
     saved = 0,
     stateLoaded = false,
@@ -66,7 +70,7 @@ button:focus-visible{outline:2px solid Highlight;outline-offset:2px}
 header button{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;padding:6px;border:0;border-radius:6px;background:transparent}
 header svg{width:16px;height:16px}iframe{display:block;width:100%;height:48px;border:0;background:Canvas}
 section:popover-open{position:fixed;inset:3vh 3vw;width:94vw;height:94vh;max-height:94vh;margin:0;overflow:auto}
-section::backdrop{background:#0008}pre{white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;padding:12px}
+[hidden]{display:none!important}section::backdrop{background:#0008}pre{white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;padding:12px}
 pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
 `;
   const panel = document.createElement('section'),
@@ -92,7 +96,12 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   };
   panel.append(viewport, expand);
   root.append(style, panel);
-  const keysPromise = options.repository.keys(options.scope, options.instance, app, options.source);
+  const keysPromise = options.repository.keys(
+    app.spec ? options.scope + ':fast' : options.scope,
+    options.instance,
+    app,
+    options.source,
+  );
   const setStatus = (text: string) => {
     if (!disposed) status.textContent = text;
   };
@@ -107,6 +116,13 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       })
       .catch((e) => setStatus(`保存失败：${e.message}`));
   };
+  const overflow = document.createElement('div');
+  overflow.hidden = true;
+  overflow.setAttribute('role', 'group');
+  overflow.setAttribute('aria-label', '更多应用操作');
+  overflow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;padding:8px';
+  panel.insertBefore(overflow, status);
+  let actionCount = 0;
   const button = (label: string, icon: typeof Maximize, action: () => void | Promise<void>) => {
     const b = document.createElement('button');
     b.textContent = label;
@@ -125,7 +141,10 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     b.replaceChildren(createElement(icon));
     b.setAttribute('aria-label', label);
     b.title = label;
-    bar.append(b);
+    (actionCount++ < 2 ? bar : overflow).append(b);
+    if (overflow.contains(b)) {
+      b.textContent = label;
+    }
     return b;
   };
   button('放大', Maximize, () => {
@@ -213,12 +232,18 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     else next.srcdoc = sandboxHTML;
     channel = new MessageChannel();
     const connection = channel;
+    let interactionPending = false;
     let loaded = false,
       sizeWarning = '';
     connection.port1.onmessage = (e) => {
       if (disposed || current !== generation) return;
       const message = e.data;
       if (!message || typeof message !== 'object') return;
+      if (message.type === 'interaction') {
+        interactionPending = true;
+        options.diagnostic?.('interaction');
+        return;
+      }
       if (message.type === 'experiment') {
         try {
           experiments.update(safeState(message.value));
@@ -239,6 +264,10 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         try {
           const nextState = safeState(message.value);
           if (JSON.stringify(nextState) !== JSON.stringify(state)) {
+            if (interactionPending) {
+              options.diagnostic?.('feedback');
+              interactionPending = false;
+            }
             state = nextState;
             experiments.changed();
             dirty++;
@@ -261,16 +290,18 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         if (sizeWarning) setStatus(sizeWarning);
       } else if (message.type === 'error') {
         clearTimeout(timeout);
+        options.diagnostic?.('execution-error');
         error = String(message.value).slice(0, 2000);
         setStatus(`运行错误：${error}`);
         const fix = document.createElement('button');
         fix.textContent = '修复';
         fix.onclick = () => {
-          const action = bar.querySelector<HTMLButtonElement>('button[aria-label="修复"]');
+          const action = panel.querySelector<HTMLButtonElement>('button[aria-label="修复"]');
           action?.click();
         };
         status.append(fix);
       } else if (message.type === 'ready') {
+        options.diagnostic?.('ready');
         clearTimeout(timeout);
         if (!error) setStatus(sizeWarning);
       }
@@ -284,13 +315,16 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       }
       loaded = true;
       next.contentWindow?.postMessage(
-        { type: 'more-genui-init', html: app.html, state, theme: resolvedTheme() },
+        { type: 'more-genui-init', html: app.html, spec: app.spec, state, theme: resolvedTheme() },
         '*',
         [connection.port2],
       );
     };
     viewport.append(next);
-    timeout = setTimeout(() => setStatus('启动超时，可点击重新运行或修复'), 8000);
+    timeout = setTimeout(() => {
+      options.diagnostic?.('mount-timeout');
+      setStatus('启动超时，可点击重新运行或修复');
+    }, 8000);
   }
   button('重置', RotateCcw, async () => {
     clearTimeout(saveTimer);
@@ -307,6 +341,77 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     setStatus('已停止，参数已保留');
     void save();
   });
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.title = '更多';
+  more.setAttribute('aria-label', '更多');
+  more.setAttribute('aria-expanded', 'false');
+  more.append(createElement(MoreHorizontal));
+  more.onclick = () => {
+    overflow.hidden = !overflow.hidden;
+    more.setAttribute('aria-expanded', String(!overflow.hidden));
+  };
+  more.onkeydown = (e) => {
+    if (e.key === 'ArrowDown') {
+      overflow.hidden = false;
+      more.setAttribute('aria-expanded', 'true');
+      overflow.querySelector<HTMLButtonElement>('button')?.focus();
+    }
+  };
+  overflow.onkeydown = (e) => {
+    if (e.key === 'Escape') {
+      overflow.hidden = true;
+      more.setAttribute('aria-expanded', 'false');
+      more.focus();
+    }
+  };
+  bar.append(more);
+  if (app.spec) {
+    const download = (name: string, blob: Blob) => {
+      const url = URL.createObjectURL(blob),
+        a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    button('导出图解 JSON', Code, () =>
+      download(
+        app.id + '.json',
+        new Blob([JSON.stringify({ spec: JSON.parse(options.source), state }, null, 2)], {
+          type: 'application/json',
+        }),
+      ),
+    );
+    button('导出图解 PNG', Code, async () =>
+      download(
+        app.id + '.png',
+        await new Promise<Blob>((resolve, reject) => {
+          if (!channel) return reject(Error('应用未运行'));
+          const id = crypto.randomUUID();
+          pngRequest = { id, resolve, reject };
+          channel.port1.postMessage({ type: 'png', id });
+          setTimeout(() => {
+            if (pngRequest?.id === id) {
+              pngRequest = undefined;
+              reject(Error('PNG 导出超时'));
+            }
+          }, 5000);
+        }),
+      ),
+    );
+  }
+  const visibility = new IntersectionObserver((entries) => {
+    channel?.port1.postMessage({
+      type: 'visibility',
+      visible: entries.some((e) => e.isIntersecting) && !document.hidden,
+    });
+  });
+  visibility.observe(host);
+  const tabVisibility = () => {
+    if (document.hidden) channel?.port1.postMessage({ type: 'visibility', visible: false });
+  };
+  document.addEventListener('visibilitychange', tabVisibility);
   const media = matchMedia('(prefers-color-scheme: dark)');
   const theme = () => {
     panel.style.colorScheme = resolvedTheme();
@@ -335,6 +440,8 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   return {
     theme,
     dispose() {
+      visibility.disconnect();
+      document.removeEventListener('visibilitychange', tabVisibility);
       experiments.dispose();
       pngRequest?.reject(Error('应用已关闭'));
       pngRequest = undefined;
