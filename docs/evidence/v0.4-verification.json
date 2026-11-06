@@ -1,0 +1,58 @@
+{
+  "version": "0.4.0",
+  "quickTests": 16,
+  "chromium": [
+    {
+      "name": "fetch repairs preserve parameters",
+      "status": "passed"
+    },
+    {
+      "name": "xhr repairs preserve parameters",
+      "status": "passed"
+    },
+    {
+      "name": "unfinished streaming documents never execute; plain prose and disabled mode stay ordinary",
+      "status": "passed"
+    },
+    {
+      "name": "XHR transport rewrites only known prompt fields and decodes official BATCH events",
+      "status": "passed"
+    },
+    {
+      "name": "navigation duplicates are never folded or modified",
+      "status": "passed"
+    },
+    {
+      "name": "cancelled output requires current-source approval and old-route events cannot run it",
+      "status": "passed"
+    },
+    {
+      "name": "same IDs in separate messages stay isolated and stable messages restore after rebuild",
+      "status": "passed"
+    },
+    {
+      "name": "official search replay decorates citations, falls back at end, and restores cached previews",
+      "status": "passed"
+    }
+  ],
+  "observations": {
+    "before": {
+      "fullDiscoveries": 1,
+      "scans": 9,
+      "incrementalScans": 3
+    },
+    "after": {
+      "fullDiscoveries": 1,
+      "scans": 10,
+      "incrementalScans": 4
+    }
+  },
+  "data": "Sanitized SEARCH fragment from public DeepSeek share. Network timing, source-page metadata and image bytes in the Chromium replay are fixtures.",
+  "liveGeneration": "Not exercised",
+  "sourcePageProbe": {
+    "checked": 3,
+    "html200": 3,
+    "wordmarks": 2,
+    "competitionOpenGraph": 1
+  }
+}
