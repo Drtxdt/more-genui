@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "check": "passed",
+  "productionBuild": "passed",
+  "fastTestsPassed": 18,
+  "chromium": {
+    "startTime": "2026-11-06T05:12:05.864Z",
+    "duration": 67333.417,
+    "expected": 73,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "artifactsSHA256": {
+    "more-genui-extension-1.0.0.zip": "a12191cacba32a0134e3753e8cf57d74996e7efa8b87e1b11cc1c4bd3c24fe8a",
+    "more-genui-harness-1.0.0.tgz": "216d19a728ec62526dbf580f9ad2e7198a476ddaa334fdce3b66f5d3d98d7b69"
+  },
+  "archiveVerification": "ZIP CRC and contents matched build; TGZ version and both runtime bundles matched build",
+  "officialEdge": {
+    "attemptedPrompts": 0,
+    "planned": 30,
+    "blocker": "Browser is not available: edge"
+  },
+  "remoteCI": "not run"
+}
