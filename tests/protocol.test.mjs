@@ -71,12 +71,15 @@ test('SSE arbitrary splits and DeepSeek fragment deltas emit once at close', () 
 });
 test('OpenAI delta shape and invalid SSE records do not break completion', () => {
   const found = [];
-  const sse = new SSEDecoder((e) => new ReplyAccumulator((s) => found.push(s)).accept(e));
+  const reply = new ReplyAccumulator((s) => found.push(s));
+  const sse = new SSEDecoder((e) => reply.accept(e));
   sse.push(
     'data: nope\n\ndata: ' +
       JSON.stringify({ choices: [{ delta: { content: '```genui-html\n' + source + '\n```' } }] }) +
       '\n\ndata: [DONE]\n\n',
   );
+  assert.equal(found.length, 0);
+  reply.scanner.finish();
   assert.equal(found.length, 1);
 });
 test('state survives updates, separates conversations and schema versions, serializes writes', async () => {

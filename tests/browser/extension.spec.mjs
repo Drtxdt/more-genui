@@ -26,67 +26,78 @@ test.beforeEach(async ({}, info) => {
 test.afterEach(async () => {
   await context?.close();
 });
-test('actual MV3 scripts append instructions once, sandbox renders current DeepSeek DOM and persists', async () => {
-  let sent;
-  await context.route('**/api/v0/chat/completion', async (route) => {
-    sent = route.request().postDataJSON();
-    const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)?.[1];
-    const output = token
-      ? source.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>')
-      : source;
-    await route.fulfill({
-      contentType: 'text/event-stream',
-      body:
-        'data: ' +
-        JSON.stringify({
-          p: 'response/content',
-          o: 'APPEND',
-          v: '```genui-html\n' + output + '\n```\n',
-        }) +
-        '\n\n',
+for (const transport of ['fetch', 'xhr'])
+  test(transport + ' repairs preserve parameters', async () => {
+    if (transport === 'xhr')
+      await page.evaluate(() => {
+        document.querySelector('[data-testid=send-button]').onclick = () => {
+          const input = document.querySelector('textarea');
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/v0/chat/completion');
+          xhr.send(JSON.stringify({ prompt: input.value }));
+          input.value = '';
+        };
+      });
+    let sent;
+    await context.route('**/api/v0/chat/completion', async (route) => {
+      sent = route.request().postDataJSON();
+      const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)?.[1];
+      const output = token
+        ? source.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>')
+        : source;
+      await route.fulfill({
+        contentType: 'text/event-stream',
+        body:
+          'data: ' +
+          JSON.stringify({
+            p: 'response/content',
+            o: 'APPEND',
+            v: '```genui-html\n' + output + '\n```\n',
+          }) +
+          '\n\n',
+      });
     });
-  });
-  await page.getByLabel('输入').fill('解释正弦波');
-  await page.getByTestId('send-button').click();
-  await expect.poll(() => sent?.prompt).toContain('[More GenUI v1]');
-  expect(sent.prompt.match(/\[More GenUI v1\]/g)).toHaveLength(1);
-  await page.evaluate((source) => {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'md-code-block';
-    const pre = document.createElement('pre');
-    pre.textContent = source;
-    wrapper.append(pre);
-    document.querySelector('.ds-assistant-message-main-content').append(wrapper);
-  }, source);
-  const frame = page.frameLocator('.more-genui-surface iframe');
-  await expect(frame.getByLabel('振幅')).toBeVisible();
-  await frame.getByLabel('振幅').fill('1.8');
-  await frame.getByLabel('振幅').dispatchEvent('input');
-  await page.waitForTimeout(250);
-  await page.locator('#more-genui-toggle').click();
-  await expect(page.locator('.more-genui-surface')).toHaveCount(0);
-  await page.locator('#more-genui-toggle').click();
-  await expect(frame.getByLabel('振幅')).toHaveValue('1.8');
-  await page.getByRole('button', { name: '修复', exact: true }).click();
-  await expect.poll(() => sent.prompt).toContain('请修复应用');
-  const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)[1];
-  await page.evaluate(
-    (source) => {
+    await page.getByLabel('输入').fill('解释正弦波');
+    await page.getByTestId('send-button').click();
+    await expect.poll(() => sent?.prompt).toContain('[More GenUI v1]');
+    expect(sent.prompt.match(/\[More GenUI v1\]/g)).toHaveLength(1);
+    await page.evaluate((source) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'md-code-block';
       const pre = document.createElement('pre');
       pre.textContent = source;
-      document.querySelector('.ds-assistant-message-main-content').append(pre);
-    },
-    source.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>'),
-  );
-  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(2);
-  await expect(
-    page.frameLocator('.more-genui-surface iframe').last().getByLabel('振幅'),
-  ).toHaveValue('1.8');
-  await page.screenshot({
-    path: `test-results/${test.info().project.name}-extension.png`,
-    fullPage: true,
+      wrapper.append(pre);
+      document.querySelector('.ds-assistant-message-main-content').append(wrapper);
+    }, source);
+    const frame = page.frameLocator('.more-genui-surface iframe');
+    await expect(frame.getByLabel('振幅')).toBeVisible();
+    await frame.getByLabel('振幅').fill('1.8');
+    await frame.getByLabel('振幅').dispatchEvent('input');
+    await page.waitForTimeout(250);
+    await page.locator('#more-genui-toggle').click();
+    await expect(page.locator('.more-genui-surface')).toHaveCount(0);
+    await page.locator('#more-genui-toggle').click();
+    await expect(frame.getByLabel('振幅')).toHaveValue('1.8');
+    await page.getByRole('button', { name: '修复', exact: true }).click();
+    await expect.poll(() => sent.prompt).toContain('请修复应用');
+    const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)[1];
+    await page.evaluate(
+      (source) => {
+        const pre = document.createElement('pre');
+        pre.textContent = source;
+        document.querySelector('.ds-assistant-message-main-content').append(pre);
+      },
+      source.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>'),
+    );
+    await expect(page.locator('.more-genui-surface iframe')).toHaveCount(2);
+    await expect(
+      page.frameLocator('.more-genui-surface iframe').last().getByLabel('振幅'),
+    ).toHaveValue('1.8');
+    await page.screenshot({
+      path: `test-results/${test.info().project.name}-extension.png`,
+      fullPage: true,
+    });
   });
-});
 test('unfinished streaming documents never execute; plain prose and disabled mode stay ordinary', async () => {
   await page.evaluate((source) => {
     window.postMessage({ type: 'more-genui-start', id: 'test' }, location.origin);
@@ -288,3 +299,4 @@ test('same IDs in separate messages stay isolated and stable messages restore af
   });
   await expect(a.getByLabel('振幅')).toHaveValue('1.8');
 });
+

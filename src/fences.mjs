@@ -21,8 +21,12 @@ export class FenceScanner {
       this.line(this.pending.slice(0, end).replace(/\r$/, ''));
       this.pending = this.pending.slice(end + 1);
     }
-    // Preserve existing no-trailing-newline fence behavior. Never execute without parseApp validation.
-    if (this.fence && this.closes(this.pending)) this.onSource(this.lines.join('\n'));
+  }
+  finish() {
+    if (this.fence && this.closes(this.pending)) {
+      this.line(this.pending);
+      this.pending = '';
+    }
   }
   closes(line) {
     return new RegExp('^\\s{0,3}' + this.fence[0] + '{' + this.fence.length + ',}\\s*$').test(line);

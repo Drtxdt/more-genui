@@ -1,3 +1,4 @@
+import { RequestLifecycle } from '../src/request-lifecycle.mjs';
 import { createElement, Power } from 'lucide';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { browser } from 'wxt/browser';
@@ -12,17 +13,26 @@ export default defineContentScript({
     let enabled = false,
       route = location.pathname;
     let settingsReady = false;
-    const active = new Set<string>();
-    const requests = new Map<
-      string,
-      { complete: Set<string>; baseline: WeakMap<HTMLElement, string>; repairToken?: string }
-    >();
-    let owners = new WeakMap<HTMLElement, string>(),
-      lastRequest = '';
+    const ledger = new RequestLifecycle(() => scan());
+    const { active, requests } = ledger;
     const repairs = new RepairContexts();
     const temporaryRepository = new StateRepository(memoryRepositoryStorage());
+    let fullDiscoveries = 0,
+      scans = 0,
+      incrementalScans = 0;
+    const registeredMessages = new Set<HTMLElement>();
+    function rebuildMessages() {
+      fullDiscoveries++;
+      registeredMessages.clear();
+      for (const message of messages()) registeredMessages.add(message as HTMLElement);
+    }
+    function visibleMessages() {
+      for (const node of registeredMessages) if (!node.isConnected) registeredMessages.delete(node);
+      return [...registeredMessages];
+    }
+    rebuildMessages();
     const allCodes = () =>
-      messages().flatMap((message: Element) => codeBlocks(message)) as HTMLElement[];
+      visibleMessages().flatMap((message: Element) => codeBlocks(message)) as HTMLElement[];
     const dirtyMessages = new Set<HTMLElement>();
     const knownSources = new WeakMap<HTMLElement, string>();
     const repository = new StateRepository({
@@ -179,11 +189,9 @@ export default defineContentScript({
     function scan(changedOnly = false) {
       if (route !== location.pathname) {
         route = location.pathname;
-        active.clear();
-        requests.clear();
+        rebuildMessages();
+        ledger.clear();
         repairs.clear();
-        owners = new WeakMap();
-        lastRequest = '';
         for (const button of recovery.values()) button.remove();
         recovery.clear();
         for (const [element, value] of folded) unfold(element, value);
@@ -215,10 +223,21 @@ export default defineContentScript({
           button.remove();
           recovery.delete(code);
         }
-      if (!enabled) return;
+      if (!enabled) {
+        ledger.clear();
+        return;
+      }
       const candidates = changedOnly
         ? [...dirtyMessages].filter((node) => node.isConnected)
-        : messages();
+        : visibleMessages();
+      scans++;
+      if (changedOnly) incrementalScans++;
+      if (document.documentElement.hasAttribute('data-more-genui-profile')) {
+        performance.clearMarks('more-genui:counts');
+        performance.mark('more-genui:counts', {
+          detail: { fullDiscoveries, scans, incrementalScans },
+        });
+      }
       dirtyMessages.clear();
       for (const code of candidates.flatMap((message: Element) =>
         codeBlocks(message),
@@ -231,18 +250,12 @@ export default defineContentScript({
           !source.trimStart().startsWith('<!-- more-genui:')
         )
           continue;
-        if (
-          !owners.has(code) &&
-          lastRequest &&
-          requests.get(lastRequest)?.baseline.get(code) !== source
-        )
-          owners.set(code, lastRequest);
-        const requestId = owners.get(code);
-        if (
-          requestId &&
-          !requests.get(requestId)?.complete.has(source.trim()) &&
-          approvals.get(code) !== source
-        ) {
+        const key = code
+          .closest('[data-virtual-list-item-key]')
+          ?.getAttribute('data-virtual-list-item-key');
+        const owner = ledger.owner(code, key, source);
+        const requestId = owner?.id;
+        if (owner && !ledger.confirmed(code, owner, source) && approvals.get(code) !== source) {
           if (!active.size && !recovery.has(code)) {
             try {
               parseApp(source);
@@ -357,29 +370,23 @@ export default defineContentScript({
       if (route !== location.pathname) scan();
       if (m.route && m.route !== route) return;
       if (m.type === 'more-genui-start' && typeof m.id === 'string') {
-        requests.set(m.id, {
-          complete: new Set(),
-          baseline: new WeakMap(allCodes().map((code) => [code, knownSources.get(code) || ''])),
-          repairToken: m.repairToken,
-        });
-        active.add(m.id);
-        lastRequest = m.id;
+        ledger.start(
+          m.id,
+          new WeakMap(allCodes().map((code) => [code, knownSources.get(code) ?? ''])),
+          m.repairToken,
+        );
+      } else if (m.type === 'more-genui-identity' && requests.has(m.id)) {
+        ledger.identify(m.id, m.key);
       } else if (
         m.type === 'more-genui-source' &&
         requests.has(m.id) &&
         typeof m.source === 'string' &&
         m.source.length <= MAX_SOURCE
       ) {
-        requests.get(m.id)!.complete.add(m.source.trim());
+        ledger.source(m.id, m.source.trim());
       } else if (m.type === 'more-genui-end' && requests.has(m.id)) {
-        // Attribute DOM already present to this request before dropping its active status.
-        for (const code of allCodes())
-          if (
-            requests.get(m.id)!.baseline.get(code) !== (code.textContent || '') &&
-            !owners.has(code)
-          )
-            owners.set(code, m.id);
-        active.delete(m.id);
+        scan();
+        ledger.end(m.id);
       } else if (m.type === 'more-genui-unsupported') {
         control.title = '站点请求格式未识别，保留原始回答；完整应用需手动运行';
       } else return;
@@ -387,45 +394,63 @@ export default defineContentScript({
     };
     window.addEventListener('message', streamListener);
     let timer: ReturnType<typeof setTimeout>;
-    const observed = new Set<HTMLElement>();
-    const observer = new MutationObserver((records) => {
-      for (const record of records) {
-        const target =
-          record.target instanceof Element ? record.target : record.target.parentElement;
-        if (target?.closest('.more-genui-surface,.more-genui-guidance,.more-genui-recovery'))
-          continue;
-        const message = target?.closest<HTMLElement>('.ds-message');
-        if (message) dirtyMessages.add(message);
-      }
-      if (!dirtyMessages.size) return;
+    const schedule = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => scan(true), 100);
-    });
-    const discover = () => {
-      const current = messages() as HTMLElement[];
-      if ([...observed].some((node) => !node.isConnected)) {
-        observer.disconnect();
-        observed.clear();
-      }
-      for (const message of current)
-        if (!observed.has(message)) {
-          observed.add(message);
-          dirtyMessages.add(message);
-          observer.observe(message, { childList: true, subtree: true, characterData: true });
-        }
-      if (dirtyMessages.size || route !== location.pathname) {
-        clearTimeout(timer);
-        timer = setTimeout(() => scan(true), 100);
-      }
+      timer = setTimeout(() => scan(true), 50);
     };
-    // Discovery watches structural changes only; text processing observes confirmed messages.
-    const discovery = new MutationObserver(discover);
-    discovery.observe(document.body, { childList: true, subtree: true });
+    const discover = () => {
+      for (const message of visibleMessages()) dirtyMessages.add(message as HTMLElement);
+      schedule();
+    };
+    const discovery = new MutationObserver((records) => {
+      if (route !== location.pathname) {
+        discover();
+        return;
+      }
+      let changed = false;
+      for (const r of records) {
+        const target = r.target instanceof Element ? r.target : r.target.parentElement;
+        if (
+          target?.closest(
+            '.more-genui-surface,.more-genui-guidance,.more-genui-recovery,.more-genui-preview',
+          )
+        )
+          continue;
+        const parent = target?.closest<HTMLElement>('.ds-message');
+        if (parent) {
+          dirtyMessages.add(parent);
+          changed = true;
+          continue;
+        }
+        for (const node of r.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue;
+          if (node.matches('.ds-message')) {
+            registeredMessages.add(node);
+            dirtyMessages.add(node);
+            changed = true;
+          }
+          for (const child of messages(node as any)) {
+            registeredMessages.add(child as HTMLElement);
+            dirtyMessages.add(child as HTMLElement);
+            changed = true;
+          }
+        }
+        for (const node of r.removedNodes)
+          if (
+            node instanceof Element &&
+            (node.matches('.ds-message') || node.querySelector('.ds-message'))
+          )
+            changed = true;
+      }
+      if (changed) schedule();
+    });
+    discovery.observe(document.body, { subtree: true, childList: true, characterData: true });
     window.addEventListener('popstate', discover);
-    discover();
     scan();
     ctx.onInvalidated(() => {
-      observer.disconnect();
+      enabled = false;
+      publish();
+      ledger.clear();
       discovery.disconnect();
       window.removeEventListener('popstate', discover);
       window.removeEventListener('message', readyListener);

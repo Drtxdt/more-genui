@@ -40,7 +40,27 @@ export default defineContentScript({
       const accumulator = new ReplyAccumulator((source: string) =>
         post({ type: 'more-genui-source', id, route, source }),
       );
-      const sse = new SSEDecoder((event: unknown) => accumulator.accept(event));
+      const sse = new SSEDecoder(
+        (event: any) => {
+          if (event?.response_message_id != null)
+            post({
+              type: 'more-genui-identity',
+              route,
+              id,
+              key: String(event.response_message_id),
+            });
+          if (failed) return;
+          if (event?.type === 'error' || event?.finish_reason === 'cancelled') {
+            failed = true;
+            return;
+          }
+          accumulator.accept(event);
+
+        },
+        () => {
+          failed = true;
+        },
+      );
       post({ type: 'more-genui-start', id, route, repairToken });
       return {
         push(text: string) {
@@ -55,6 +75,7 @@ export default defineContentScript({
         end(status = 'complete') {
           if (ended) return;
           ended = true;
+          if (!failed && !sse.buffer.trim() && status === 'complete') accumulator.scanner.finish();
           post({ type: 'more-genui-end', id, route, status: failed ? 'unsupported' : status });
         },
       };
@@ -99,7 +120,7 @@ export default defineContentScript({
               stream.push(decoder.decode(value, { stream: true }));
             }
           } catch {
-            post({ type: 'more-genui-unsupported' });
+            stream.end('network-error');
           } finally {
             reader.releaseLock();
             stream.end();
@@ -153,7 +174,8 @@ export default defineContentScript({
         post({ type: 'more-genui-unsupported', route: location.pathname });
         return originalSend.call(this, body);
       }
-      const stream = observe();
+      const stream = observe(typeof outgoing === 'string' ? outgoing : '');
+      const hooks = new AbortController();
       let offset = 0;
       const progress = () => {
         if (
@@ -167,11 +189,12 @@ export default defineContentScript({
           stream.push(text.slice(offset));
           offset = text.length;
         } catch {
-          post({ type: 'more-genui-unsupported' });
+          stream.end('unsupported');
         }
       };
       const finish = () => {
         progress();
+        hooks.abort();
         this.removeEventListener('progress', progress);
         this.removeEventListener('loadend', finish);
         stream.end(
@@ -183,7 +206,12 @@ export default defineContentScript({
         );
         request.cleanup = undefined;
       };
-      request.cleanup = finish;
+      for (const event of ['abort', 'timeout', 'error'])
+        this.addEventListener(event, () => stream.end(event), { once: true, signal: hooks.signal });
+      request.cleanup = () => {
+        stream.end('cancelled');
+        finish();
+      };
       this.addEventListener('progress', progress);
       this.addEventListener('loadend', finish);
       try {

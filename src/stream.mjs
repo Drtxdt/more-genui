@@ -2,7 +2,8 @@ import { FenceScanner } from './fences.mjs';
 import { MAX_SOURCE, bytes } from './protocol.mjs';
 export class SSEDecoder {
   buffer = '';
-  constructor(onEvent) {
+  constructor(onEvent, onInvalid = () => {}) {
+    this.onInvalid = onInvalid;
     this.onEvent = onEvent;
   }
   push(text) {
@@ -22,6 +23,7 @@ export class SSEDecoder {
         try {
           event = JSON.parse(data);
         } catch {
+          this.onInvalid();
           continue;
         }
         this.onEvent(event);
@@ -78,6 +80,12 @@ export class ReplyAccumulator {
     for (const patch of this.cursor.parse(event)) {
       this.apply(patch);
       const path = patch.path.replace(/^\/+|\/+$/g, '');
+      const resultsPatch = /^response\/fragments\/(-?\d+)\/(?:results|search_results)$/.exec(path);
+      const { op, value } = patch;
+      if (resultsPatch && Array.isArray(value)) {
+        const f = this.fragments.at(Number(resultsPatch[1]));
+        if (f) f.results = op === 'APPEND' ? [...(f.results ?? []), ...value] : value;
+      }
       const match = /^response\/fragments\/(-?\d+)\/content$/.exec(path);
       const index = match
         ? Number(match[1]) < 0
