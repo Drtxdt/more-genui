@@ -13,6 +13,7 @@ export default defineContentScript({
   main(ctx) {
     let enabled = false,
       route = location.pathname;
+    let previewImages = true;
     let settingsReady = false;
     const ledger = new RequestLifecycle(() => scan());
     const { active, requests } = ledger;
@@ -87,12 +88,13 @@ export default defineContentScript({
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
         const value = await Promise.race([
-          browser.storage.local.get('enabled'),
+          browser.storage.local.get(['enabled', 'previewImages']),
           new Promise<never>((_, reject) => {
             timeout = setTimeout(() => reject(Error('storage timeout')), 4000);
           }),
         ]);
         settingsReady = true;
+        previewImages = value.previewImages !== false;
         enabled = value.enabled !== false;
         publish();
         scan();
@@ -122,6 +124,11 @@ export default defineContentScript({
     };
     control.addEventListener('animationend', () => control.classList.remove('activating'));
     const settingsChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if (area === 'local' && changes.previewImages) {
+        previewImages = changes.previewImages.newValue !== false;
+        if (!previewImages) previews.clear();
+        scan();
+      }
       if (area === 'local' && changes.enabled) {
         enabled = changes.enabled.newValue === true;
         publish();
@@ -245,7 +252,7 @@ export default defineContentScript({
         });
       }
       dirtyMessages.clear();
-      for (const message of candidates) previews.render(message);
+      if (previewImages) for (const message of candidates) previews.render(message);
       for (const code of candidates.flatMap((message: Element) =>
         codeBlocks(message),
       ) as HTMLElement[]) {
@@ -390,9 +397,9 @@ export default defineContentScript({
         );
       } else if (m.type === 'more-genui-identity' && requests.has(m.id)) {
         ledger.identify(m.id, m.key);
-        previews.identify(m.id, m.key);
+        if (previewImages) previews.identify(m.id, m.key);
       } else if (m.type === 'more-genui-search' && requests.has(m.id)) {
-        previews.sources(m.id, m.sources);
+        if (previewImages) previews.sources(m.id, m.sources);
       } else if (
         m.type === 'more-genui-source' &&
         requests.has(m.id) &&
@@ -403,7 +410,7 @@ export default defineContentScript({
       } else if (m.type === 'more-genui-end' && requests.has(m.id)) {
         scan();
         ledger.end(m.id);
-        previews.end(m.id);
+        if (previewImages) previews.end(m.id);
       } else if (m.type === 'more-genui-unsupported') {
         control.title = '站点请求格式未识别，保留原始回答；完整应用需手动运行';
       } else return;

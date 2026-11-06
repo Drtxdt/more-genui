@@ -518,7 +518,12 @@ test('migrates yesterday’s image after worker restart and restores cached tab 
       { oldKey, expiredKey },
     );
     expect(state).toEqual([at, null, null]);
-
+    const popup = await context.newPage();
+    await popup.goto(new URL('popup.html', fresh.url()).href);
+    await popup.getByRole('checkbox').uncheck();
+    await expect(other.locator('.more-genui-preview img')).toHaveCount(0);
+    await popup.getByRole('checkbox').check();
+    await expect(other.locator('.more-genui-preview img')).toHaveCount(1);
   } finally {
     release();
   }
