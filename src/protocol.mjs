@@ -14,7 +14,7 @@ export const metadataSchema = z
 export function parseApp(source) {
   if (typeof source !== 'string' || bytes(source) > MAX_SOURCE)
     throw Error('应用源码超过 256 KiB 或类型无效');
-  const match = /^\s*<!--\s*more-genui:\s*(\{[^\n]*\})\s*-->/.exec(source);
+  const match = /^\s*<!--\s*more-genui:\s*(\{[^\n]*?\})\s*-->/.exec(source);
   if (!match) throw Error('缺少 More GenUI 元数据');
   const meta = metadataSchema.parse(JSON.parse(match[1])),
     html = source.slice(match[0].length).trim();
