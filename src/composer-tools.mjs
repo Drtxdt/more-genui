@@ -6,11 +6,25 @@ export function composerTools({ settings, setDraft, arm }) {
   let armed = false,
     kind = '',
     input;
+  let intentId = crypto.randomUUID(),
+    revision = 0;
   function sync() {
     once.setAttribute('aria-pressed', String(armed));
-    arm(armed && input ? { route: location.pathname, prompt: input.value, kind } : null);
+    arm(
+      armed && input
+        ? {
+            id: intentId,
+            revision: ++revision,
+            route: location.pathname,
+            prompt: input.value,
+            kind,
+          }
+        : null,
+    );
   }
-  function reset() {
+  function reset(receipt) {
+    if (receipt && (receipt.intentId !== intentId || receipt.revision !== revision)) return;
+    intentId = crypto.randomUUID();
     armed = false;
     kind = '';
     sync();

@@ -580,3 +580,31 @@ test('local chart switches views without inventing missing data', async () => {
     .evaluate((el) => (el.textContent = '3元'));
   await expect(page.getByRole('button', { name: '折线图' })).toHaveCount(0);
 });
+
+test('demand intent survives unrelated requests and normalizes client whitespace', async () => {
+  const worker = context.serviceWorkers()[0];
+  await worker.evaluate(() => chrome.storage.local.set({ generationMode: 'demand' }));
+  const once = page.getByText('仅增强本条', { exact: true });
+  await expect(once).toBeVisible();
+  const sent = [];
+  await context.route('**/api/v0/chat/completion', (r) => {
+    sent.push(r.request().postDataJSON());
+    return r.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
+  });
+  await page.getByLabel('输入').fill('  中文\n草稿  ');
+  await once.click();
+  await page.evaluate(async () => {
+    await fetch('/api/v0/chat/completion', {
+      method: 'POST',
+      body: JSON.stringify({ prompt: '另一个请求', untouched: 17 }),
+    });
+    await fetch('/api/v0/chat/completion', {
+      method: 'POST',
+      body: JSON.stringify({ prompt: '中文\r\n草稿', untouched: 23 }),
+    });
+  });
+  expect(sent[0]).toEqual({ prompt: '另一个请求', untouched: 17 });
+  expect(sent[1].prompt).toContain('[More GenUI v1]');
+  expect(sent[1].untouched).toBe(23);
+  await expect(once).toHaveAttribute('aria-pressed', 'false');
+});

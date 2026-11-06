@@ -25,7 +25,9 @@ export default defineContentScript({
       settings: () => ({ enabled, mode: generationMode }),
       setDraft,
       arm: (ticket: unknown) =>
-        window.postMessage({ type: 'more-genui-arm', ticket }, location.origin),
+        document.dispatchEvent(
+          new CustomEvent('more-genui-intent', { detail: JSON.stringify(ticket) }),
+        ),
     });
     let settingsReady = false;
     const ledger = new RequestLifecycle(() => scan());
@@ -424,7 +426,7 @@ export default defineContentScript({
       if (e.source !== window || e.origin !== location.origin || !enabled) return;
       const m = e.data;
       if (m?.type === 'more-genui-consumed') {
-        composition.reset();
+        composition.reset(m);
         return;
       }
       if (!m || !m.type?.startsWith('more-genui-')) return;

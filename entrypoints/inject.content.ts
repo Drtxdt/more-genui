@@ -1,3 +1,4 @@
+import { GenerationIntent } from '../src/generation-intent.mjs';
 import { searchSources } from '../src/search-sources.mjs';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { augment } from '../src/protocol.mjs';
@@ -9,10 +10,19 @@ export default defineContentScript({
   main() {
     let enabled = false,
       mode = 'auto';
-    let ticket: { route: string; prompt: string; kind: string } | null = null;
-    window.addEventListener('message', (e) => {
-      if (e.source === window && e.origin === location.origin && e.data?.type === 'more-genui-arm')
-        ticket = e.data.ticket;
+    const intents = new GenerationIntent();
+    document.addEventListener('more-genui-intent', (event) => {
+      try {
+        const value = JSON.parse((event as CustomEvent).detail);
+        if (intents.arm(value))
+          document.dispatchEvent(
+            new CustomEvent('more-genui-intent-ack', {
+              detail: JSON.stringify(value ? { id: value.id, revision: value.revision } : null),
+            }),
+          );
+      } catch {
+        /* Invalid bridge messages do not alter a prepared intent. */
+      }
     });
     const post = (data: object) => window.postMessage(data, location.origin);
     window.addEventListener('message', (e) => {
@@ -23,7 +33,7 @@ export default defineContentScript({
       ) {
         enabled = e.data.enabled === true;
         mode = e.data.mode ?? 'auto';
-        if (!enabled) ticket = null;
+        if (!enabled) intents.arm(null);
       }
     });
     post({ type: 'more-genui-ready' });
@@ -39,14 +49,9 @@ export default defineContentScript({
     const rewrite = (text: string) => {
       const body = JSON.parse(text);
       if (typeof body?.prompt !== 'string') throw Error('Unknown prompt');
-      const match =
-        ticket && ticket.route === location.pathname && ticket.prompt === body.prompt
-          ? ticket
-          : null;
-      if (ticket) {
-        ticket = null;
-        post({ type: 'more-genui-consumed' });
-      }
+      const match = intents.consume(location.pathname, body.prompt);
+      if (match)
+        post({ type: 'more-genui-consumed', intentId: match.id, revision: match.revision });
       if (mode === 'demand' && !match && !/本次修复标识：[a-f0-9-]+/.test(body.prompt)) return text;
       return JSON.stringify({ ...body, prompt: augment(body.prompt, true, match?.kind) });
     };
