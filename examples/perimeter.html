@@ -1,0 +1,19 @@
+<!-- more-genui: {"version":1,"id":"perimeter","title":"固定周长的矩形","stateVersion":1} -->
+<!-- more-genui-requires: {"experiment":1} -->
+<html lang="zh"><body>
+<label>长 <input id="width" type="number" min="1" max="9" step="1"></label><output id="area"></output>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100" aria-label="固定周长的矩形"><rect x="5" y="5" fill="#3569c8"/></svg>
+<script>
+const input=document.getElementById('width');
+input.value=genui.getState().width??5;
+function update(){
+  const width=input.valueAsNumber;
+  if(!input.validity.valid||!Number.isFinite(width))return;
+  const height=10-width,area=width*height;
+  document.getElementById('area').textContent='宽 '+height+'，面积 '+area;
+  const rect=document.querySelector('rect');rect.setAttribute('width',width*10);rect.setAttribute('height',height*10);
+  genui.setState({width});
+  genui.experiment.publish({metrics:[{name:'面积',unit:'cm²',value:area}],rows:[['长','宽','面积'],[width,height,area]],presets:[{name:'7 × 3',params:{width:7}}],figure:document.querySelector('svg')});
+}
+input.oninput=update;update();
+</script></body></html>

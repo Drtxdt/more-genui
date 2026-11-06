@@ -7,17 +7,24 @@ export default defineContentScript({
   world: 'MAIN',
   runAt: 'document_start',
   main() {
-    let enabled = false, mode='auto';
-    let ticket: {route:string;prompt:string;kind:string}|null=null;
-    window.addEventListener('message',e=>{if(e.source===window && e.origin===location.origin && e.data?.type==='more-genui-arm')ticket=e.data.ticket;});
+    let enabled = false,
+      mode = 'auto';
+    let ticket: { route: string; prompt: string; kind: string } | null = null;
+    window.addEventListener('message', (e) => {
+      if (e.source === window && e.origin === location.origin && e.data?.type === 'more-genui-arm')
+        ticket = e.data.ticket;
+    });
     const post = (data: object) => window.postMessage(data, location.origin);
     window.addEventListener('message', (e) => {
       if (
         e.source === window &&
         e.origin === location.origin &&
         e.data?.type === 'more-genui-enabled'
-      )
-        {enabled=e.data.enabled===true; mode=e.data.mode??'auto'; if(!enabled)ticket=null;}
+      ) {
+        enabled = e.data.enabled === true;
+        mode = e.data.mode ?? 'auto';
+        if (!enabled) ticket = null;
+      }
     });
     post({ type: 'more-genui-ready' });
     const streamPaths = new Set(
@@ -32,10 +39,16 @@ export default defineContentScript({
     const rewrite = (text: string) => {
       const body = JSON.parse(text);
       if (typeof body?.prompt !== 'string') throw Error('Unknown prompt');
-      const match=ticket && ticket.route===location.pathname && ticket.prompt===body.prompt ? ticket : null;
-      if(ticket){ticket=null;post({type:'more-genui-consumed'});}
-      if(mode==='demand' && !match && !/本次修复标识：[a-f0-9-]+/.test(body.prompt))return text;
-      return JSON.stringify({ ...body, prompt: augment(body.prompt,true,match?.kind) });
+      const match =
+        ticket && ticket.route === location.pathname && ticket.prompt === body.prompt
+          ? ticket
+          : null;
+      if (ticket) {
+        ticket = null;
+        post({ type: 'more-genui-consumed' });
+      }
+      if (mode === 'demand' && !match && !/本次修复标识：[a-f0-9-]+/.test(body.prompt)) return text;
+      return JSON.stringify({ ...body, prompt: augment(body.prompt, true, match?.kind) });
     };
     function observe(body = '') {
       const route = location.pathname;

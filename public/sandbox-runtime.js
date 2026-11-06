@@ -31,9 +31,13 @@
       state = JSON.parse(raw);
       send('state', state);
     }
-    const experiment=createExperimentAPI(send);
-    const stepsKey='__moreGenuiSteps';
-    const stepper=createStepperAPI(id=>state[stepsKey]?.[id],(id,v)=>commit({...state,[stepsKey]:{...state[stepsKey],[id]:v}}),report);
+    const experiment = createExperimentAPI(send);
+    const stepsKey = '__moreGenuiSteps';
+    const stepper = createStepperAPI(
+      (id) => state[stepsKey]?.[id],
+      (id, v) => commit({ ...state, [stepsKey]: { ...state[stepsKey], [id]: v } }),
+      report,
+    );
     const quiz = createQuizAPI(
       (id) => state[quizKey]?.[id],
       (id, value) => commit({ ...state, [quizKey]: { ...state[quizKey], [id]: value } }),
@@ -41,17 +45,23 @@
     );
     Object.defineProperty(window, 'genui', {
       value: Object.freeze({
-        quiz,stepper,experiment:experiment.api,capabilities:Object.freeze({quiz:2,stepper:1,experiment:1,state:1,export:1}),
+        quiz,
+        stepper,
+        experiment: experiment.api,
+        capabilities: Object.freeze({ quiz: 2, stepper: 1, experiment: 1, state: 1, export: 1 }),
         getState() {
           const result = structuredClone(state);
-          delete result[quizKey];delete result[stepsKey];
+          delete result[quizKey];
+          delete result[stepsKey];
           return result;
         },
         setState(value) {
           if (!value || Array.isArray(value) || typeof value !== 'object')
             throw Error('State must be a JSON object');
           const next = { ...value };
-          delete next[quizKey];delete next[stepsKey];if(state[stepsKey])next[stepsKey]=state[stepsKey];
+          delete next[quizKey];
+          delete next[stepsKey];
+          if (state[stepsKey]) next[stepsKey] = state[stepsKey];
           if (state[quizKey]) next[quizKey] = state[quizKey];
           commit(next);
         },
@@ -62,19 +72,37 @@
     addEventListener('error', (e) => report(e.message));
     addEventListener('unhandledrejection', (e) => report(e.reason));
     port.onmessage = (e) => {
-      if(e.data?.type==='png'){const id=e.data.id;experiment.png().then(blob=>send('png',{id,blob}),e=>send('png',{id,error:String(e.message)}));}
+      if (e.data?.type === 'png') {
+        const id = e.data.id;
+        experiment.png().then(
+          (blob) => send('png', { id, blob }),
+          (e) => send('png', { id, error: String(e.message) }),
+        );
+      }
       if (e.data?.type === 'theme') theme(e.data.value);
     };
-    const requirement=/^\s*<!--\s*more-genui-requires:\s*([^]*?)-->/.exec(config.html);
-    if(requirement){
-      try{
-        const needs=JSON.parse(requirement[1]);
-        if(!needs||typeof needs!=='object'||Array.isArray(needs))throw Error('能力声明须为对象');
-        for(const [name,min] of Object.entries(needs)){
-          if(!Number.isSafeInteger(min)||min<1||!Object.hasOwn(genui.capabilities,name)||genui.capabilities[name]<min)
-            throw Error('此应用需要 '+name+'@'+min+'，请更新 More GenUI');
+    const leadingComments = /^\s*(?:<!--[^]*?-->\s*)*/.exec(config.html)[0];
+    const requirement = [...leadingComments.matchAll(/<!--([^]*?)-->/g)]
+      .map((match) => /^\s*more-genui-requires:\s*([^]*)$/.exec(match[1]))
+      .find(Boolean);
+    if (requirement) {
+      try {
+        const needs = JSON.parse(requirement[1]);
+        if (!needs || typeof needs !== 'object' || Array.isArray(needs))
+          throw Error('能力声明须为对象');
+        for (const [name, min] of Object.entries(needs)) {
+          if (
+            !Number.isSafeInteger(min) ||
+            min < 1 ||
+            !Object.hasOwn(genui.capabilities, name) ||
+            genui.capabilities[name] < min
+          )
+            throw Error('此应用需要 ' + name + '@' + min + '，请更新 More GenUI');
         }
-      }catch(e){report(e.message);return;}
+      } catch (e) {
+        report(e.message);
+        return;
+      }
     }
     const doc = new DOMParser().parseFromString(config.html, 'text/html');
     const scripts = [...doc.querySelectorAll('script')].map((s) => ({

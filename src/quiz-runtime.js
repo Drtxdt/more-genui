@@ -13,27 +13,52 @@ function createQuizAPI(read, save, report) {
       if (!validId(q?.id) || ids.has(q.id)) invalid('题目 ID 缺失、无效或重复');
       ids.add(q.id);
       if (!hasText(q.prompt) || !hasText(q.explanation)) invalid('需要题干和解析');
-      const type=q.type??'single';
-      if(!['single','multiple','number','order'].includes(type))invalid('未知题型');
-      if(type==='number'){
-        if(!Number.isFinite(q.correct)||!Number.isFinite(q.tolerance??0)||(q.tolerance??0)<0||!hasText(q.hint))invalid('数值题需要有限正确值、非负容差和提示');
-        return {id:q.id,prompt:q.prompt,explanation:q.explanation,type,correct:q.correct,tolerance:q.tolerance??0,unit:String(q.unit??''),hint:q.hint};
+      const type = q.type ?? 'single';
+      if (!['single', 'multiple', 'number', 'order'].includes(type)) invalid('未知题型');
+      if (type === 'number') {
+        if (
+          !Number.isFinite(q.correct) ||
+          !Number.isFinite(q.tolerance ?? 0) ||
+          (q.tolerance ?? 0) < 0 ||
+          !hasText(q.hint)
+        )
+          invalid('数值题需要有限正确值、非负容差和提示');
+        return {
+          id: q.id,
+          prompt: q.prompt,
+          explanation: q.explanation,
+          type,
+          correct: q.correct,
+          tolerance: q.tolerance ?? 0,
+          unit: String(q.unit ?? ''),
+          hint: q.hint,
+        };
       }
       if (!Array.isArray(q.options) || q.options.length < 2) invalid('至少需要两个选项');
-      if(type!=='single'){
-        if(!Array.isArray(q.correct)||!q.correct.length||new Set(q.correct).size!==q.correct.length||!q.correct.every(id=>q.options.some(o=>o?.id===id))||(type==='order'&&q.correct.length!==q.options.length)||!hasText(q.hint))invalid('需要有效的正确选项列表和提示');
-      } else if (!q.options.some((o) => o?.id === q.correct)) invalid('正确答案必须指向一个选项 ID');
+      if (type !== 'single') {
+        if (
+          !Array.isArray(q.correct) ||
+          !q.correct.length ||
+          new Set(q.correct).size !== q.correct.length ||
+          !q.correct.every((id) => q.options.some((o) => o?.id === id)) ||
+          (type === 'order' && q.correct.length !== q.options.length) ||
+          !hasText(q.hint)
+        )
+          invalid('需要有效的正确选项列表和提示');
+      } else if (!q.options.some((o) => o?.id === q.correct))
+        invalid('正确答案必须指向一个选项 ID');
       const choices = new Set();
       const options = q.options.map((o) => {
         if (!validId(o?.id) || choices.has(o.id)) invalid('选项 ID 缺失、无效或重复');
         choices.add(o.id);
         if (!hasText(o.text)) invalid('选项缺少文字');
-        if (type==='single' && o.id !== q.correct && !hasText(o.hint)) invalid('错误选项 ' + o.id + ' 缺少提示');
+        if (type === 'single' && o.id !== q.correct && !hasText(o.hint))
+          invalid('错误选项 ' + o.id + ' 缺少提示');
         return { id: o.id, text: o.text, hint: o.hint ?? '' };
       });
 
       return {
-        ...(type==='single'?{}:{type,hint:q.hint}),
+        ...(type === 'single' ? {} : { type, hint: q.hint }),
         id: q.id,
         prompt: q.prompt,
         options,
@@ -67,22 +92,26 @@ function createQuizAPI(read, save, report) {
         Number.isInteger(stored.index) &&
         questions[stored.index] &&
         ['choose', 'hint', 'answer'].includes(stored.phase) &&
-        (stored.choice==null||['string','number'].includes(typeof stored.choice)||Array.isArray(stored.choice))
-      ) progress={...stored};
-      const first=progress.first??Object.create(null);
-      if(stored?.signature===signature && !stored.first){
-        for(let i=0;i<progress.index+(progress.phase==='choose'?0:1);i++)first[questions[i].id]=null;
+        (stored.choice == null ||
+          ['string', 'number'].includes(typeof stored.choice) ||
+          Array.isArray(stored.choice))
+      )
+        progress = { ...stored };
+      const first = progress.first ?? Object.create(null);
+      if (stored?.signature === signature && !stored.first) {
+        for (let i = 0; i < progress.index + (progress.phase === 'choose' ? 0 : 1); i++)
+          first[questions[i].id] = null;
       }
       function update(change) {
         progress = { ...progress, ...change };
-        progress.first=first;
+        progress.first = first;
         save(config.id, progress);
       }
       function draw(focus = false) {
         const q = questions[progress.index],
-          sequence=progress.review??questions.map((_,i)=>i),
-          position=sequence.indexOf(progress.index),
-          last=position===sequence.length-1;
+          sequence = progress.review ?? questions.map((_, i) => i),
+          position = sequence.indexOf(progress.index),
+          last = position === sequence.length - 1;
         const group = element('fieldset'),
           title = element(
             'legend',
@@ -105,60 +134,164 @@ function createQuizAPI(read, save, report) {
           actions.append(b);
           return b;
         }
-        let submit, choice=progress.choice;
-        const editable=progress.phase==='choose';
-        const options=q.options??[];
-        const values=()=>Array.isArray(choice)?choice:[];
-        const valid=()=>q.type==='number'?choice!==null && String(choice).trim()!=='' && Number.isFinite(Number(choice)):q.type==='multiple'?values().length>0:choice!==null;
-        const set=value=>{choice=value;update({choice:value});if(submit)submit.disabled=!valid();};
-        const correct=()=>{
-          if(q.type==='number')return Math.abs(Number(choice)-q.correct)<=q.tolerance+Number.EPSILON*Math.abs(q.correct);
-          if(q.type==='order')return values().every((v,i)=>v===q.correct[i]) && values().length===q.correct.length;
-          if(q.type==='multiple')return values().length===q.correct.length && q.correct.every(v=>values().includes(v));
-          return choice===q.correct;
+        let submit,
+          choice = progress.choice;
+        const editable = progress.phase === 'choose';
+        const options = q.options ?? [];
+        const values = () => (Array.isArray(choice) ? choice : []);
+        const valid = () =>
+          q.type === 'number'
+            ? choice !== null && String(choice).trim() !== '' && Number.isFinite(Number(choice))
+            : q.type === 'multiple'
+              ? values().length > 0
+              : choice !== null;
+        const set = (value) => {
+          choice = value;
+          update({ choice: value });
+          if (submit) submit.disabled = !valid();
         };
-        if(q.type==='number'){
-          const label=element('label','答案'+(q.unit?'（'+q.unit+'）':'')+'，容差 ±'+q.tolerance+' ');
-          const input=element('input');input.type='number';input.step='any';input.value=choice??'';input.disabled=!editable;
-          input.oninput=()=>set(input.value);label.append(input);group.append(label);
-        }else if(q.type==='order'){
-          if(!Array.isArray(choice))choice=options.map(o=>o.id);
-          choice.forEach((id,i)=>{
-            const row=element('div',options.find(o=>o.id===id).text+' ');
-            for(const [label,offset] of [['上移',-1],['下移',1]]){
-              const b=element('button',label);b.type='button';const dest=i+offset;b.disabled=!editable||dest<0||dest>=choice.length;
-              b.onclick=()=>{const next=[...choice];[next[i],next[dest]]=[next[dest],next[i]];set(next);draw();group.parentElement?.focus();container.querySelectorAll('[data-order]')[dest]?.focus();};
+        const correct = () => {
+          if (q.type === 'number')
+            return (
+              Math.abs(Number(choice) - q.correct) <=
+              q.tolerance + Number.EPSILON * Math.abs(q.correct)
+            );
+          if (q.type === 'order')
+            return (
+              values().every((v, i) => v === q.correct[i]) && values().length === q.correct.length
+            );
+          if (q.type === 'multiple')
+            return (
+              values().length === q.correct.length && q.correct.every((v) => values().includes(v))
+            );
+          return choice === q.correct;
+        };
+        if (q.type === 'number') {
+          const label = element(
+            'label',
+            '答案' + (q.unit ? '（' + q.unit + '）' : '') + '，容差 ±' + q.tolerance + ' ',
+          );
+          const input = element('input');
+          input.type = 'number';
+          input.step = 'any';
+          input.value = choice ?? '';
+          input.disabled = !editable;
+          input.oninput = () => set(input.value);
+          label.append(input);
+          group.append(label);
+        } else if (q.type === 'order') {
+          if (!Array.isArray(choice)) choice = options.map((o) => o.id);
+          choice.forEach((id, i) => {
+            const row = element('div', options.find((o) => o.id === id).text + ' ');
+            for (const [label, offset] of [
+              ['上移', -1],
+              ['下移', 1],
+            ]) {
+              const b = element('button', label);
+              b.type = 'button';
+              const dest = i + offset;
+              b.disabled = !editable || dest < 0 || dest >= choice.length;
+              b.onclick = () => {
+                const next = [...choice];
+                [next[i], next[dest]] = [next[dest], next[i]];
+                set(next);
+                draw();
+                group.parentElement?.focus();
+                container.querySelectorAll('[data-order]')[dest]?.focus();
+              };
               row.append(b);
             }
-            row.tabIndex=-1;row.dataset.order='';group.append(row);
+            row.tabIndex = -1;
+            row.dataset.order = '';
+            group.append(row);
           });
-        }else for(const o of options){
-          const label=element('label'),input=element('input');input.type=q.type==='multiple'?'checkbox':'radio';input.name='quiz-'+config.id;
-          input.checked=q.type==='multiple'?values().includes(o.id):choice===o.id;input.disabled=!editable;
-          input.onchange=()=>set(q.type==='multiple'?(input.checked?[...values(),o.id]:values().filter(v=>v!==o.id)):o.id);
-          label.append(input,document.createTextNode(' '+o.text));group.append(label);
-        }
-        if(editable){
-          submit=button('提交',()=>{
-            if(!Object.hasOwn(first,q.id))Object.defineProperty(first,q.id,{value:{answer:choice,correct:correct()},enumerable:true,configurable:true});
-            update({choice,phase:correct()?'answer':'hint'});draw(true);
-          });submit.disabled=!valid();
-        }else if(progress.phase==='hint'){
-          feedback.textContent=q.hint??options.find(o=>o.id===choice)?.hint;
-          button('再试一次',()=>{update({choice:null,phase:'choose'});draw(true);});
-          button('查看解析',()=>{update({phase:'answer'});draw(true);});
-        }else{
-          const solution=q.type==='number'?q.correct+' '+q.unit:(Array.isArray(q.correct)?q.correct:[q.correct]).map(id=>options.find(o=>o.id===id).text).join(q.type==='order'?' → ':'、');
-          feedback.textContent=(last?'已完成。':'')+'正确答案是「'+solution+'」。'+q.explanation;
-          if(last){
-            const recorded=Object.values(first).filter(Boolean);
-            feedback.append(document.createTextNode(' 首答正确 '+recorded.filter(x=>x.correct).length+'/'+recorded.length+'，未记录 '+(questions.length-recorded.length)+' 题。'));
-            const wrong=questions.map((_,i)=>i).filter(i=>Object.hasOwn(first,questions[i].id)&&first[questions[i].id]?.correct===false);
-            if(wrong.length)button('只练错题',()=>{update({index:wrong[0],review:wrong,choice:null,phase:'choose'});draw(true);});
+        } else
+          for (const o of options) {
+            const label = element('label'),
+              input = element('input');
+            input.type = q.type === 'multiple' ? 'checkbox' : 'radio';
+            input.name = 'quiz-' + config.id;
+            input.checked = q.type === 'multiple' ? values().includes(o.id) : choice === o.id;
+            input.disabled = !editable;
+            input.onchange = () =>
+              set(
+                q.type === 'multiple'
+                  ? input.checked
+                    ? [...values(), o.id]
+                    : values().filter((v) => v !== o.id)
+                  : o.id,
+              );
+            label.append(input, document.createTextNode(' ' + o.text));
+            group.append(label);
           }
-          button(last?'重新开始':'下一题',()=>{
-            if(last){for(const key of Object.keys(first))delete first[key];}
-            update({index:last?0:sequence[position+1],review:last?undefined:progress.review,phase:'choose',choice:null});draw(true);
+        if (editable) {
+          submit = button('提交', () => {
+            if (!Object.hasOwn(first, q.id))
+              Object.defineProperty(first, q.id, {
+                value: { answer: choice, correct: correct() },
+                enumerable: true,
+                configurable: true,
+              });
+            update({ choice, phase: correct() ? 'answer' : 'hint' });
+            draw(true);
+          });
+          submit.disabled = !valid();
+        } else if (progress.phase === 'hint') {
+          feedback.textContent = q.hint ?? options.find((o) => o.id === choice)?.hint;
+          button('再试一次', () => {
+            update({ choice: null, phase: 'choose' });
+            draw(true);
+          });
+          button('查看解析', () => {
+            update({ phase: 'answer' });
+            draw(true);
+          });
+        } else {
+          const solution =
+            q.type === 'number'
+              ? q.correct + ' ' + q.unit
+              : (Array.isArray(q.correct) ? q.correct : [q.correct])
+                  .map((id) => options.find((o) => o.id === id).text)
+                  .join(q.type === 'order' ? ' → ' : '、');
+          feedback.textContent =
+            (last ? '已完成。' : '') + '正确答案是「' + solution + '」。' + q.explanation;
+          if (last) {
+            const recorded = Object.values(first).filter(Boolean);
+            feedback.append(
+              document.createTextNode(
+                ' 首答正确 ' +
+                  recorded.filter((x) => x.correct).length +
+                  '/' +
+                  recorded.length +
+                  '，未记录 ' +
+                  (questions.length - recorded.length) +
+                  ' 题。',
+              ),
+            );
+            const wrong = questions
+              .map((_, i) => i)
+              .filter(
+                (i) =>
+                  Object.hasOwn(first, questions[i].id) &&
+                  first[questions[i].id]?.correct === false,
+              );
+            if (wrong.length)
+              button('只练错题', () => {
+                update({ index: wrong[0], review: wrong, choice: null, phase: 'choose' });
+                draw(true);
+              });
+          }
+          button(last ? '重新开始' : '下一题', () => {
+            if (last) {
+              for (const key of Object.keys(first)) delete first[key];
+            }
+            update({
+              index: last ? 0 : sequence[position + 1],
+              review: last ? undefined : progress.review,
+              phase: 'choose',
+              choice: null,
+            });
+            draw(true);
           });
         }
         container.replaceChildren(group, feedback, actions);

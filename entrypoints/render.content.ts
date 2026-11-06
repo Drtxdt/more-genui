@@ -1,4 +1,5 @@
 import { RequestLifecycle } from '../src/request-lifecycle.mjs';
+import { TableCharts } from '../src/charts.mjs';
 import { composerTools } from '../src/composer-tools.mjs';
 import { SourceCards } from '../src/source-cards.mjs';
 import { PreviewRenderer } from '../src/preview-renderer.mjs';
@@ -15,11 +16,17 @@ export default defineContentScript({
   main(ctx) {
     let enabled = false,
       route = location.pathname;
-    const cards = new SourceCards(browser.storage.local);
+    const tables = new TableCharts();
+    const cards = new SourceCards((m: any) => browser.runtime.sendMessage(m));
     let showCards = true;
     let previewImages = true;
-    let generationMode='auto';
-    const composition=composerTools({settings:()=>({enabled,mode:generationMode}),setDraft,arm:(ticket:unknown)=>window.postMessage({type:'more-genui-arm',ticket},location.origin)});
+    let generationMode = 'auto';
+    const composition = composerTools({
+      settings: () => ({ enabled, mode: generationMode }),
+      setDraft,
+      arm: (ticket: unknown) =>
+        window.postMessage({ type: 'more-genui-arm', ticket }, location.origin),
+    });
     let settingsReady = false;
     const ledger = new RequestLifecycle(() => scan());
     const { active, requests } = ledger;
@@ -87,20 +94,23 @@ export default defineContentScript({
       control.title = `GenUI：${enabled ? '开启' : '关闭'}`;
       control.setAttribute('aria-label', control.title);
       control.setAttribute('aria-pressed', String(enabled));
-      window.postMessage({ type: 'more-genui-enabled', enabled, mode:generationMode }, location.origin);
+      window.postMessage(
+        { type: 'more-genui-enabled', enabled, mode: generationMode },
+        location.origin,
+      );
     };
     const loadSettings = async () => {
       control.disabled = true;
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
         const value = await Promise.race([
-          browser.storage.local.get(['enabled', 'previewImages','sourceMode','generationMode']),
+          browser.storage.local.get(['enabled', 'previewImages', 'sourceMode', 'generationMode']),
           new Promise<never>((_, reject) => {
             timeout = setTimeout(() => reject(Error('storage timeout')), 4000);
           }),
         ]);
         settingsReady = true;
-        generationMode=String(value.generationMode??'auto');
+        generationMode = String(value.generationMode ?? 'auto');
         showCards = value.sourceMode !== 'off';
         previewImages = value.previewImages !== false;
         enabled = value.enabled !== false;
@@ -132,8 +142,17 @@ export default defineContentScript({
     };
     control.addEventListener('animationend', () => control.classList.remove('activating'));
     const settingsChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
-      if(area==='local' && changes.generationMode){generationMode=String(changes.generationMode.newValue);composition.reset();publish();scan();}
-      if(area==='local' && changes.sourceMode){showCards=changes.sourceMode.newValue!=='off'; if(!showCards)cards.clear();scan();}
+      if (area === 'local' && changes.generationMode) {
+        generationMode = String(changes.generationMode.newValue);
+        composition.reset();
+        publish();
+        scan();
+      }
+      if (area === 'local' && changes.sourceMode) {
+        showCards = changes.sourceMode.newValue !== 'off';
+        if (!showCards) cards.clear();
+        scan();
+      }
       if (area === 'local' && changes.previewImages) {
         previewImages = changes.previewImages.newValue !== false;
         if (!previewImages) previews.clear();
@@ -212,6 +231,7 @@ export default defineContentScript({
         rebuildMessages();
         ledger.clear();
         approvals = new WeakMap();
+        tables.clear();
         cards.clear();
         previews.clear();
         repairs.clear();
@@ -250,6 +270,7 @@ export default defineContentScript({
       if (!enabled) {
         approvals = new WeakMap();
         for (const id of active) ledger.end(id);
+        tables.clear();
         cards.clear();
         previews.clear();
         return;
@@ -266,7 +287,8 @@ export default defineContentScript({
         });
       }
       dirtyMessages.clear();
-      if(showCards) for(const message of candidates)cards.render(message);
+      for (const message of candidates) tables.render(message);
+      if (showCards) for (const message of candidates) cards.render(message);
       if (previewImages) for (const message of candidates) previews.render(message);
       for (const code of candidates.flatMap((message: Element) =>
         codeBlocks(message),
@@ -401,7 +423,10 @@ export default defineContentScript({
     const streamListener = (e: MessageEvent) => {
       if (e.source !== window || e.origin !== location.origin || !enabled) return;
       const m = e.data;
-      if(m?.type==="more-genui-consumed"){composition.reset();return;}
+      if (m?.type === 'more-genui-consumed') {
+        composition.reset();
+        return;
+      }
       if (!m || !m.type?.startsWith('more-genui-')) return;
       if (route !== location.pathname) scan();
       if (m.route && m.route !== route) return;
@@ -413,10 +438,10 @@ export default defineContentScript({
         );
       } else if (m.type === 'more-genui-identity' && requests.has(m.id)) {
         ledger.identify(m.id, m.key);
-        if(showCards)cards.update(m.id,{key:m.key});
+        if (showCards) cards.update(m.id, { key: m.key });
         if (previewImages) previews.identify(m.id, m.key);
       } else if (m.type === 'more-genui-search' && requests.has(m.id)) {
-        if(showCards)cards.update(m.id,{sources:m.sources});
+        if (showCards) cards.update(m.id, { sources: m.sources });
         if (previewImages) previews.sources(m.id, m.sources);
       } else if (
         m.type === 'more-genui-source' &&
@@ -455,7 +480,7 @@ export default defineContentScript({
         const target = r.target instanceof Element ? r.target : r.target.parentElement;
         if (
           target?.closest(
-            '.more-genui-surface,.more-genui-guidance,.more-genui-recovery,.more-genui-preview',
+            '.more-genui-surface,.more-genui-guidance,.more-genui-recovery,.more-genui-preview,.more-genui-sources,.more-genui-table',
           )
         )
           continue;
@@ -495,6 +520,9 @@ export default defineContentScript({
       publish();
       ledger.clear();
       previews.clear();
+      composition.dispose();
+      cards.clear();
+      tables.clear();
       discovery.disconnect();
       window.removeEventListener('popstate', discover);
       window.removeEventListener('message', readyListener);

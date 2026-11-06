@@ -342,7 +342,10 @@ test('official search replay decorates citations, falls back at end, and restore
   await page.getByTestId('send-button').click();
   await expect(page.locator('.more-genui-preview[data-inline] img')).toHaveCount(1);
   await expect(page.locator('.more-genui-sources details a')).toHaveCount(3);
-  await expect(page.locator('.more-genui-sources details a').nth(1)).toHaveAttribute('href',/#3243471#1$/);
+  await expect(page.locator('.more-genui-sources details a').nth(1)).toHaveAttribute(
+    'href',
+    /#3243471#1$/,
+  );
   await expect(page.getByText('来源预览', { exact: true })).toBeVisible();
   await expect(page.locator('.more-genui-preview img')).toHaveCount(2);
   await page.setViewportSize({ width: 390, height: 720 });
@@ -529,4 +532,51 @@ test('migrates yesterday’s image after worker restart and restores cached tab 
   } finally {
     release();
   }
+});
+
+test('selection appends to the existing draft and enhances one demand-mode send', async () => {
+  const worker = context.serviceWorkers()[0];
+  await worker.evaluate(() => chrome.storage.local.set({ generationMode: 'demand' }));
+  await expect(page.getByText('仅增强本条', { exact: true })).toBeVisible();
+  const sent = [];
+  await context.route('**/api/v0/chat/completion', (r) => {
+    sent.push(r.request().postDataJSON().prompt);
+    return r.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
+  });
+  await page.getByLabel('输入').fill('我的草稿');
+  await page.evaluate(() => {
+    const p = document.createElement('p');
+    p.textContent = 'B+ 树叶节点分裂';
+    document.querySelector('.ds-assistant-message-main-content').append(p);
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+    p.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
+  await page.getByLabel('选区用途').selectOption('quiz');
+  await page.getByText('追加到草稿', { exact: true }).click();
+  expect(await page.getByLabel('输入').inputValue()).toContain('我的草稿\n\n根据这段内容');
+  await page.getByTestId('send-button').click();
+  await expect.poll(() => sent[0]).toContain('[More GenUI v1]');
+  await page.getByLabel('输入').fill('一句话解释下标');
+  await page.getByTestId('send-button').click();
+  await expect.poll(() => sent[1]).toBe('一句话解释下标');
+});
+test('local chart switches views without inventing missing data', async () => {
+  await page.evaluate(() => {
+    document.querySelector('.ds-assistant-message-main-content').innerHTML =
+      '<table><tr><th>日</th><th>销量</th></tr><tr><td>周一</td><td>-2件</td></tr><tr><td>周二</td><td></td></tr><tr><td>周三</td><td>3件</td></tr></table>';
+  });
+  await page.getByRole('button', { name: '折线图' }).click();
+  await expect(page.getByText('缺失：周二')).toBeVisible();
+  await page.getByRole('button', { name: '原表' }).click();
+  await expect(page.locator('table')).toBeVisible();
+  await page
+    .locator('table tr')
+    .last()
+    .locator('td')
+    .last()
+    .evaluate((el) => (el.textContent = '3元'));
+  await expect(page.getByRole('button', { name: '折线图' })).toHaveCount(0);
 });

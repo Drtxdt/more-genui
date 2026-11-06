@@ -52,7 +52,7 @@ test('sandbox blocks parent access and fetch, errors are actionable, reset and s
     ),
   );
   await expect(page.locator('#app output')).toHaveText(/broken example/);
-  await page.getByRole('button', { name: '修复', exact: true }).click();
+  await page.locator('#app output').getByRole('button', { name: '修复', exact: true }).click();
   await expect(page.getByLabel('草稿')).toHaveValue(/broken example/);
   await page.getByRole('button', { name: '停止', exact: true }).click();
   await expect(page.locator('#app iframe')).toHaveCount(0);

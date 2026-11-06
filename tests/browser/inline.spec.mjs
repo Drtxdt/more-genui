@@ -21,13 +21,13 @@ test('compact static visual, accessible menu, theme and same-frame enlargement',
   await page.evaluate(() => (document.documentElement.dataset.theme = 'light'));
   await expect(frame.locator('html')).toHaveAttribute('data-theme', 'light');
   const toolbar = page.getByRole('group', { name: '应用操作' });
-  await expect(toolbar.getByRole('button')).toHaveCount(7);
+  await expect(toolbar.getByRole('button')).toHaveCount(8);
   expect((await toolbar.boundingBox()).height).toBeLessThan(50);
   await page.getByRole('button', { name: '查看源码', exact: true }).click();
   await expect(page.locator('#app pre')).toBeVisible();
   expect((await toolbar.boundingBox()).height).toBeLessThan(50);
   await page.getByRole('button', { name: '查看源码', exact: true }).click();
-  await page.screenshot({ path: 'docs/evidence/v0.3.0-toolbar.png' });
+  await page.screenshot({ path: 'test-results/inline-toolbar.png' });
 });
 
 test('local forms survive and long content expands without remounting', async ({ page }) => {

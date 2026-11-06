@@ -3,7 +3,13 @@ const csp =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'";
 const quiz = await readFile(new URL('../src/quiz-runtime.js', import.meta.url), 'utf8');
 const script =
-  (await readFile(new URL('../src/stepper-runtime.js',import.meta.url),'utf8'))+'\n'+(await readFile(new URL('../src/experiment-runtime.js',import.meta.url),'utf8'))+'\n'+quiz + '\n' + (await readFile(new URL('../public/sandbox-runtime.js', import.meta.url), 'utf8'));
+  (await readFile(new URL('../src/stepper-runtime.js', import.meta.url), 'utf8')) +
+  '\n' +
+  (await readFile(new URL('../src/experiment-runtime.js', import.meta.url), 'utf8')) +
+  '\n' +
+  quiz +
+  '\n' +
+  (await readFile(new URL('../public/sandbox-runtime.js', import.meta.url), 'utf8'));
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"></head><body><script>${script.replaceAll('</script', '<\\/script')}</script></body></html>`;
 await writeFile(new URL('../public/sandbox.html', import.meta.url), html);
 await writeFile(

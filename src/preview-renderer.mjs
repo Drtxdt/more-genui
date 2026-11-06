@@ -110,6 +110,9 @@ export class PreviewRenderer {
       let anchor = [
         ...body.querySelectorAll('a[href],[data-citation-index],[data-citation-group],sup'),
       ]
+        .filter(
+          (el) => !el.closest('.more-genui-sources,.more-genui-preview,.more-genui-surface,pre'),
+        )
         .find(
           (el) =>
             el.href === item.url ||

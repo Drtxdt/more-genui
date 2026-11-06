@@ -1,3 +1,4 @@
+import { sourceHistory } from '../src/source-history.mjs';
 import { PreviewPool } from '../src/preview-pool.mjs';
 import { database, restore, append } from '../src/preview-cache.mjs';
 import { defineBackground } from 'wxt/utils/define-background';
@@ -51,6 +52,12 @@ export default defineBackground(() => {
     }
     const key = JSON.stringify([m.route, String(m.message).slice(0, 128)]);
     if (m.route !== new URL(sender.url).pathname) return;
+    if (m.type === 'preview:readSources' || m.type === 'preview:saveSources') {
+      if (m.type === 'preview:saveSources' && !Array.isArray(m.sources)) return;
+      sourceHistory(key, m.type === 'preview:saveSources' ? m.sources : undefined)
+        .then(respond, () => respond([]));
+      return true;
+    }
     const registration = JSON.stringify([sender.documentId, key]);
     if (m.type === 'preview:register') {
       if (!Array.isArray(m.sources)) return;
