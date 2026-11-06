@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "fast-matrix",
+  "title": "fast-matrix",
+  "stateVersion": 1,
+  "kind": "matrix",
+  "rows": [
+    "S",
+    "A"
+  ],
+  "columns": [
+    "a",
+    "$"
+  ],
+  "cells": [
+    {
+      "row": "S",
+      "column": "a",
+      "text": "S → A a",
+      "explanation": "a 属于 FIRST(A a)"
+    },
+    {
+      "row": "A",
+      "column": "a",
+      "text": "A → a / A → ε",
+      "conflict": true,
+      "explanation": "第一项来自 FIRST，第二项来自 FOLLOW(A)={a}。"
+    }
+  ]
+}

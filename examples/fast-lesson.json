@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "id": "fast-lesson",
+  "title": "fast-lesson",
+  "stateVersion": 1,
+  "kind": "lesson",
+  "grammar": {
+    "start": "S",
+    "productions": [
+      {
+        "id": "s",
+        "lhs": "S",
+        "rhs": [
+          "a",
+          "A"
+        ]
+      },
+      {
+        "id": "a",
+        "lhs": "A",
+        "rhs": [
+          "b"
+        ]
+      },
+      {
+        "id": "e",
+        "lhs": "A",
+        "rhs": []
+      }
+    ]
+  },
+  "sections": [
+    {
+      "title": "集合与分析表",
+      "view": {
+        "kind": "grammar",
+        "input": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "title": "空产生式的情况",
+      "view": {
+        "kind": "grammar",
+        "input": [
+          "a"
+        ]
+      }
+    },
+    {
+      "title": "检查理解",
+      "view": {
+        "kind": "quiz",
+        "questions": [
+          {
+            "id": "epsilon",
+            "prompt": "ε 在产生式右部表示什么？",
+            "options": [
+              {
+                "id": "empty",
+                "text": "空串"
+              },
+              {
+                "id": "literal",
+                "text": "一个终结符",
+                "hint": "它表示不消耗输入符号。"
+              }
+            ],
+            "correct": "empty",
+            "explanation": "ε 表示空串，在协议中使用空数组。"
+          }
+        ]
+      }
+    }
+  ]
+}

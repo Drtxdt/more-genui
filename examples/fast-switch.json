@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "id": "fast-switch",
+  "title": "fast-switch",
+  "stateVersion": 1,
+  "kind": "switch",
+  "options": [
+    {
+      "id": "terminal",
+      "label": "B → b",
+      "view": {
+        "kind": "grammar",
+        "grammar": {
+          "start": "A",
+          "productions": [
+            {
+              "id": "a",
+              "lhs": "A",
+              "rhs": [
+                "B",
+                "C"
+              ]
+            },
+            {
+              "id": "b",
+              "lhs": "B",
+              "rhs": [
+                "b"
+              ]
+            },
+            {
+              "id": "c",
+              "lhs": "C",
+              "rhs": [
+                "c"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "nullable",
+      "label": "B → ε",
+      "view": {
+        "kind": "grammar",
+        "grammar": {
+          "start": "A",
+          "productions": [
+            {
+              "id": "a",
+              "lhs": "A",
+              "rhs": [
+                "B",
+                "C"
+              ]
+            },
+            {
+              "id": "b",
+              "lhs": "B",
+              "rhs": []
+            },
+            {
+              "id": "c",
+              "lhs": "C",
+              "rhs": [
+                "c"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

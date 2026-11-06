@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "id": "fast-grammar",
+  "title": "fast-grammar",
+  "stateVersion": 1,
+  "kind": "grammar",
+  "grammar": {
+    "start": "S",
+    "productions": [
+      {
+        "id": "s",
+        "lhs": "S",
+        "rhs": [
+          "A",
+          "a"
+        ]
+      },
+      {
+        "id": "a",
+        "lhs": "A",
+        "rhs": [
+          "a"
+        ]
+      },
+      {
+        "id": "empty",
+        "lhs": "A",
+        "rhs": []
+      }
+    ]
+  },
+  "input": [
+    "a"
+  ]
+}

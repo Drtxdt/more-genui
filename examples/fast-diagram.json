@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "id": "fast-diagram",
+  "title": "fast-diagram",
+  "stateVersion": 1,
+  "kind": "state-diagram",
+  "nodes": [
+    {
+      "id": "q0",
+      "label": "q0"
+    },
+    {
+      "id": "q1",
+      "label": "q1"
+    }
+  ],
+  "edges": [
+    {
+      "id": "epsilon",
+      "from": "q0",
+      "to": "q1",
+      "label": "ε"
+    },
+    {
+      "id": "loop",
+      "from": "q1",
+      "to": "q1",
+      "label": "a"
+    }
+  ],
+  "highlight": [
+    "q1",
+    "loop"
+  ]
+}

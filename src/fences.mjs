@@ -33,7 +33,7 @@ export class FenceScanner {
   }
   line(line) {
     if (!this.fence) {
-      const match = /^\s{0,3}(`{3,}|~{3,})genui-html\s*$/.exec(line);
+      const match = /^\s{0,3}(`{3,}|~{3,})genui-(?:html|json)\s*$/.exec(line);
       if (match) {
         this.fence = match[1];
         this.lines = [];

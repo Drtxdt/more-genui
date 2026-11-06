@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "fast-compare",
+  "title": "fast-compare",
+  "stateVersion": 1,
+  "kind": "compare",
+  "before": {
+    "label": "变换前",
+    "lines": [
+      "E → E + T | T"
+    ]
+  },
+  "after": {
+    "label": "变换后",
+    "lines": [
+      "E → T E_tail",
+      "E_tail → + T E_tail | ε"
+    ]
+  },
+  "note": "新的非终结符表示后续的零次或多次 + T。"
+}
