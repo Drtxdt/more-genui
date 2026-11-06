@@ -3,7 +3,7 @@ export default defineConfig({
   manifest: {
     name: 'More GenUI',
     description: 'Interactive applications inside DeepSeek replies.',
-    permissions: ['storage'],
+    permissions: ['storage', 'alarms'],
     host_permissions: ['https://*/*'],
     sandbox: { pages: ['sandbox.html'] },
     content_security_policy: {

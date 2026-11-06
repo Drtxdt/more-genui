@@ -1,10 +1,16 @@
-import { sourceHistory } from '../src/source-history.mjs';
+import { sourceHistory, purgeSourceHistory } from '../src/source-history.mjs';
 import { PreviewPool } from '../src/preview-pool.mjs';
 import { database, restore, append } from '../src/preview-cache.mjs';
 import { defineBackground } from 'wxt/utils/define-background';
 import { imageFor } from '../src/preview-download.mjs';
 import { publicURL } from '../src/search-sources.mjs';
 export default defineBackground(() => {
+  const cleanup = () => void purgeSourceHistory().catch(() => {});
+  cleanup();
+  void chrome.alarms.create('more-genui:source-retention', { periodInMinutes: 60 });
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'more-genui:source-retention') cleanup();
+  });
   const jobs = new Map<number, AbortController>();
   const registered = new Map<
     number,
@@ -54,8 +60,10 @@ export default defineBackground(() => {
     if (m.route !== new URL(sender.url).pathname) return;
     if (m.type === 'preview:readSources' || m.type === 'preview:saveSources') {
       if (m.type === 'preview:saveSources' && !Array.isArray(m.sources)) return;
-      sourceHistory(key, m.type === 'preview:saveSources' ? m.sources : undefined)
-        .then(respond, () => respond([]));
+      sourceHistory(key, m.type === 'preview:saveSources' ? m.sources : undefined).then(
+        respond,
+        () => respond([]),
+      );
       return true;
     }
     const registration = JSON.stringify([sender.documentId, key]);
