@@ -1,5 +1,8 @@
+const mode=document.querySelector<HTMLSelectElement>('#mode')!;
+chrome.storage.local.get(['enabled','generationMode']).then(v=>mode.value=v.enabled===false?'off':String(v.generationMode??'auto'));
+mode.onchange=()=>chrome.storage.local.set({enabled:mode.value!=='off',generationMode:mode.value==='demand'?'demand':'auto'});
 const sources = document.querySelector<HTMLSelectElement>('#sources')!;
 chrome.storage.local.get(['sourceMode','previewImages']).then(value=>{
-  sources.value=value.sourceMode??(value.previewImages===false?'text':'images');sources.disabled=false;
+  sources.value=String(value.sourceMode??(value.previewImages===false?'text':'images'));sources.disabled=false;
 });
 sources.onchange=()=>chrome.storage.local.set({sourceMode:sources.value,previewImages:sources.value==='images'});

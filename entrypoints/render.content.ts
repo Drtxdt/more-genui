@@ -1,4 +1,5 @@
 import { RequestLifecycle } from '../src/request-lifecycle.mjs';
+import { composerTools } from '../src/composer-tools.mjs';
 import { SourceCards } from '../src/source-cards.mjs';
 import { PreviewRenderer } from '../src/preview-renderer.mjs';
 import { createElement, Power } from 'lucide';
@@ -17,6 +18,8 @@ export default defineContentScript({
     const cards = new SourceCards(browser.storage.local);
     let showCards = true;
     let previewImages = true;
+    let generationMode='auto';
+    const composition=composerTools({settings:()=>({enabled,mode:generationMode}),setDraft,arm:(ticket:unknown)=>window.postMessage({type:'more-genui-arm',ticket},location.origin)});
     let settingsReady = false;
     const ledger = new RequestLifecycle(() => scan());
     const { active, requests } = ledger;
@@ -84,19 +87,20 @@ export default defineContentScript({
       control.title = `GenUI：${enabled ? '开启' : '关闭'}`;
       control.setAttribute('aria-label', control.title);
       control.setAttribute('aria-pressed', String(enabled));
-      window.postMessage({ type: 'more-genui-enabled', enabled }, location.origin);
+      window.postMessage({ type: 'more-genui-enabled', enabled, mode:generationMode }, location.origin);
     };
     const loadSettings = async () => {
       control.disabled = true;
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
         const value = await Promise.race([
-          browser.storage.local.get(['enabled', 'previewImages','sourceMode']),
+          browser.storage.local.get(['enabled', 'previewImages','sourceMode','generationMode']),
           new Promise<never>((_, reject) => {
             timeout = setTimeout(() => reject(Error('storage timeout')), 4000);
           }),
         ]);
         settingsReady = true;
+        generationMode=String(value.generationMode??'auto');
         showCards = value.sourceMode !== 'off';
         previewImages = value.previewImages !== false;
         enabled = value.enabled !== false;
@@ -128,6 +132,7 @@ export default defineContentScript({
     };
     control.addEventListener('animationend', () => control.classList.remove('activating'));
     const settingsChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if(area==='local' && changes.generationMode){generationMode=String(changes.generationMode.newValue);composition.reset();publish();scan();}
       if(area==='local' && changes.sourceMode){showCards=changes.sourceMode.newValue!=='off'; if(!showCards)cards.clear();scan();}
       if (area === 'local' && changes.previewImages) {
         previewImages = changes.previewImages.newValue !== false;
@@ -203,6 +208,7 @@ export default defineContentScript({
     function scan(changedOnly = false) {
       if (route !== location.pathname) {
         route = location.pathname;
+        composition.reset();
         rebuildMessages();
         ledger.clear();
         approvals = new WeakMap();
@@ -240,6 +246,7 @@ export default defineContentScript({
           button.remove();
           recovery.delete(code);
         }
+      composition.update();
       if (!enabled) {
         approvals = new WeakMap();
         for (const id of active) ledger.end(id);
@@ -394,6 +401,7 @@ export default defineContentScript({
     const streamListener = (e: MessageEvent) => {
       if (e.source !== window || e.origin !== location.origin || !enabled) return;
       const m = e.data;
+      if(m?.type==="more-genui-consumed"){composition.reset();return;}
       if (!m || !m.type?.startsWith('more-genui-')) return;
       if (route !== location.pathname) scan();
       if (m.route && m.route !== route) return;

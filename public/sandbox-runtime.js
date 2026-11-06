@@ -31,6 +31,7 @@
       state = JSON.parse(raw);
       send('state', state);
     }
+    const experiment=createExperimentAPI(send);
     const quiz = createQuizAPI(
       (id) => state[quizKey]?.[id],
       (id, value) => commit({ ...state, [quizKey]: { ...state[quizKey], [id]: value } }),
@@ -38,7 +39,7 @@
     );
     Object.defineProperty(window, 'genui', {
       value: Object.freeze({
-        quiz,
+        quiz,experiment:experiment.api,
         getState() {
           const result = structuredClone(state);
           delete result[quizKey];
@@ -59,6 +60,7 @@
     addEventListener('error', (e) => report(e.message));
     addEventListener('unhandledrejection', (e) => report(e.reason));
     port.onmessage = (e) => {
+      if(e.data?.type==='png'){const id=e.data.id;experiment.png().then(blob=>send('png',{id,blob}),e=>send('png',{id,error:String(e.message)}));}
       if (e.data?.type === 'theme') theme(e.data.value);
     };
     const doc = new DOMParser().parseFromString(config.html, 'text/html');

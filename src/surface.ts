@@ -1,6 +1,7 @@
 import {
   createElement,
   Maximize,
+  SlidersHorizontal,
   MessageCircle,
   Wrench,
   Code,
@@ -10,6 +11,7 @@ import {
 } from 'lucide';
 import { parseApp, safeState } from './protocol.mjs';
 import { StateRepository } from './state.mjs';
+import { experimentPanel } from './experiment-panel.mjs';
 import sandboxHTML from './generated-sandbox';
 export interface SurfaceOptions {
   source: string;
@@ -155,8 +157,16 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   });
   sourceButton.setAttribute('aria-expanded', 'false');
   sourceButton.setAttribute('aria-controls', 'source');
+  let pngRequest: {id:string;resolve:(b:Blob)=>void;reject:(e:Error)=>void}|undefined;
+  const experiments=experimentPanel({app,repository:options.repository,keysPromise,state:()=>state,status:setStatus,
+    restore:async(params:Record<string,unknown>)=>{state=safeState({...params,...Object.fromEntries(Object.entries(state).filter(([k])=>k.startsWith('__moreGenui')))});dirty++;await save();start();},
+    png:()=>new Promise<Blob>((resolve,reject)=>{if(!channel||!frame)return reject(Error('应用未运行'));const id=crypto.randomUUID();
+      pngRequest?.reject(Error('新的导出已开始'));pngRequest={id,resolve,reject};channel.port1.postMessage({type:'png',id});setTimeout(()=>{if(pngRequest?.id===id){pngRequest=undefined;reject(Error('PNG 导出超时'));}},5000);})});
+  panel.insertBefore(experiments.panel,viewport);
+  button('实验工具',SlidersHorizontal,()=>experiments.toggle());
   function start() {
     if (disposed) return;
+    experiments.update({});
     const current = ++generation;
     clearTimeout(timeout);
     channel?.port1.close();
@@ -178,11 +188,14 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       if (disposed || current !== generation) return;
       const message = e.data;
       if (!message || typeof message !== 'object') return;
+      if(message.type==='experiment'){try{experiments.update(safeState(message.value));}catch(e){setStatus(String(e));}return;}
+      if(message.type==='png' && pngRequest && message.value?.id===pngRequest.id){const r=pngRequest;pngRequest=undefined;const b=message.value.blob;if(b instanceof Blob && b.type==='image/png' && b.size<=8388608)r.resolve(b);else r.reject(Error(message.value.error||'无效 PNG'));return;}
       if (message.type === 'state') {
         try {
           const nextState = safeState(message.value);
           if (JSON.stringify(nextState) !== JSON.stringify(state)) {
             state = nextState;
+            experiments.changed();
             dirty++;
             clearTimeout(saveTimer);
             saveTimer = setTimeout(() => void save(), 200);
@@ -277,6 +290,8 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   return {
     theme,
     dispose() {
+      experiments.dispose();
+      pngRequest?.reject(Error('应用已关闭'));pngRequest=undefined;
       disposed = true;
       generation++;
       clearTimeout(timeout);
