@@ -1,0 +1,34 @@
+<!-- more-genui: {"version":1,"id":"binary-prediction","title":"预测二分查找的候选区间","stateVersion":1} -->
+<html lang="zh"><body>
+<p>数组为 [1, 3, 5, 7, 9]，下标从 0 开始。查找目标 7，使用闭区间 [0, 4]，第一次探查下标 2。</p>
+<div id="quiz"></div>
+<script>
+genui.quiz.mount(document.getElementById("quiz"), {
+  "id": "binary-prediction",
+  "questions": [
+    {
+      "id": "interval",
+      "prompt": "已知 a[2] = 5，下一轮应保留哪个闭区间？",
+      "options": [
+        {
+          "id": "left",
+          "text": "[0, 1]",
+          "hint": "有序数组中，目标比中点的值大。应该往哪个方向找？"
+        },
+        {
+          "id": "include",
+          "text": "[2, 4]",
+          "hint": "下标 2 已经检查过，还可能是目标的位置吗？"
+        },
+        {
+          "id": "right",
+          "text": "[3, 4]"
+        }
+      ],
+      "correct": "right",
+      "explanation": "5 小于 7，下标 2 及其左边都可以排除，新的左端点是 mid + 1。"
+    }
+  ]
+});
+</script>
+</body></html>

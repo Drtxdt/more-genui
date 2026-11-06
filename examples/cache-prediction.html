@@ -1,0 +1,63 @@
+<!-- more-genui: {"version":1,"id":"cache-prediction","title":"HTTP 缓存预测","stateVersion":1} -->
+<html lang="zh"><body>
+<p>假设普通 GET 请求允许缓存，缓存未被逐出，也没有强制重新验证的指令。</p>
+<div id="quiz"></div>
+<script>
+genui.quiz.mount(document.getElementById("quiz"), {
+  "id": "cache-prediction",
+  "questions": [
+    {
+      "id": "fresh",
+      "prompt": "副本年龄 30 秒，max-age=60。浏览器接下来怎么做？",
+      "options": [
+        {
+          "id": "use",
+          "text": "直接用缓存"
+        },
+        {
+          "id": "validate",
+          "text": "发送条件请求",
+          "hint": "先比较副本年龄和允许的新鲜时间。"
+        }
+      ],
+      "correct": "use",
+      "explanation": "30 秒小于 60 秒，副本仍然新鲜，可以直接使用。"
+    },
+    {
+      "id": "stale",
+      "prompt": "缓存已经过期，客户端持有 ETag。能断定服务器一定返回 304 吗？",
+      "options": [
+        {
+          "id": "yes",
+          "text": "一定返回 304",
+          "hint": "过期决定要不要验证。客户端知道服务器上的内容有没有变化吗？"
+        },
+        {
+          "id": "no",
+          "text": "还不能确定"
+        }
+      ],
+      "correct": "no",
+      "explanation": "客户端用 If-None-Match 发送验证器。服务器比较当前实体标签后才能确定是否匹配。"
+    },
+    {
+      "id": "changed",
+      "prompt": "条件 GET 到达服务器，当前 ETag 已与请求中的验证器不同，资源可正常读取。会收到什么？",
+      "options": [
+        {
+          "id": "body",
+          "text": "200 和新的响应体"
+        },
+        {
+          "id": "old",
+          "text": "304 并复用旧副本",
+          "hint": "复用旧副本的前提，是服务器的实体标签仍能匹配。"
+        }
+      ],
+      "correct": "body",
+      "explanation": "验证器不匹配，服务器返回新的表示，客户端据此更新副本。"
+    }
+  ]
+});
+</script>
+</body></html>

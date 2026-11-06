@@ -22,21 +22,35 @@
     const theme = (value) => {
       document.documentElement.dataset.theme = value === 'dark' ? 'dark' : 'light';
     };
+    const quizKey = '__moreGenuiQuizV1';
+    function commit(value) {
+      if (!value || Array.isArray(value) || typeof value !== 'object')
+        throw Error('State must be a JSON object');
+      const raw = JSON.stringify(value);
+      if (new TextEncoder().encode(raw).length > 65536) throw Error('State exceeds 64 KiB');
+      state = JSON.parse(raw);
+      send('state', state);
+    }
+    const quiz = createQuizAPI(
+      (id) => state[quizKey]?.[id],
+      (id, value) => commit({ ...state, [quizKey]: { ...state[quizKey], [id]: value } }),
+      report,
+    );
     Object.defineProperty(window, 'genui', {
       value: Object.freeze({
-        getState: () => structuredClone(state),
+        quiz,
+        getState() {
+          const result = structuredClone(state);
+          delete result[quizKey];
+          return result;
+        },
         setState(value) {
-          const raw = JSON.stringify(value);
-          if (
-            !raw ||
-            new TextEncoder().encode(raw).length > 65536 ||
-            !value ||
-            Array.isArray(value) ||
-            typeof value !== 'object'
-          )
-            throw Error('State must be a JSON object under 64 KiB');
-          state = JSON.parse(raw);
-          send('state', state);
+          if (!value || Array.isArray(value) || typeof value !== 'object')
+            throw Error('State must be a JSON object');
+          const next = { ...value };
+          delete next[quizKey];
+          if (state[quizKey]) next[quizKey] = state[quizKey];
+          commit(next);
         },
       }),
       writable: false,
