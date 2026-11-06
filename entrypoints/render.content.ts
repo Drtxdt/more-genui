@@ -16,7 +16,7 @@ export default defineContentScript({
     let settingsReady = false;
     const ledger = new RequestLifecycle(() => scan());
     const { active, requests } = ledger;
-    const previews = new PreviewRenderer((m: any) => browser.runtime.sendMessage(m));
+    const previews = new PreviewRenderer((m: any) => browser.runtime.sendMessage({ ...m, route }));
     const repairs = new RepairContexts();
     const temporaryRepository = new StateRepository(memoryRepositoryStorage());
     let fullDiscoveries = 0,

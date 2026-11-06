@@ -1,3 +1,5 @@
+import { PreviewPool } from '../src/preview-pool.mjs';
+import { database, restore, append } from '../src/preview-cache.mjs';
 import { defineBackground } from 'wxt/utils/define-background';
 import { imageFor } from '../src/preview-download.mjs';
 import { publicURL } from '../src/search-sources.mjs';
@@ -10,24 +12,22 @@ export default defineBackground(() => {
       Map<string, { url: string; image: string | null; index: number | null; title: string }>
     >
   >();
-  let queue = Promise.resolve();
-  const ttl = 7 * 86400000,
-    limit = 10 * 1024 * 1024;
-  async function cache() {
-    const entries = ((await chrome.storage.local.get('previewCache')).previewCache ?? {}) as Record<
-      string,
-      {
-        at: number;
-        items: Array<{ url: string; index: number | null; title: string; data: string }>;
-      }
-    >;
-    const count = Object.keys(entries).length;
-    for (const [k, v] of Object.entries(entries))
-      if ((v as any).at < Date.now() - ttl) delete entries[k];
-    if (count !== Object.keys(entries).length)
-      await chrome.storage.local.set({ previewCache: entries });
-    return entries;
-  }
+  chrome.runtime.onInstalled.addListener(() => {
+    void database().catch(() => {
+      /* The next cache read retries migration. */
+    });
+  });
+  const pool = new PreviewPool(imageFor);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (
+      area === 'local' &&
+      (changes.enabled?.newValue === false || changes.previewImages?.newValue === false)
+    ) {
+      for (const controller of jobs.values()) controller.abort();
+      jobs.clear();
+      registered.clear();
+    }
+  });
   chrome.tabs.onRemoved.addListener((tab) => {
     jobs.get(tab)?.abort();
     jobs.delete(tab);
@@ -49,7 +49,9 @@ export default defineBackground(() => {
       respond(true);
       return;
     }
-    const key = JSON.stringify([new URL(sender.url).pathname, String(m.message).slice(0, 128)]);
+    const key = JSON.stringify([m.route, String(m.message).slice(0, 128)]);
+    if (m.route !== new URL(sender.url).pathname) return;
+    const registration = JSON.stringify([sender.documentId, key]);
     if (m.type === 'preview:register') {
       if (!Array.isArray(m.sources)) return;
       const records = registered.get(tab) ?? new Map();
@@ -64,7 +66,7 @@ export default defineBackground(() => {
             title: String(item.title ?? '').slice(0, 200),
           });
       }
-      records.set(key, sources);
+      records.set(registration, sources);
       if (records.size > 32) records.delete(records.keys().next().value!);
       registered.set(tab, records);
       respond(true);
@@ -73,43 +75,28 @@ export default defineBackground(() => {
     const controller = jobs.get(tab) ?? new AbortController();
     jobs.set(tab, controller);
     const run = async () => {
-      const entries = await cache();
-      if (m.type === 'preview:restore') return entries[key]?.items ?? [];
+      const settings = await chrome.storage.local.get(['enabled', 'previewImages']);
       if (
-        m.type !== 'preview:one' ||
-        controller.signal.aborted ||
-        !registered.get(tab)?.get(key)?.has(m.source) ||
-        (await chrome.storage.local.get('enabled')).enabled === false
+        settings.enabled === false ||
+        settings.previewImages === false ||
+        controller.signal.aborted
       )
         return [];
-      const items = entries[key]?.items ?? [];
-      const source = registered.get(tab)?.get(key)?.get(m.source);
-      for (const s of source ? [source] : []) {
-        if (controller.signal.aborted || items.length >= 4) break;
-        const url = publicURL(s.url);
-        if (!url || items.some((i: any) => i.url === url)) continue;
-        const data = await imageFor(
-          { url, image: publicURL(s.image) },
-          AbortSignal.any([controller.signal, AbortSignal.timeout(4000)]),
-        ).catch(() => null);
-        if (data && !items.some((i: any) => i.data === data))
-          items.push({ url, index: s.index, title: String(s.title ?? '').slice(0, 200), data });
-      }
-      if (items.length && !controller.signal.aborted) {
-        entries[key] = { at: Date.now(), items };
-        const keys = Object.keys(entries).sort((a, b) => entries[a].at - entries[b].at);
-        while (keys.length && new Blob([JSON.stringify(entries)]).size > limit - 262144)
-          delete entries[keys.shift()!];
-        await chrome.storage.local.set({ previewCache: entries }).catch(() => {});
-      }
-      return controller.signal.aborted ? [] : items;
+      const items = await restore(key);
+      if (m.type === 'preview:restore') return items;
+      const source = registered.get(tab)?.get(registration)?.get(m.source);
+      if (m.type !== 'preview:one' || controller.signal.aborted) return [];
+      if (!source) return { registerAgain: true };
+      if (items.length >= 4 || items.some((i: any) => i.url === source.url)) return items;
+      const data = await pool.get(tab, source, controller.signal);
+      if (!data || controller.signal.aborted) return items;
+      return append(
+        key,
+        { url: source.url, index: source.index, title: source.title, data },
+        controller.signal,
+      );
     };
-    const result = queue.then(run);
-    queue = result.then(
-      () => {},
-      () => {},
-    );
-    result.then(respond, () => respond([]));
+    run().then(respond, () => respond([]));
     return true;
   });
 });

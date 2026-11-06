@@ -38,17 +38,36 @@ export class PreviewRenderer {
     const answer = this.answer(req.key);
     answer.live = true;
     const update = async () => {
-      await this.send({ type: 'preview:register', message: req.key, sources: req.sources });
+      if (this.answers.get(req.key) !== answer) return;
+      const register = () =>
+        this.send({ type: 'preview:register', message: req.key, sources: req.sources });
+      try {
+        await register();
+      } catch {
+        if (this.answers.get(req.key) !== answer) return;
+        await register();
+      }
       req.attempted ??= new Set();
       for (const source of req.sources.slice(0, 8)) {
         if (this.answers.get(req.key) !== answer || answer.items.length >= 4) break;
         if (req.attempted.has(source.url)) continue;
         req.attempted.add(source.url);
-        const items = await this.send({
-          type: 'preview:one',
-          message: req.key,
-          source: source.url,
-        });
+        const fetchOne = () =>
+          this.send({
+            type: 'preview:one',
+            message: req.key,
+            source: source.url,
+          });
+        let items;
+        try {
+          items = await fetchOne();
+        } catch {
+          items = { registerAgain: true };
+        }
+        if ((items == null || items.registerAgain) && this.answers.get(req.key) === answer) {
+          await register();
+          if (this.answers.get(req.key) === answer) items = await fetchOne();
+        }
         if (this.answers.get(req.key) !== answer) return;
         if (Array.isArray(items) && items.length >= answer.items.length) answer.items = items;
         answer.done = req.done;

@@ -398,3 +398,128 @@ test('ambiguous complete HTML waits across cancellation and virtual rebuilding',
   await page.getByRole('button', { name: /运行此应用/ }).click();
   await expect(frame).toHaveCount(1);
 });
+
+test('migrates yesterday’s image after worker restart and restores cached tab during a slow download', async () => {
+  const worker = context.serviceWorkers()[0];
+  const quiz = await readFile('examples/cache-prediction.html', 'utf8');
+  const insertQuiz = () =>
+    page.evaluate((source) => {
+      const msg = document.querySelector('#messages');
+      msg.dataset.virtualListItemKey = 'quiz';
+      const pre = document.createElement('pre');
+      pre.textContent = source;
+      msg.querySelector('.ds-assistant-message-main-content').append(pre);
+    }, quiz);
+  await insertQuiz();
+  const frame = page.frameLocator('.more-genui-surface iframe');
+  await frame.getByRole('radio', { name: '发送条件请求', exact: true }).check();
+  await frame.getByRole('button', { name: '提交' }).click();
+  await expect
+    .poll(() =>
+      worker.evaluate(async () =>
+        Object.entries(await chrome.storage.local.get(null)).some(
+          ([key, v]) => key.startsWith('mg:state:') && JSON.stringify(v).includes('"phase":"hint"'),
+        ),
+      ),
+    )
+    .toBe(true);
+  const oldKey = JSON.stringify(['/a/chat/old', '5']);
+  const expiredKey = JSON.stringify(['/a/chat/expired', '6']);
+  const png =
+    'data:image/png;base64,' +
+    (await readFile('docs/evidence/v0.3.0-toolbar.png')).toString('base64');
+  const at = Date.now() - 86400000;
+  await worker.evaluate(
+    async ({ oldKey, expiredKey, png, at }) => {
+      const items = [
+        { url: 'https://www.kaggle.com/cached', index: 1, title: '昨日来源', data: png },
+      ];
+      // Simulate a crash after the IndexedDB commit but before deleting the legacy key.
+      const db = await new Promise((resolve) => {
+        const r = indexedDB.open('more-genui-previews');
+        r.onsuccess = () => resolve(r.result);
+      });
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(['answers', 'sizes'], 'readwrite');
+        tx.objectStore('answers').put({ at, items }, oldKey);
+        tx.objectStore('sizes').put({ at, key: oldKey, bytes: png.length + 256 }, oldKey);
+        tx.oncomplete = resolve;
+        tx.onabort = reject;
+      });
+      db.close();
+      await chrome.storage.local.set({
+        previewCache: { [oldKey]: { at, items }, [expiredKey]: { at: at - 7 * 86400000, items } },
+      });
+    },
+    { oldKey, expiredKey, png, at },
+  );
+  const cdp = await context.newCDPSession(page);
+  const versions = new Promise((resolve) =>
+    cdp.on('ServiceWorker.workerVersionUpdated', ({ versions }) => {
+      const version = versions.find(
+        (v) => v.scriptURL === worker.url() && v.runningStatus === 'running',
+      );
+      if (version) resolve(version.versionId);
+    }),
+  );
+  await cdp.send('ServiceWorker.enable');
+  await cdp.send('ServiceWorker.stopWorker', { versionId: await versions });
+  await page.reload();
+  await insertQuiz();
+  await expect(frame.getByRole('status')).toContainText('先比较');
+  let started;
+  const downloading = new Promise((resolve) => (started = resolve));
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await context.route('https://www.kaggle.com/slow', async (route) => {
+    started();
+    await held;
+    await route.fulfill({ status: 404 }).catch(() => {});
+  });
+  try {
+    await page.evaluate(() => {
+      for (const event of [
+        { type: 'more-genui-start' },
+        { type: 'more-genui-identity', key: '2' },
+        { type: 'more-genui-search', sources: [{ url: 'https://www.kaggle.com/slow', index: 1 }] },
+      ])
+        window.postMessage({ ...event, id: 'slow' }, location.origin);
+    });
+    await downloading;
+    const other = await context.newPage();
+    await other.goto('https://chat.deepseek.com/a/chat/old');
+    await other.evaluate(
+      () => (document.querySelector('#messages').dataset.virtualListItemKey = '5'),
+    );
+    // Adding a message also reproduces virtual-list discovery.
+    await other.evaluate(() => {
+      const m = document.querySelector('#messages');
+      m.replaceWith(m.cloneNode(true));
+    });
+    await expect(other.locator('.more-genui-preview img')).toHaveCount(1, { timeout: 2500 });
+    const fresh = context.serviceWorkers()[0];
+    const state = await fresh.evaluate(
+      async ({ oldKey, expiredKey }) => {
+        const db = await new Promise((resolve) => {
+          const r = indexedDB.open('more-genui-previews');
+          r.onsuccess = () => resolve(r.result);
+        });
+        const read = (key) =>
+          new Promise((resolve) => {
+            const r = db.transaction('answers').objectStore('answers').get(key);
+            r.onsuccess = () => resolve(r.result?.at ?? null);
+          });
+        return [
+          await read(oldKey),
+          await read(expiredKey),
+          (await chrome.storage.local.get('previewCache')).previewCache ?? null,
+        ];
+      },
+      { oldKey, expiredKey },
+    );
+    expect(state).toEqual([at, null, null]);
+
+  } finally {
+    release();
+  }
+});
