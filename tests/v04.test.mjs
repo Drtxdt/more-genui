@@ -55,3 +55,17 @@ test('only search results qualify; page metadata must resolve to an allowed HTTP
     'https://example.com/cover.png',
   );
 });
+
+test('overlap cannot turn anonymous output into history on cancellation or rebuild', () => {
+  const ledger = new RequestLifecycle(() => {});
+  assert.equal(ledger.classify({}, 'old', 'saved').kind, 'history');
+  ledger.start('a', new WeakMap());
+  ledger.start('b', new WeakMap());
+  for (const id of ['a', 'b']) {
+    assert.equal(ledger.classify({}, null, 'new').kind, 'unknown');
+    ledger.end(id);
+  }
+  assert.equal(ledger.classify({}, null, 'new').kind, 'unknown');
+  assert.equal(ledger.classify({}, 'old', 'saved').kind, 'history');
+  ledger.clear();
+});

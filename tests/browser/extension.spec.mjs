@@ -368,3 +368,33 @@ test('official search replay decorates citations, falls back at end, and restore
   await expect(page.locator('.more-genui-preview img')).toHaveCount(2);
   expect(external).toBe(hits);
 });
+
+test('ambiguous complete HTML waits across cancellation and virtual rebuilding', async () => {
+  await page.evaluate((source) => {
+    for (const id of ['a', 'b'])
+      window.postMessage({ type: 'more-genui-start', id }, location.origin);
+    setTimeout(() => {
+      const block = document.createElement('pre');
+      block.textContent = source;
+      document.querySelector('.ds-assistant-message-main-content').append(block);
+    }, 20);
+  }, source);
+  const frame = page.locator('.more-genui-surface iframe');
+  await page.waitForTimeout(180);
+  await expect(frame).toHaveCount(0);
+  for (const id of ['a', 'b']) {
+    await page.evaluate(
+      (id) =>
+        window.postMessage({ type: 'more-genui-end', id, status: 'cancelled' }, location.origin),
+      id,
+    );
+    await page.evaluate(() => {
+      const el = document.querySelector('pre');
+      el.replaceWith(el.cloneNode(true));
+    });
+    await page.waitForTimeout(100);
+    await expect(frame).toHaveCount(0);
+  }
+  await page.getByRole('button', { name: /运行此应用/ }).click();
+  await expect(frame).toHaveCount(1);
+});

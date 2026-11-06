@@ -43,7 +43,7 @@ export default defineContentScript({
         await browser.storage.local.set({ [key]: value });
       },
     });
-    const approvals = new WeakMap<HTMLElement, string>();
+    let approvals = new WeakMap<HTMLElement, string>();
     const recovery = new Map<HTMLElement, HTMLButtonElement>();
     const mounted = new Map<
       HTMLElement,
@@ -193,6 +193,7 @@ export default defineContentScript({
         route = location.pathname;
         rebuildMessages();
         ledger.clear();
+        approvals = new WeakMap();
         previews.clear();
         repairs.clear();
         for (const button of recovery.values()) button.remove();
@@ -227,7 +228,8 @@ export default defineContentScript({
           recovery.delete(code);
         }
       if (!enabled) {
-        ledger.clear();
+        approvals = new WeakMap();
+        for (const id of active) ledger.end(id);
         previews.clear();
         return;
       }
@@ -248,6 +250,7 @@ export default defineContentScript({
         codeBlocks(message),
       ) as HTMLElement[]) {
         const source = code.textContent || '';
+        if (approvals.has(code) && approvals.get(code) !== source) approvals.delete(code);
         knownSources.set(code, source);
         if (
           mounted.has(code) ||
@@ -258,9 +261,14 @@ export default defineContentScript({
         const key = code
           .closest('[data-virtual-list-item-key]')
           ?.getAttribute('data-virtual-list-item-key');
-        const owner = ledger.owner(code, key, source);
+        const origin = ledger.classify(code, key, source);
+        const owner = origin.owner;
         const requestId = owner?.id;
-        if (owner && !ledger.confirmed(code, owner, source) && approvals.get(code) !== source) {
+        if (
+          origin.kind !== 'history' &&
+          !(owner && ledger.confirmed(code, owner, source)) &&
+          approvals.get(code) !== source
+        ) {
           if (!active.size && !recovery.has(code)) {
             try {
               parseApp(source);

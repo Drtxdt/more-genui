@@ -5,11 +5,49 @@ export class RequestLifecycle {
   active = new Set();
   owners = new WeakMap();
   verified = new WeakMap();
+  history = new Map();
+  historicalNodes = new WeakMap();
+  overlap = false;
+  uncertainNodes = new WeakSet();
+  uncertainKeys = new Set();
+  anonymousSources = new Set();
+  classify(code, key, source) {
+    const bound = this.bindings.get(key);
+    if (bound) return { kind: 'live', owner: bound };
+    if (this.historicalNodes.get(code) === source || this.history.get(key)?.has(source))
+      return { kind: 'history' };
+    if (
+      this.overlap ||
+      this.uncertainNodes.has(code) ||
+      this.uncertainKeys.has(key) ||
+      (!key && this.anonymousSources.has(source))
+    )
+      return { kind: 'unknown' };
+    const owner = this.owner(code, key, source);
+    if (owner) return { kind: 'live', owner };
+    if (this.active.size) {
+      this.uncertainNodes.add(code);
+      if (key) this.uncertainKeys.add(key);
+      else if (this.anonymousSources.size < 32) this.anonymousSources.add(source);
+      else this.overlap = true;
+      return { kind: 'unknown' };
+    }
+    this.historicalNodes.set(code, source);
+    if (key) {
+      if (!this.history.has(key)) this.history.set(key, new Set());
+      const blocks = this.history.get(key);
+      blocks.add(source);
+      if (blocks.size > 16) blocks.delete(blocks.values().next().value);
+      if (this.history.size > 64) this.history.delete(this.history.keys().next().value);
+    }
+    return { kind: 'history' };
+  }
   constructor(rescan) {
     this.rescan = rescan;
   }
   start(id, baseline, repairToken) {
     const r = { id, baseline, repairToken, complete: new Set(), hashes: new Set(), ended: false };
+    if (this.active.size) this.overlap = true;
     this.requests.set(id, r);
     this.active.add(id);
   }
@@ -73,6 +111,12 @@ export class RequestLifecycle {
   }
   clear() {
     for (const r of this.requests.values()) clearTimeout(r.timer);
+    this.uncertainNodes = new WeakSet();
+    this.uncertainKeys.clear();
+    this.anonymousSources.clear();
+    this.history.clear();
+    this.historicalNodes = new WeakMap();
+    this.overlap = false;
     this.requests.clear();
     this.bindings.clear();
     this.active.clear();
