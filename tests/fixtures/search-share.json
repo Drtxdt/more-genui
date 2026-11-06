@@ -1,0 +1,21 @@
+{
+  "type": "SEARCH",
+  "status": "FINISHED",
+  "results": [
+    {
+      "url": "https://www.kaggle.com/discussions/general/698932",
+      "cite_index": 1,
+      "site_icon": "https://cdn.deepseek.com/site-icons/kaggle.com"
+    },
+    {
+      "url": "https://www.kaggle.com/discussions/getting-started/588196#3243471#1",
+      "cite_index": 2,
+      "site_icon": "https://cdn.deepseek.com/site-icons/kaggle.com"
+    },
+    {
+      "url": "https://www.kaggle.com/competitions/data-detective-beginner-ai-challenge/overview/abstract#site-content",
+      "cite_index": 3,
+      "site_icon": "https://cdn.deepseek.com/site-icons/kaggle.com"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { searchSources } from '../src/search-sources.mjs';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { augment } from '../src/protocol.mjs';
 import { SSEDecoder, ReplyAccumulator } from '../src/stream.mjs';
@@ -40,6 +41,7 @@ export default defineContentScript({
       const accumulator = new ReplyAccumulator((source: string) =>
         post({ type: 'more-genui-source', id, route, source }),
       );
+      let sourcesKey = '';
       const sse = new SSEDecoder(
         (event: any) => {
           if (event?.response_message_id != null)
@@ -55,7 +57,12 @@ export default defineContentScript({
             return;
           }
           accumulator.accept(event);
-
+          const sources = searchSources(accumulator.fragments);
+          const key = JSON.stringify(sources);
+          if (sources.length && sourcesKey !== key) {
+            sourcesKey = key;
+            post({ type: 'more-genui-search', route, id, sources });
+          }
         },
         () => {
           failed = true;

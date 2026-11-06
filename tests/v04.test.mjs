@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FenceScanner } from '../src/fences.mjs';
 import { RequestLifecycle } from '../src/request-lifecycle.mjs';
+import { searchSources, publicURL, representativeImage } from '../src/search-sources.mjs';
 test('tail receipts require newline or successful finish', () => {
   const raw = '~~~genui-html\n<html></html>\n~~~';
   for (let i = 0; i <= raw.length; i++) {
@@ -32,4 +33,25 @@ test('rebuilding history A after B completed keeps A ownership', () => {
   assert.equal(l.owner({}, 'a', 'a').id, 'a');
   assert.equal(l.owner({}, 'old', 'old'), undefined);
   l.clear();
+});
+test('only search results qualify; page metadata must resolve to an allowed HTTPS URL', () => {
+  assert.deepEqual(
+    searchSources([{ type: 'RESPONSE', results: [{ url: 'https://example.com' }] }]),
+    [],
+  );
+  for (const url of [
+    'file:///x',
+    'https://127.1',
+    'https://[::1]',
+    'https://user@example.com',
+    'https://x.local',
+  ])
+    assert.equal(publicURL(url), null);
+  assert.equal(
+    representativeImage(
+      '<meta content="/cover.png" property="og:image">',
+      'https://example.com/post',
+    ),
+    'https://example.com/cover.png',
+  );
 });

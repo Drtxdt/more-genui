@@ -1,4 +1,5 @@
 import { RequestLifecycle } from '../src/request-lifecycle.mjs';
+import { PreviewRenderer } from '../src/preview-renderer.mjs';
 import { createElement, Power } from 'lucide';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { browser } from 'wxt/browser';
@@ -15,6 +16,7 @@ export default defineContentScript({
     let settingsReady = false;
     const ledger = new RequestLifecycle(() => scan());
     const { active, requests } = ledger;
+    const previews = new PreviewRenderer((m: any) => browser.runtime.sendMessage(m));
     const repairs = new RepairContexts();
     const temporaryRepository = new StateRepository(memoryRepositoryStorage());
     let fullDiscoveries = 0,
@@ -191,6 +193,7 @@ export default defineContentScript({
         route = location.pathname;
         rebuildMessages();
         ledger.clear();
+        previews.clear();
         repairs.clear();
         for (const button of recovery.values()) button.remove();
         recovery.clear();
@@ -225,6 +228,7 @@ export default defineContentScript({
         }
       if (!enabled) {
         ledger.clear();
+        previews.clear();
         return;
       }
       const candidates = changedOnly
@@ -239,6 +243,7 @@ export default defineContentScript({
         });
       }
       dirtyMessages.clear();
+      for (const message of candidates) previews.render(message);
       for (const code of candidates.flatMap((message: Element) =>
         codeBlocks(message),
       ) as HTMLElement[]) {
@@ -377,6 +382,9 @@ export default defineContentScript({
         );
       } else if (m.type === 'more-genui-identity' && requests.has(m.id)) {
         ledger.identify(m.id, m.key);
+        previews.identify(m.id, m.key);
+      } else if (m.type === 'more-genui-search' && requests.has(m.id)) {
+        previews.sources(m.id, m.sources);
       } else if (
         m.type === 'more-genui-source' &&
         requests.has(m.id) &&
@@ -387,6 +395,7 @@ export default defineContentScript({
       } else if (m.type === 'more-genui-end' && requests.has(m.id)) {
         scan();
         ledger.end(m.id);
+        previews.end(m.id);
       } else if (m.type === 'more-genui-unsupported') {
         control.title = '站点请求格式未识别，保留原始回答；完整应用需手动运行';
       } else return;
@@ -451,6 +460,7 @@ export default defineContentScript({
       enabled = false;
       publish();
       ledger.clear();
+      previews.clear();
       discovery.disconnect();
       window.removeEventListener('popstate', discover);
       window.removeEventListener('message', readyListener);

@@ -300,3 +300,71 @@ test('same IDs in separate messages stay isolated and stable messages restore af
   await expect(a.getByLabel('振幅')).toHaveValue('1.8');
 });
 
+test('official search replay decorates citations, falls back at end, and restores cached previews', async () => {
+  const search = JSON.parse(await readFile('tests/fixtures/search-share.json', 'utf8'));
+  let external = 0;
+  await context.route('https://www.kaggle.com/**', async (route) => {
+    external++;
+    const url = route.request().url();
+    if (url.endsWith('.png'))
+      return route.fulfill({
+        contentType: 'image/png',
+        body: await readFile(
+          url.endsWith('one.png')
+            ? 'docs/evidence/v0.3.0-toolbar.png'
+            : 'docs/evidence/deepseek-runtime.png',
+        ),
+      });
+    if (url.includes('abstract')) return route.fulfill({ status: 403, body: '' });
+    return route.fulfill({
+      contentType: 'text/html',
+      body:
+        '<meta property="og:image" content="/' +
+        (url.includes('698932') ? 'one' : 'two') +
+        '.png">',
+    });
+  });
+  const markup = () => {
+    document.documentElement.setAttribute('data-more-genui-profile', '');
+    document.querySelector('#messages').dataset.virtualListItemKey = '2';
+    document.querySelector('.ds-assistant-message-main-content').innerHTML =
+      '<h2>第一节</h2><p>比赛资料<span data-citation-group="1">来源</span></p>';
+  };
+  await page.evaluate(markup);
+  await context.route('**/api/v0/chat/completion', (route) =>
+    route.fulfill({
+      contentType: 'text/event-stream',
+      body: [{ response_message_id: 2 }, { v: { response: { fragments: [search] } } }]
+        .map((v) => 'data: ' + JSON.stringify(v) + '\n\n')
+        .join(''),
+    }),
+  );
+  await page.getByTestId('send-button').click();
+  await expect(page.locator('.more-genui-preview[data-inline] img')).toHaveCount(1);
+  await expect(page.getByText('来源预览', { exact: true })).toBeVisible();
+  await expect(page.locator('.more-genui-preview img')).toHaveCount(2);
+  await page.setViewportSize({ width: 390, height: 720 });
+  expect(await page.locator('[data-inline]').evaluate((el) => getComputedStyle(el).float)).toBe(
+    'none',
+  );
+  await page.waitForTimeout(120);
+  const before = await page.evaluate(
+    () => performance.getEntriesByName('more-genui:counts').at(-1).detail,
+  );
+  await page.evaluate(() => {
+    const p = document.querySelector('.ds-assistant-message-main-content p');
+    for (let i = 0; i < 40; i++) p.append(document.createTextNode(' '));
+  });
+  await page.waitForTimeout(150);
+  const after = await page.evaluate(
+    () => performance.getEntriesByName('more-genui:counts').at(-1).detail,
+  );
+  expect(after.fullDiscoveries).toBe(before.fullDiscoveries);
+  expect(after.incrementalScans).toBeGreaterThan(before.incrementalScans);
+  await test.info().attach('discovery-counts', { body: JSON.stringify({ before, after }) });
+  const hits = external;
+  await page.reload();
+  await page.evaluate(markup);
+  await expect(page.locator('.more-genui-preview img')).toHaveCount(2);
+  expect(external).toBe(hits);
+});

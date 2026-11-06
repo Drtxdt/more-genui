@@ -4,7 +4,7 @@ export default defineConfig({
     name: 'More GenUI',
     description: 'Interactive applications inside DeepSeek replies.',
     permissions: ['storage'],
-    host_permissions: ['https://chat.deepseek.com/*'],
+    host_permissions: ['https://*/*'],
     sandbox: { pages: ['sandbox.html'] },
     content_security_policy: {
       extension_pages: "script-src 'self'; object-src 'none'",
