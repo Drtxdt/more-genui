@@ -1,6 +1,6 @@
 # More GenUI Harness 插件
 
-官网扩展负责给 DeepSeek 网页加交互，Harness 这边怎么接？我们直接提供一个 `render_app` 工具：模型写源码，工具验证并记录结果，客户端把它显示出来。没有第二个模型在后台接力生成。
+官网扩展负责给 DeepSeek 网页加交互，Harness 这边怎么接？模型可以用 `render_visual({spec})` 提交声明式教学卡，也可以用 `render_app({source})` 提交完整 HTML。两种工具都会校验输入、记录结果，并由客户端在离线沙箱中显示。没有第二个模型在后台接力生成。
 
 ## 先确认版本，再安装
 

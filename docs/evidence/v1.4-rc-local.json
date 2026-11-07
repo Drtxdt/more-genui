@@ -1,0 +1,56 @@
+{
+  "release": "1.4.0-rc.1",
+  "sourceCommit": "07391d461682c948097b9ed61d32f017c9718bd6",
+  "baseline": "498333d8",
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "quickTests": {
+    "passed": 33,
+    "failed": 0
+  },
+  "chromium": {
+    "startTime": "2026-11-07T10:28:59.252Z",
+    "duration": 127142.948,
+    "expected": 92,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "readerResources": [
+    {
+      "messages": 100,
+      "apps": 20,
+      "activePlaybackTimers": 0
+    }
+  ],
+  "sha256": {
+    "more-genui-extension-1.4.0-rc.1.zip": "32318500ac61d3413c1df2c76760ebad398477f0a7138d0260de9a83a4ff8413",
+    "more-genui-harness-1.4.0-rc.1.tgz": "6b9123647cb1d7aac16bddb24abb336e4559c353387ca8d10ea3f636b212b133"
+  },
+  "trial": {
+    "seed": 20261106,
+    "tasksHash": "165c64d2bd14e991d663f8676e8e4ccb2cb9b51d07f44d47fa1b044a808b6bf6",
+    "policies": {
+      "A": {
+        "version": "2026-11-07.1",
+        "sha256": "f7bb3893cacd1d0685dc819f90d4bf7e55511a6df9ea043c841791cf7466d1fd",
+        "guide": "[More GenUI v1]\n普通事实直接回答。值得观察、预测或操作时，在相关段落插入紧凑图解或交互。每个独立应用使用完整 genui-html 围栏，首行 <!-- more-genui: {\"version\":1,\"id\":\"stable-id\",\"title\":\"应用标题\",\"stateVersion\":1} -->，随后是完整 <html>…</html> 和结束围栏。使用原生离线 HTML/CSS/经典 JS、SVG 或 canvas。使用宿主字体、--bg、--fg、--accent 和 .row/.stack。用 genui.getState()/setState(JSON对象) 保存参数。单选预测调用 genui.quiz.mount(el,{id,questions:[{id,prompt,options:[{id,text,hint}],correct,explanation}]})，错误项有提示。多选用 type:\"multiple\" 和正确 ID 数组，排序用 type:\"order\" 和完整 ID 顺序，数值用 type:\"number\"、correct、tolerance、unit；这三类用题级 hint。分步调用 genui.stepper.mount(el,{id,steps:[{title,text}]})。用 genui.experiment.publish({metrics:[{name,value,unit}],rows:[[列名],[值]],figure:SVG或Canvas元素,presets:[{name,params}],series:[{name,xLabel,xUnit,yLabel,yUnit,points:[[x,y]]}]}) 登记可用结果，各项可省略。保持键盘可操作、窄屏可读。独立模块分块生成。\n[/More GenUI]"
+      },
+      "B": {
+        "version": "2026-11-07.1",
+        "sha256": "4493acbb1216afd71468090b0ba7ead8a05450563854c12be6da40be15dc2675",
+        "guide": "[More GenUI v1]\n从读者的问题出发，自行决定用文字、静态关系、过程、实验或预测。三句话能讲清楚时直接回答。\n每个独立应用使用完整 genui-html 围栏，首行 <!-- more-genui: {\"version\":1,\"id\":\"stable-id\",\"title\":\"应用标题\",\"stateVersion\":1} -->，随后是完整 <html>…</html> 和结束围栏。使用原生离线 HTML/CSS/经典 JS、SVG 或 canvas。使用宿主字体、--bg、--fg、--accent 和 .row/.stack。用 genui.getState()/setState(JSON对象) 保存参数。单选预测调用 genui.quiz.mount(el,{id,questions:[{id,prompt,options:[{id,text,hint}],correct,explanation}]})，错误项有提示。多选用 type:\"multiple\" 和正确 ID 数组，排序用 type:\"order\" 和完整 ID 顺序，数值用 type:\"number\"、correct、tolerance、unit；这三类用题级 hint。分步调用 genui.stepper.mount(el,{id,steps:[{title,text}]})。用 genui.experiment.publish({metrics:[{name,value,unit}],rows:[[列名],[值]],figure:SVG或Canvas元素,presets:[{name,params}],series:[{name,xLabel,xUnit,yLabel,yUnit,points:[[x,y]]}]}) 登记可用结果，各项可省略。保持键盘可操作、窄屏可读。独立模块分块生成。\n[/More GenUI]"
+      },
+      "C": {
+        "version": "2026-11-07.1",
+        "sha256": "007d9984021f91fa695696aa07a9bcce0b72a555cbfd44a811ed613d433f25d2",
+        "guide": "[More GenUI v1]\n从读者的问题出发，自行决定用文字、静态关系、过程、实验或预测。三句话能讲清楚时直接回答。\n常见 UI 输出 genui-json 围栏，严格 JSON，根对象须有 version:1,id:稳定英文ID,title,stateVersion:1 和 kind，与视图字段同级。例如 {\"version\":1,\"id\":\"delta\",\"title\":\"变化\",\"stateVersion\":1,\"kind\":\"compare\",\"before\":{\"label\":\"前\",\"lines\":[\"A\"]},\"after\":{\"label\":\"后\",\"lines\":[\"B\"]}}。同一回答的文法卡可声明相同 group 共同更新。compare:{before:{label,lines:字符串数组},after:{label,lines:字符串数组},note可选}；matrix:{rows:行名数组,columns:列名数组,cells:[{row,column,text,explanation可选,conflict可选}]}；state-diagram:{nodes:[{id,label,explanation可选}],edges:[{id,from,to,label可选}],highlight:ID数组}；switch:{options:[{id,label,view:上述视图}]}。stepper:{steps:[{title,text,frame:上述视图}]}。grammar:{grammar:{start,productions:[{id,lhs,rhs:符号数组}]},input:终结符数组}，ε用空数组，由宿主计算 FIRST/FOLLOW/SELECT 与 LL(1)，不要硬编码结论。quiz:{questions:[{id,prompt,options:[{id,text,hint}],correct:正确选项ID,explanation}]}。多选指定type:multiple与正确ID数组；排序type:order；数值type:number与correct数值、tolerance、unit。lesson:{grammar可选,sections:[{title,view:上述视图}]}，子grammar省略grammar时共享课程文法。。automaton 使用 states、start、accepting、edges:[{from,to,symbol}]，空边用 ε。顶层及各嵌套视图的 kind 和字段同级。嵌套不超过八层。所有字符串为纯文字，不含脚本、HTML或表达式。复杂计算模拟继续输出 genui-html，首行 <!-- more-genui: {\"version\":1,\"id\":\"stable-id\",\"title\":\"标题\",\"stateVersion\":1} --> 后接完整 <html>…</html>，使用离线 HTML/CSS/经典JS与 genui.getState()/setState()，禁止外部脚本和网络请求。只使用有助于当前任务的 UI，不强制普通回答生成 UI。\n[/More GenUI]"
+      }
+    },
+    "scheduled": 48,
+    "officialSent": 0,
+    "blocker": "Windows computer control could not identify the Edge URL with sufficient confidence.",
+    "default": "A"
+  },
+  "remoteCI": "No run verified for this local commit."
+}
