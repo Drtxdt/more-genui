@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "stateVersion": 1,
+  "id": "ohm",
+  "title": "欧姆定律",
+  "kind": "switch",
+  "options": [
+    {
+      "id": "v3",
+      "label": "3 V",
+      "view": {
+        "kind": "compare",
+        "before": {
+          "label": "电压和电阻",
+          "lines": [
+            "3 V",
+            "6 Ω"
+          ]
+        },
+        "after": {
+          "label": "电流",
+          "lines": [
+            "0.5 A"
+          ]
+        }
+      }
+    },
+    {
+      "id": "v9",
+      "label": "9 V",
+      "view": {
+        "kind": "compare",
+        "before": {
+          "label": "电压和电阻",
+          "lines": [
+            "9 V",
+            "6 Ω"
+          ]
+        },
+        "after": {
+          "label": "电流",
+          "lines": [
+            "1.5 A"
+          ]
+        }
+      }
+    }
+  ]
+}

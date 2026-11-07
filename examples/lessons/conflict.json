@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "stateVersion": 1,
+  "id": "conflict",
+  "title": "LL(1) 冲突",
+  "kind": "grammar",
+  "grammar": {
+    "start": "S",
+    "productions": [
+      {
+        "id": "s",
+        "lhs": "S",
+        "rhs": [
+          "A",
+          "a"
+        ]
+      },
+      {
+        "id": "a",
+        "lhs": "A",
+        "rhs": [
+          "a"
+        ]
+      },
+      {
+        "id": "empty",
+        "lhs": "A",
+        "rhs": []
+      }
+    ]
+  },
+  "input": [
+    "a"
+  ]
+}

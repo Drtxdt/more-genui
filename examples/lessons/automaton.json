@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "stateVersion": 1,
+  "id": "automaton",
+  "title": "ε-NFA 子集构造",
+  "kind": "automaton",
+  "states": [
+    "q0",
+    "q1",
+    "q2"
+  ],
+  "start": "q0",
+  "accepting": [
+    "q2"
+  ],
+  "edges": [
+    {
+      "from": "q0",
+      "to": "q1",
+      "symbol": "ε"
+    },
+    {
+      "from": "q1",
+      "to": "q0",
+      "symbol": "ε"
+    },
+    {
+      "from": "q1",
+      "to": "q2",
+      "symbol": "a"
+    }
+  ]
+}

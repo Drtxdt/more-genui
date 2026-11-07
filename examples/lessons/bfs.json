@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "stateVersion": 1,
+  "id": "bfs",
+  "title": "广度优先搜索",
+  "kind": "stepper",
+  "steps": [
+    {
+      "title": "初始",
+      "text": "从 A 出发",
+      "frame": {
+        "kind": "compare",
+        "before": {
+          "label": "队列",
+          "lines": [
+            "A"
+          ]
+        },
+        "after": {
+          "label": "已访问",
+          "lines": [
+            "空"
+          ]
+        }
+      }
+    },
+    {
+      "title": "访问 A",
+      "text": "B、C 按顺序入队",
+      "frame": {
+        "kind": "compare",
+        "before": {
+          "label": "队列",
+          "lines": [
+            "B C"
+          ]
+        },
+        "after": {
+          "label": "已访问",
+          "lines": [
+            "A"
+          ]
+        }
+      }
+    },
+    {
+      "title": "访问 B",
+      "text": "D 入队",
+      "frame": {
+        "kind": "compare",
+        "before": {
+          "label": "队列",
+          "lines": [
+            "C D"
+          ]
+        },
+        "after": {
+          "label": "已访问",
+          "lines": [
+            "A B"
+          ]
+        }
+      }
+    },
+    {
+      "title": "访问 C",
+      "text": "没有新邻居",
+      "frame": {
+        "kind": "compare",
+        "before": {
+          "label": "队列",
+          "lines": [
+            "D"
+          ]
+        },
+        "after": {
+          "label": "已访问",
+          "lines": [
+            "A B C"
+          ]
+        }
+      }
+    },
+    {
+      "title": "访问 D",
+      "text": "队列已空",
+      "frame": {
+        "kind": "compare",
+        "before": {
+          "label": "队列",
+          "lines": [
+            "空"
+          ]
+        },
+        "after": {
+          "label": "已访问",
+          "lines": [
+            "A B C D"
+          ]
+        }
+      }
+    }
+  ]
+}

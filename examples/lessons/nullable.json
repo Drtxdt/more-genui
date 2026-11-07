@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "stateVersion": 1,
+  "id": "nullable",
+  "title": "可空传播",
+  "kind": "grammar",
+  "grammar": {
+    "start": "A",
+    "productions": [
+      {
+        "id": "0",
+        "lhs": "A",
+        "rhs": [
+          "B",
+          "C"
+        ]
+      },
+      {
+        "id": "1",
+        "lhs": "B",
+        "rhs": [
+          "a"
+        ]
+      },
+      {
+        "id": "2",
+        "lhs": "B",
+        "rhs": []
+      },
+      {
+        "id": "3",
+        "lhs": "C",
+        "rhs": [
+          "c"
+        ]
+      }
+    ]
+  },
+  "input": [
+    "c"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "stateVersion": 1,
+  "id": "left-recursion",
+  "title": "消除左递归",
+  "kind": "compare",
+  "before": {
+    "label": "变换前",
+    "lines": [
+      "E → E + T | T"
+    ]
+  },
+  "after": {
+    "label": "变换后",
+    "lines": [
+      "E → T R",
+      "R → + T R | ε"
+    ]
+  }
+}
