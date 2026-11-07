@@ -7,12 +7,12 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client';
 import { mountSurface } from '../../../src/surface';
 import { RepairContexts } from '../../../src/repair.mjs';
-import { parseApp } from '../../../src/protocol.mjs';
+import { parseRenderable } from '../../../src/renderable.mjs';
 import { StateRepository } from '../../../src/state.mjs';
 import { appDefinition } from './events.mjs';
 declare module '@deepseek-ai/dsh-client-ui-chat/client' {
   interface ChatNodeDataMap {
-    'more-genui-app': { id: string; source: string; title: string };
+    'more-genui-app': { id: string; source: string; answerId?: string; title: string };
   }
 }
 const repository = new StateRepository({
@@ -36,10 +36,11 @@ function App(props: ChatNodeViewProps<'more-genui-app'>) {
     if (!host.current) return;
     const surface = mountSurface(host.current, {
       source: props.node.data.source,
+      answerId: props.node.data.answerId,
       scope: 'harness:' + String(props.sessionId),
       initialState: repairs.consume(
         String(props.sessionId),
-        parseApp(props.node.data.source),
+        parseRenderable(props.node.data.source),
         props.node.data.source,
       ),
       instance: props.node.id,

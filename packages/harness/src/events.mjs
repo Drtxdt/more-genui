@@ -1,4 +1,4 @@
-import { parseApp } from '../../../src/protocol.mjs';
+import { parseRenderable } from '../../../src/renderable.mjs';
 // Accept replayable presentation metadata only, never parse model prose as a tool result.
 export function appFromEvent(event) {
   if (
@@ -11,10 +11,10 @@ export function appFromEvent(event) {
     meta = data?.meta;
   if (meta?.kind !== 'more-genui-app' || typeof meta.source !== 'string') return null;
   try {
-    const app = parseApp(meta.source);
+    const app = parseRenderable(meta.source);
     const id = event.type === 'tool/ptc-dispatch' ? data.subCallId : data.message?.toolCallId;
     if (typeof id !== 'string') return null;
-    return { id, source: meta.source, title: app.title };
+    return { id, source: meta.source, title: app.title, answerId: event.turnId ?? data.message?.id };
   } catch {
     return null;
   }
