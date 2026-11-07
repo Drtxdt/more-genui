@@ -11,7 +11,7 @@ export default defineContentScript({
   main() {
     let enabled = false,
       mode = 'auto',
-      policy = 'A',
+      preferred = '', policy = 'A',
       diagnostics = false;
     const intents = new GenerationIntent();
     document.addEventListener('more-genui-intent', (event) => {
@@ -85,6 +85,7 @@ export default defineContentScript({
         diagnostics = e.data.diagnostics === true;
         mode = e.data.mode ?? 'auto';
         policy = e.data.policy ?? 'A';
+        preferred = ['diagram','quiz','steps'].includes(e.data.preferred) ? e.data.preferred : '';
         if (!enabled) intents.clear();
       }
     });
@@ -117,10 +118,10 @@ export default defineContentScript({
           ...body,
           prompt:
             mode === 'visual'
-              ? composePolicy(body.prompt, 'C', match?.kind)
-              : policy === 'B'
-                ? composePolicy(body.prompt, 'B', match?.kind)
-                : augment(body.prompt, true, match?.kind),
+              ? composePolicy(body.prompt, 'visual', match?.kind)
+              : ['B','C'].includes(policy)
+                ? composePolicy(body.prompt, policy, match?.kind)
+                : augment(body.prompt, true, match?.kind ?? (preferred ? 'preference-'+preferred : '')),
         }),
         enhanced: true,
       };

@@ -1,4 +1,4 @@
-export function composerTools({ settings, setDraft, arm }) {
+export function composerTools({ settings, setDraft, arm, remember }) {
   const once = document.createElement('button');
   once.type = 'button';
   once.textContent = '仅增强本条';
@@ -70,7 +70,8 @@ export function composerTools({ settings, setDraft, arm }) {
     steps: '分步演示',
   }))
     select.add(new Option(label, value));
-  let selected = '';
+  let selected = '',
+    answerId = '';
   const prompt = () => prompts[select.value] + '：\n' + selected;
   const add = document.createElement('button'),
     copy = document.createElement('button');
@@ -79,6 +80,7 @@ export function composerTools({ settings, setDraft, arm }) {
     setDraft(input, input.value + (input.value ? '\n\n' : '') + prompt());
     armed = true;
     kind = select.value;
+    if (answerId) void remember?.(answerId, kind);
     sync();
     panel.remove();
   };
@@ -105,6 +107,7 @@ export function composerTools({ settings, setDraft, arm }) {
       parent.closest('aside,nav,.more-genui-surface')
     )
       return;
+    answerId = parent.closest('[data-virtual-list-item-key]')?.dataset.virtualListItemKey ?? '';
     selected = sel.toString().trim();
     if (!selected) return;
     const rect = range.getBoundingClientRect();

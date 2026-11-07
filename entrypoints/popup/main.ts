@@ -49,6 +49,30 @@ void chrome.storage.local
   .then((v) => (diagnostic.checked = v.diagnostics === true));
 diagnostic.onchange = () => void chrome.storage.local.set({ diagnostics: diagnostic.checked });
 
-const lab = document.querySelector<HTMLInputElement>('#lab-policy')!;
-void chrome.storage.local.get('labPolicy').then((v) => (lab.checked = v.labPolicy === 'B'));
-lab.onchange = () => void chrome.storage.local.set({ labPolicy: lab.checked ? 'B' : 'A' });
+const lab = document.querySelector<HTMLSelectElement>('#lab-policy')!;
+void chrome.storage.local.get('labPolicy').then((v) => (lab.value = String(v.labPolicy ?? 'A')));
+lab.onchange = () => void chrome.storage.local.set({ labPolicy: lab.value });
+
+const learning = document.querySelector<HTMLInputElement>('#learning')!;
+const suggestions = document.querySelector<HTMLSelectElement>('#suggestions')!;
+const adopt = document.querySelector<HTMLButtonElement>('#adopt')!;
+const labels: Record<string, string> = { diagram: '关系图', quiz: '预测题', steps: '分步演示' };
+async function showPreferences() {
+  const data = await chrome.storage.local.get(['learning', 'choices', 'preferred']);
+  learning.checked = data.learning === true;
+  const choices = (data.choices ?? {}) as Record<string, string[]>;
+  suggestions.replaceChildren(
+    ...Object.keys(labels)
+      .filter((k) => choices[k]?.length >= 3)
+      .map((k) => new Option(labels[k], k)),
+  );
+  suggestions.hidden = adopt.hidden = !learning.checked || !suggestions.length;
+  document.querySelector('#preference-status')!.textContent =
+    labels[String(data.preferred)] ?? '尚未采纳偏好';
+}
+learning.onchange = () => void chrome.storage.local.set({ learning: learning.checked });
+adopt.onclick = () => void chrome.storage.local.set({ preferred: suggestions.value });
+document.querySelector<HTMLButtonElement>('#forget')!.onclick = () =>
+  void chrome.storage.local.remove(['preferred', 'choices']);
+chrome.storage.onChanged.addListener(() => void showPreferences());
+void showPreferences();

@@ -58,6 +58,9 @@ export function augment(prompt, enabled = true, kind = '') {
   if (!enabled || prompt.includes('[More GenUI v1]')) return prompt;
   const extra =
     {
+      'preference-quiz':'读者偏好预测题，可按问题自由选择。',
+      'preference-steps':'读者偏好分步解释，可按问题自由选择。',
+      'preference-diagram':'读者偏好关系图，可按问题自由选择。',
       quiz: '练习先预测再揭晓。单选省略 type；多选 multiple、排序 order 用选项 ID 数组 correct 与题级 hint；数值 number 用数值 correct、unit、非负 tolerance 和 hint。',
       steps: '每一步说明当前状态、变化和原因。',
       diagram: '先展示关系，只给能改变结果的控件。',

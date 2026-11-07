@@ -783,3 +783,28 @@ test('history edit and regenerate do not consume the current composer intent; na
   await expect.poll(() => sent.length).toBe(3);
   expect(sent[2].prompt).toBe('当前草稿');
 });
+
+test('conversation index locates twenty apps in a hundred messages and releases frames on disable',async()=>{
+  await page.evaluate(()=>{
+    const fragment=document.createDocumentFragment();
+    for(let i=0;i<100;i++){
+      const article=document.createElement('article');article.className='ds-message';article.dataset.virtualListItemKey=String(i+10);
+      const body=document.createElement('div');body.className='ds-assistant-message-main-content';
+      body.textContent='解释 '+i;
+      if(i%5===0){
+        const pre=document.createElement('pre');
+        pre.textContent='<!-- more-genui: '+JSON.stringify({version:1,id:'demo',title:'实验 '+i,stateVersion:1})+' --><html><body>result</body></html>';
+        body.append(pre);
+      }
+      article.append(body);fragment.append(article);
+    }
+    document.querySelector('#messages').append(fragment);
+  });
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(20);
+  await page.getByText('本对话图解',{exact:true}).click();
+  await page.getByRole('button',{name:'实验 85',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>document.activeElement?.closest('[data-virtual-list-item-key]')?.getAttribute('data-virtual-list-item-key'))).toBe('95');
+  await page.locator('#more-genui-toggle').click();
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(0);
+  await expect(page.locator('.more-genui-index')).toHaveCount(0);
+});

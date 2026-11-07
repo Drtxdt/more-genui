@@ -1,3 +1,4 @@
+import { readerIndex } from '../src/reader-index.mjs';
 import { GenerationDiagnostics } from '../src/diagnostics.mjs';
 import { parseRenderable as parseApp } from '../src/renderable.mjs';
 import { RequestLifecycle } from '../src/request-lifecycle.mjs';
@@ -18,6 +19,7 @@ export default defineContentScript({
   main(ctx) {
     let enabled = false,
       route = location.pathname;
+    const reader = readerIndex();
     const diagnostics = new GenerationDiagnostics();
     const diagnosticPanel = document.createElement('aside');
     diagnosticPanel.className = 'more-genui-diagnostics';
@@ -49,7 +51,26 @@ export default defineContentScript({
     let previewImages = false;
     let generationMode = 'auto',
       labPolicy = 'A';
+    let learning = false,
+      preferred = '';
     const composition = composerTools({
+      async remember(answerId: string, kind: string) {
+        if (!learning) return;
+        const hash = await crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(JSON.stringify([route, answerId])),
+        );
+        const answer = Array.from(new Uint8Array(hash), (b) =>
+          b.toString(16).padStart(2, '0'),
+        ).join('');
+        await navigator.locks.request('more-genui-learning', async () => {
+          const data = await browser.storage.local.get(['learning', 'choices']);
+          if (!data.learning) return;
+          const choices = (data.choices ?? {}) as Record<string, string[]>;
+          choices[kind] = [...new Set([...(choices[kind] ?? []), answer])].slice(-3);
+          await browser.storage.local.set({ choices });
+        });
+      },
       settings: () => ({ enabled, mode: generationMode }),
       setDraft,
       arm: (ticket: unknown) =>
@@ -123,6 +144,7 @@ export default defineContentScript({
     document.body.append(control);
     const publish = () => {
       control.title = `GenUI：${enabled ? '开启' : '关闭'}`;
+      if (!enabled) reader.clear();
       control.setAttribute('aria-label', control.title);
       control.setAttribute('aria-pressed', String(enabled));
       window.postMessage(
@@ -132,6 +154,7 @@ export default defineContentScript({
           mode: generationMode,
           diagnostics: diagnostics.enabled,
           policy: labPolicy,
+          preferred: learning && !diagnostics.enabled ? preferred : '',
         },
         location.origin,
       );
@@ -148,12 +171,16 @@ export default defineContentScript({
             'generationMode',
             'diagnostics',
             'labPolicy',
+            'learning',
+            'preferred',
           ]),
           new Promise<never>((_, reject) => {
             timeout = setTimeout(() => reject(Error('storage timeout')), 4000);
           }),
         ]);
-        labPolicy = value.labPolicy === 'B' ? 'B' : 'A';
+        labPolicy = value.labPolicy === 'C' ? 'C' : value.labPolicy === 'B' ? 'B' : 'A';
+        learning = value.learning === true;
+        preferred = String(value.preferred ?? '');
         diagnostics.configure(value.diagnostics);
         diagnosticPanel.hidden = !diagnostics.enabled;
         settingsReady = true;
@@ -166,6 +193,7 @@ export default defineContentScript({
       } catch {
         enabled = false;
         control.title = '读取开关失败，保持关闭；点击重试';
+        if (!enabled) reader.clear();
         control.setAttribute('aria-label', control.title);
         control.setAttribute('aria-pressed', 'false');
       } finally {
@@ -189,8 +217,14 @@ export default defineContentScript({
     };
     control.addEventListener('animationend', () => control.classList.remove('activating'));
     const settingsChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if (area === 'local' && (changes.learning || changes.preferred)) {
+        if (changes.learning) learning = changes.learning.newValue === true;
+        if (changes.preferred) preferred = String(changes.preferred.newValue ?? '');
+        publish();
+      }
       if (area === 'local' && changes.labPolicy) {
-        labPolicy = changes.labPolicy.newValue === 'B' ? 'B' : 'A';
+        labPolicy =
+          changes.labPolicy.newValue === 'C' ? 'C' : changes.labPolicy.newValue === 'B' ? 'B' : 'A';
         publish();
       }
       if (area === 'local' && changes.diagnostics) {
@@ -283,6 +317,7 @@ export default defineContentScript({
     function scan(changedOnly = false) {
       if (route !== location.pathname) {
         route = location.pathname;
+        reader.clear();
         composition.reset();
         rebuildMessages();
         ledger.clear();
@@ -297,6 +332,7 @@ export default defineContentScript({
         changedOnly = false;
         for (const [code, m] of mounted) {
           m.dispose();
+          reader.detach(m.host);
           m.host.remove();
           m.container.style.display = m.display;
           mounted.delete(code);
@@ -305,6 +341,7 @@ export default defineContentScript({
       for (const [code, m] of mounted)
         if (!enabled || !code.isConnected || code.textContent !== m.source) {
           m.dispose();
+          reader.detach(m.host);
           m.host.remove();
           m.container.style.display = m.display;
           mounted.delete(code);
@@ -446,11 +483,13 @@ export default defineContentScript({
         // An explicit repair echo must also belong to its captured request when streaming.
         const token = /<!-- more-genui-repair: ([a-f0-9-]+) -->/.exec(source)?.[1];
         const allowRepair = requestId && token === requests.get(requestId)?.repairToken;
+        reader.register(instance, appMeta.title, host);
         const surface = mountSurface(host, {
           source,
           diagnostic: (stage: string) => {
             if (requestId) diagnostic({ id: requestId, stage });
           },
+          answerId: identity.id,
           scope: 'deepseek:' + route,
           instance,
           repository: identity.persistent ? repository : temporaryRepository,
@@ -614,6 +653,7 @@ export default defineContentScript({
       visualizeActions.clear();
       diagnosticPanel.remove();
       diagnostics.clear();
+      reader.clear();
       composition.dispose();
       cards.clear();
       tables.clear();
