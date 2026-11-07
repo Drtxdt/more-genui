@@ -192,6 +192,16 @@ export function validateView(value, depth = 0, hasGrammar = false) {
   }
   if (result.kind === 'grammar' && !result.grammar && !hasGrammar)
     throw Error('文法视图缺少文法输入');
+  if (result.kind === 'automaton') {
+    const states = new Set(result.states);
+    if (
+      states.size !== result.states.length ||
+      !states.has(result.start) ||
+      result.accepting.some((s) => !states.has(s)) ||
+      result.edges.some((e) => !states.has(e.from) || !states.has(e.to))
+    )
+      throw Error('自动机状态重复或边引用无效');
+  }
   if (result.kind === 'matrix') {
     if (
       new Set(result.rows).size !== result.rows.length ||

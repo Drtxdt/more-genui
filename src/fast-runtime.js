@@ -28,6 +28,47 @@ function createFastRenderer(root, initial, read, save, report) {
   style.textContent =
     'body{font:14px/1.6 system-ui;margin:0;padding:16px;background:var(--bg,#fff);color:var(--fg,#202124)}*{box-sizing:border-box}button,select,textarea{font:inherit;background:var(--bg,#fff);color:inherit;border:1px solid #8886;border-radius:6px;padding:5px 9px}button{cursor:pointer}button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent,#3569c8)}mark{display:block;white-space:pre-wrap;overflow-wrap:anywhere}input{font:inherit;background:var(--bg,#fff);color:inherit;border:1px solid #8886;border-radius:6px;padding:5px 9px}.fast-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}.fast-scroll{overflow:auto;max-width:100%}table{border-collapse:collapse;width:100%}td,th{border:1px solid #8885;padding:6px;text-align:left}td button{width:100%;border:0;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}svg{max-width:100%;height:auto}mark,[aria-pressed=true]{background:color-mix(in srgb,var(--accent,#3569c8) 20%,transparent);color:inherit}h2,h3{font-size:1rem}textarea{width:100%;min-height:100px}';
   document.head.append(style);
+  function editable(detail, path, target, original, prefix = '') {
+    const key = path + '/edits',
+      revision = document.documentElement.dataset.revision;
+    function show() {
+      const stored = read()[key]?.[target];
+      const current =
+        stored?.base === original && stored.revision === revision ? stored.value : original;
+      detail.replaceChildren(
+        document.createTextNode(prefix + current),
+        button('修正这里', () => {
+          const input = el('textarea'),
+            preview = el('div');
+          input.maxLength = 4096;
+          input.value = current;
+          input.setAttribute('aria-label', '新解释');
+          detail.replaceChildren(
+            el('p', '当前解释：' + current),
+            input,
+            button('预览修改', () => {
+              const value = input.value.trim();
+              if (!value) return;
+              preview.replaceChildren(
+                el('p', '修改后：' + value),
+                button('采纳', () => {
+                  if (!detail.contains(preview) || input.value.trim() !== value) return;
+                  save({
+                    ...read(),
+                    [key]: { ...read()[key], [target]: { revision, base: original, value } },
+                  });
+                  show();
+                }),
+              );
+            }),
+            preview,
+            button('取消', show),
+          );
+        }),
+      );
+    }
+    show();
+  }
   function render(container, view, path, context) {
     cleanup(container);
     container.replaceChildren();
@@ -46,7 +87,11 @@ function createFastRenderer(root, initial, read, save, report) {
         columns.append(block);
       }
       container.append(columns);
-      if (view.note) container.append(el('p', view.note));
+      if (view.note) {
+        const note = el('p');
+        container.append(note);
+        editable(note, path, 'note', view.note);
+      }
     } else if (view.kind === 'matrix') {
       const scroll = el('div');
       scroll.className = 'fast-scroll';
@@ -71,43 +116,14 @@ function createFastRenderer(root, initial, read, save, report) {
             save({ ...read(), [path]: [row, col] });
             detail.textContent =
               row + ' / ' + col + '：' + (cell?.explanation ?? cell?.text ?? '空单元格');
-            if (cell && !context?.computed) {
-              const key = path + '/edits',
-                target = JSON.stringify([row, col]);
-              const original = cell.explanation ?? cell.text;
-              const stored = read()[key]?.[target];
-              const current = stored?.base === original ? stored.value : original;
-              detail.textContent = row + ' / ' + col + '：' + current;
-              const revise = button('修正这里', () => {
-                const input = el('textarea');
-                input.maxLength = 4096;
-                input.value = current;
-                input.setAttribute('aria-label', '新解释');
-                const preview = el('div');
-                detail.replaceChildren(
-                  el('p', '当前解释：' + current),
-                  input,
-                  button('预览修改', () => {
-                    const value = input.value.trim();
-                    if (!value) return;
-                    preview.replaceChildren(
-                      el('p', '修改后：' + value),
-                      button('采纳', () => {
-                        if (!detail.contains(preview) || input.value.trim() !== value) return;
-                        save({
-                          ...read(),
-                          [key]: { ...read()[key], [target]: { base: original, value } },
-                        });
-                        b.click();
-                      }),
-                    );
-                  }),
-                  preview,
-                  button('取消', () => b.click()),
-                );
-              });
-              detail.append(revise);
-            }
+            if (cell && !context?.computed)
+              editable(
+                detail,
+                path,
+                JSON.stringify([row, col]),
+                cell.explanation ?? cell.text,
+                row + ' / ' + col + '：',
+              );
             for (const other of buttons) other.setAttribute('aria-pressed', String(other === b));
           });
           b.setAttribute('aria-label', row + ' / ' + col);
@@ -155,7 +171,11 @@ function createFastRenderer(root, initial, read, save, report) {
         save({ ...read(), [path]: selected.id });
         render(content, selected.view, path + '/' + selected.id, context);
       };
-      select.onchange = update;
+      select.onchange = () => {
+        update();
+        if (path === '__fast')
+          document.dispatchEvent(new CustomEvent('genui-choice-edit', { detail: select.value }));
+      };
       container.append(select, content);
       update();
     } else if (view.kind === 'state-diagram') {
@@ -253,7 +273,7 @@ function createFastRenderer(root, initial, read, save, report) {
             n.label,
           ),
         );
-        const choose = () => (detail.textContent = n.explanation ?? n.label);
+        const choose = () => editable(detail, path, n.id, n.explanation ?? n.label);
         g.onclick = choose;
         g.onkeydown = (e) => {
           if (e.key === 'Enter' || e.key === ' ') {

@@ -142,6 +142,21 @@ test('lesson combines shared grammar, native quiz and editable deterministic rec
 test('offscreen native playback pauses, current graph exports a real PNG, and disposal releases 20 applications', async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    const active = new Set(),
+      start = window.setInterval,
+      end = window.clearInterval;
+    window.setInterval = (...args) => {
+      const id = start(...args);
+      active.add(id);
+      return id;
+    };
+    window.clearInterval = (id) => {
+      active.delete(id);
+      return end(id);
+    };
+    window.intervalCount = () => active.size;
+  });
   await page.goto('/');
   await show(page, {
     kind: 'stepper',
@@ -157,6 +172,7 @@ test('offscreen native playback pauses, current graph exports a real PNG, and di
     .locator('body')
     .evaluate(() => document.dispatchEvent(new CustomEvent('genui-visibility', { detail: false })));
   await expect(f.getByRole('button', { name: '播放', exact: true })).toBeVisible();
+  expect(await f.locator('body').evaluate(() => window.intervalCount())).toBe(0);
   await page.waitForTimeout(2100);
   await expect(f.getByRole('status')).toContainText('第一步');
   await show(page, {
@@ -178,6 +194,18 @@ test('offscreen native playback pauses, current graph exports a real PNG, and di
   await page.evaluate(() => window.mountStress());
   await expect(page.locator('#stress iframe')).toHaveCount(20);
   await expect(page.locator('#stress output')).toHaveText(Array(20).fill(''), { timeout: 15000 });
+  const timers = await Promise.all(
+    page
+      .frames()
+      .filter((f) => f.parentFrame())
+      .map((f) => f.evaluate(() => window.intervalCount())),
+  );
+  expect(timers.reduce((a, b) => a + b, 0)).toBe(0);
+  await test
+    .info()
+    .attach('resource-counts', {
+      body: JSON.stringify({ messages: 100, apps: 20, activePlaybackTimers: 0 }),
+    });
   await page.evaluate(() => window.disposeStress());
   await expect(page.locator('#stress')).toHaveCount(0);
   await expect(page.locator('iframe')).toHaveCount(1);
@@ -225,4 +253,24 @@ test('offline teaching card preserves the approved cell explanation', async ({ p
   );
   await offline.frameLocator('iframe').getByRole('button', { name: 'A / $', exact: true }).click();
   await expect(offline.frameLocator('iframe').getByRole('status')).toContainText('空单元格');
+});
+
+test('shared grammar follows explicit groups inside one answer and restores on reload', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.evaluate(() => window.mountGroup());
+  const editor = (i) =>
+    page.frameLocator('#group-' + i + ' iframe').getByLabel('产生式（符号间用空格）');
+  await expect(editor(1)).toHaveValue('S → a');
+  await editor(0).fill('S → b');
+  await page
+    .frameLocator('#group-0 iframe')
+    .getByRole('button', { name: '重新计算', exact: true })
+    .click();
+  await expect(editor(1)).toHaveValue('S → b');
+  await expect(editor(2)).toHaveValue('S → a');
+  await page.reload();
+  await page.evaluate(() => window.mountGroup());
+  await expect(editor(1)).toHaveValue('S → b');
 });

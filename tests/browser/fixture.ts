@@ -73,3 +73,30 @@ Object.assign(window, {
     });
   },
 });
+
+Object.assign(window, {
+  mountGroup() {
+    for (const [i, answerId] of ['one', 'one', 'other'].entries()) {
+      const host = document.createElement('div');
+      host.id = 'group-' + i;
+      document.body.append(host);
+      mountSurface(host, {
+        source: JSON.stringify({
+          version: 1,
+          id: 'grammar-' + i,
+          title: '课程',
+          stateVersion: 1,
+          kind: 'grammar',
+          group: 'demo',
+          grammar: { start: 'S', productions: [{ id: 's', lhs: 'S', rhs: ['a'] }] },
+        }),
+        scope: 'fixture',
+        instance: 'group-' + i,
+        answerId,
+        repository,
+        draft() {},
+        repair() {},
+      });
+    }
+  },
+});

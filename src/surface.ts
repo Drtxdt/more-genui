@@ -35,12 +35,25 @@ export interface SurfaceOptions {
 }
 export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   const parsedGroup = parseApp(options.source, options.format);
+  const parameter =
+    parsedGroup.spec?.kind === 'switch'
+      ? 'choice'
+      : ['grammar', 'lesson'].includes(parsedGroup.spec?.kind)
+        ? 'grammar'
+        : '';
   const groupKey =
-    parsedGroup.spec && parsedGroup.group && options.answerId
-      ? 'mg:group:' + JSON.stringify([options.scope, options.answerId, parsedGroup.group])
+    parameter && parsedGroup.group && options.answerId
+      ? 'mg:group:' +
+        JSON.stringify([options.scope, options.answerId, parsedGroup.group, parameter])
       : '';
   const grammarPath = parsedGroup.spec?.kind === 'lesson' ? '__fast/grammar' : '__fast';
-  function applyGrammar(grammar: unknown) {
+  function applyShared(value: Record<string, unknown>) {
+    if (parameter === 'choice') {
+      if (parsedGroup.spec.options.some((o: { id: string }) => o.id === value.choice))
+        state = safeState({ ...state, __fast: value.choice });
+      return;
+    }
+    const grammar = value.grammar;
     state = safeState({
       ...state,
       [grammarPath]: { ...(state[grammarPath] as Record<string, unknown>), grammar },
@@ -49,7 +62,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   function receiveGrammar(event: Event) {
     const update = (event as CustomEvent).detail;
     if (update.sender === host || disposed || !stateLoaded) return;
-    applyGrammar(update.grammar);
+    applyShared(update.value);
     dirty++;
     start();
     void save();
@@ -119,6 +132,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   };
   panel.append(viewport, expand);
   root.append(style, panel);
+  let revision = '';
   const keysPromise = options.repository.keys(
     app.spec ? options.scope + ':fast' : options.scope,
     options.instance,
@@ -281,12 +295,12 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         else r.reject(Error(message.value.error || '无效 PNG'));
         return;
       }
-      if (message.type === 'grammar-edit' && groupKey) {
-        const grammar = safeState(message.value);
+      if (groupKey && message.type === parameter + '-edit') {
+        const value = safeState({ [parameter]: message.value });
         void options.repository.storage
-          .set(groupKey, grammar)
+          .set(groupKey, value)
           .catch((e: Error) => setStatus(e.message));
-        groupEvents.dispatchEvent(new CustomEvent(groupKey, { detail: { sender: host, grammar } }));
+        groupEvents.dispatchEvent(new CustomEvent(groupKey, { detail: { sender: host, value } }));
         return;
       }
       if (message.type === 'state') {
@@ -344,7 +358,14 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       }
       loaded = true;
       next.contentWindow?.postMessage(
-        { type: 'more-genui-init', html: app.html, spec: app.spec, state, theme: resolvedTheme() },
+        {
+          type: 'more-genui-init',
+          revision,
+          html: app.html,
+          spec: app.spec,
+          state,
+          theme: resolvedTheme(),
+        },
         '*',
         [connection.port2],
       );
@@ -394,7 +415,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       more.focus();
     }
   };
-  bar.append(overflow,more);
+  bar.append(overflow, more);
   if (app.spec) {
     const download = (name: string, blob: Blob) => {
       const url = URL.createObjectURL(blob),
@@ -407,6 +428,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     button('导出离线教学卡', Code, () => {
       const payload = JSON.stringify({
         type: 'more-genui-init',
+        revision,
         spec: app.spec,
         state,
         theme: resolvedTheme(),
@@ -471,13 +493,16 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     });
   theme();
   keysPromise
-    .then((keys) => options.repository.load(keys))
+    .then((keys) => {
+      revision = keys.exact;
+      return options.repository.load(keys);
+    })
     .then(async (value) => {
       const shared = groupKey ? await options.repository.storage.get(groupKey) : undefined;
       if (!disposed) {
         state = options.initialState ?? value;
         if (options.initialState) dirty++;
-        if (shared) applyGrammar(shared);
+        if (shared) applyShared(shared);
         stateLoaded = true;
         start();
         void save();

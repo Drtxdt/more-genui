@@ -14,7 +14,7 @@ export function appFromEvent(event) {
     const app = parseRenderable(meta.source);
     const id = event.type === 'tool/ptc-dispatch' ? data.subCallId : data.message?.toolCallId;
     if (typeof id !== 'string') return null;
-    return { id, source: meta.source, title: app.title, answerId: event.turnId ?? data.message?.id };
+    return { id, source: meta.source, title: app.title };
   } catch {
     return null;
   }
@@ -39,7 +39,13 @@ export const appDefinition = {
       id: context.id,
       kind: 'more-genui-app',
       target: 'chat',
-      data: context.state,
+      data: {
+        ...context.state,
+        answerId:
+          context.start.location?.turn?.turn != null
+            ? String(context.start.location.turn.turn)
+            : undefined,
+      },
       anchorSeq: context.start.event.seq,
       location: context.start.location,
       visibility: 'visible',

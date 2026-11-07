@@ -12,6 +12,7 @@
     initialized = true;
     const port = event.ports[0],
       config = event.data;
+    document.documentElement.dataset.revision = String(config.revision ?? '');
     const send = (type, value) => port.postMessage({ type, value });
     let state = config.state || {},
       failed = false;
@@ -102,7 +103,8 @@
     };
     if (config.spec) {
       theme(config.theme);
-      document.addEventListener('genui-grammar-edit', e => send('grammar-edit', e.detail));
+      document.addEventListener('genui-choice-edit', (e) => send('choice-edit', e.detail));
+      document.addEventListener('genui-grammar-edit', (e) => send('grammar-edit', e.detail));
       fastRenderer = createFastRenderer(document.body, config.spec, () => state, commit, report);
       let height = 0;
       new ResizeObserver(() => {
