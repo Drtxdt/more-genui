@@ -1,5 +1,5 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
-import { policyManifest, schedule } from './prompt-lab.mjs';
+import { policyManifest, schedule, taskHash } from './prompt-lab.mjs';
 import { ReplyAccumulator, SSEDecoder } from '../src/stream.mjs';
 import { FenceScanner } from '../src/fences.mjs';
 import { parseRenderable } from '../src/renderable.mjs';
@@ -41,6 +41,8 @@ export function makeRecord(row, capture, manifest = policyManifest()) {
     o = capture.observation ?? {};
   const record = {
     runId: row.runId,
+    buildCommit: row.buildCommit,
+    taskHash: row.taskHash,
     taskId: row.taskId,
     strategy: row.strategy,
     mode: row.mode,
@@ -68,8 +70,17 @@ if (process.argv[1]?.endsWith('lab-record.mjs')) {
     tasks = JSON.parse(await readFile('tests/lab/tasks.json', 'utf8')),
     row = schedule(tasks).find((row) => row.runId === runId);
   if (!row || !file) throw Error('用法：node scripts/lab-record.mjs <冻结 runId> <capture.json>');
-  const capture = JSON.parse(await readFile(file, 'utf8')),
-    { record, text } = makeRecord(row, capture);
+  const capture = JSON.parse(await readFile(file, 'utf8'));
+  const frozen = JSON.parse(await readFile('.cache/prompt-lab/schedule.json', 'utf8'));
+  if (
+    frozen.taskHash !== taskHash(tasks) ||
+    frozen.policies[row.strategy].sha256 !== policyManifest()[row.strategy].sha256
+  )
+    throw Error('请核对冻结的题集与策略版本');
+  const { record, text } = makeRecord(
+    { ...row, buildCommit: frozen.buildCommit, taskHash: frozen.taskHash },
+    capture,
+  );
   const directory = '.cache/prompt-lab';
   await mkdir(directory + '/raw', { recursive: true });
   let records = [];

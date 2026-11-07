@@ -1,6 +1,8 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { promptPolicy } from '../src/prompt-policy.mjs';
+import { execFileSync } from 'node:child_process';
+export const taskHash = (tasks) => createHash('sha256').update(JSON.stringify(tasks)).digest('hex');
 export const policyManifest = () =>
   Object.fromEntries(
     ['A', 'B', 'C'].map((id) => [
@@ -21,10 +23,7 @@ export function schedule(tasks) {
   const pilot = tasks.filter((t) => t.pilot),
     rest = tasks.filter((t) => !t.pilot),
     rows = [];
-  for (const [phase, list] of [
-    ['pilot', pilot],
-
-  ])
+  for (const [phase, list] of [['pilot', pilot]])
     for (const task of list) {
       const strategies = ['A', 'B', 'C'];
       for (let i = 2; i > 0; i--) {
@@ -58,7 +57,15 @@ const quantile = (values, q) =>
 export function scoreRuns(tasks, runs, manifest = policyManifest()) {
   const expected = new Map(schedule(tasks).map((r) => [r.runId, r]));
   const seen = new Set();
+  const bank = taskHash(tasks),
+    revision = runs[0]?.buildCommit;
   for (const r of runs) {
+    if (
+      r.taskHash !== bank ||
+      !/^[0-9a-f]{40}$/.test(r.buildCommit ?? '') ||
+      r.buildCommit !== revision
+    )
+      throw Error('题库或构建提交与本轮不符');
     if (seen.has(r.runId)) throw Error('重复实验 ID');
     seen.add(r.runId);
     const scheduled = expected.get(r.runId);
@@ -76,7 +83,7 @@ export function scoreRuns(tasks, runs, manifest = policyManifest()) {
     if (!tasks.some((t) => t.id === r.taskId)) throw Error('未知任务');
   }
   if (runs.length > 48) throw Error('超过 48 次请求预算');
-  const pilotSize = tasks.filter(t => t.pilot).length;
+  const pilotSize = tasks.filter((t) => t.pilot).length;
   const summaries = {};
   for (const strategy of ['A', 'B', 'C']) {
     const records = runs.filter((r) => r.strategy === strategy && r.mode === 'normal'),
@@ -87,7 +94,7 @@ export function scoreRuns(tasks, runs, manifest = policyManifest()) {
       );
     summaries[strategy] = {
       sent: records.length,
-      completedTasks: records.filter(r=>r.taskComplete===true).length,
+      completedTasks: records.filter((r) => r.taskComplete === true).length,
       recall:
         records.filter(
           (r) => required.some((t) => t.id === r.taskId) && r.ui === true && r.valid === true,
@@ -153,7 +160,7 @@ export function scoreRuns(tasks, runs, manifest = policyManifest()) {
       validity: b.validity >= a.validity,
       tasks: b.completedTasks >= a.completedTasks,
       negative: b.negativeUI === 0,
-      benefit: b.recall > a.recall || (gains.length > 0 && quantile(gains, .5) < 0),
+      benefit: b.recall > a.recall || (gains.length > 0 && quantile(gains, 0.5) < 0),
     };
     gates[strategy].passed = Object.values(gates[strategy]).every((v) => v === true);
   }
@@ -174,7 +181,17 @@ if (process.argv[1]?.endsWith('prompt-lab.mjs')) {
     await mkdir('.cache/prompt-lab', { recursive: true });
     await writeFile(
       '.cache/prompt-lab/schedule.json',
-      JSON.stringify({ policies: manifest, runs: schedule(tasks) }, null, 2),
+      JSON.stringify(
+        {
+          seed: 20261106,
+          taskHash: taskHash(tasks),
+          buildCommit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+          policies: manifest,
+          runs: schedule(tasks),
+        },
+        null,
+        2,
+      ),
     );
     console.log(
       'Prepared ' +

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { schedule, scoreRuns, policyManifest } from '../scripts/prompt-lab.mjs';
+import { schedule, scoreRuns, policyManifest, taskHash } from '../scripts/prompt-lab.mjs';
 const tasks = JSON.parse(await readFile('tests/lab/tasks.json', 'utf8'));
 test('fixed manifest generates exactly 48 interleaved requests and empty data cannot promote candidates', () => {
   assert.equal(tasks.length, 50);
@@ -75,6 +75,8 @@ test('promotion requires complete paired evidence and rejects a negative-control
       ui = task.expect === 'model-ui' && (row.strategy !== 'A' || baseline.has(task.id));
     return {
       runId: row.runId,
+      taskHash: taskHash(tasks),
+      buildCommit: '0'.repeat(40),
       taskId: row.taskId,
       strategy: row.strategy,
       mode: row.mode,
