@@ -201,3 +201,28 @@ test('a text-only step clears the previous graphic and remounting releases old p
   await f.getByRole('button', { name: '上一步', exact: true }).click();
   await expect(f.getByRole('button', { name: 'A / id', exact: true })).toBeVisible();
 });
+
+test('offline teaching card preserves the approved cell explanation', async ({ page, context }) => {
+  await page.goto('/');
+  await show(page, matrix);
+  const frame = page.frameLocator('#app iframe');
+  await frame.getByRole('button', { name: 'A / id' }).click();
+  await frame.getByRole('button', { name: '修正这里' }).click();
+  await frame.getByLabel('新解释').fill('FIRST(A) 包含 id');
+  await frame.getByText('预览修改', { exact: true }).click();
+  await frame.getByText('采纳', { exact: true }).click();
+  await expect(frame.getByRole('status')).toContainText('FIRST(A) 包含 id');
+  await page.getByRole('button', { name: '更多', exact: true }).click();
+  const waiting = page.waitForEvent('download');
+  await page.getByRole('button', { name: '导出离线教学卡' }).click();
+  const file = await waiting;
+  const { readFile } = await import('node:fs/promises');
+  const offline = await context.newPage();
+  await context.setOffline(true);
+  await offline.setContent(await readFile(await file.path(), 'utf8'));
+  await expect(offline.frameLocator('iframe').getByRole('status')).toContainText(
+    'FIRST(A) 包含 id',
+  );
+  await offline.frameLocator('iframe').getByRole('button', { name: 'A / $', exact: true }).click();
+  await expect(offline.frameLocator('iframe').getByRole('status')).toContainText('空单元格');
+});

@@ -34,12 +34,22 @@ const grammar = z
     if (terminals.size > 64) ctx.addIssue({ code: 'custom', message: '终结符超过上限' });
   });
 const base = {
+  group: id.optional(),
   version: z.literal(1),
   id,
   title: z.string().min(1).max(160),
   stateVersion: z.number().int().positive(),
 };
 const definitions = {
+  automaton: z
+    .object({
+      kind: z.literal('automaton'),
+      states: z.array(entity).min(1).max(32),
+      start: entity,
+      accepting: z.array(entity).max(32),
+      edges: z.array(z.object({ from: entity, to: entity, symbol: entity }).strict()).max(128),
+    })
+    .strict(),
   quiz: z
     .object({
       kind: z.literal('quiz'),

@@ -15,7 +15,9 @@ const validation = await build({
   globalName: 'FastValidation',
   minify: true,
 });
+const automata = await readFile(new URL('../src/automata.mjs', import.meta.url), 'utf8');
 const fast =
+  automata.replace('export function ', 'function ') + '\n' +
   validation.outputFiles[0].text +
   '\n' +
   'const GRAMMAR_WORKER_SOURCE = ' +

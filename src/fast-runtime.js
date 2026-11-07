@@ -71,6 +71,43 @@ function createFastRenderer(root, initial, read, save, report) {
             save({ ...read(), [path]: [row, col] });
             detail.textContent =
               row + ' / ' + col + '：' + (cell?.explanation ?? cell?.text ?? '空单元格');
+            if (cell && !context?.computed) {
+              const key = path + '/edits',
+                target = JSON.stringify([row, col]);
+              const original = cell.explanation ?? cell.text;
+              const stored = read()[key]?.[target];
+              const current = stored?.base === original ? stored.value : original;
+              detail.textContent = row + ' / ' + col + '：' + current;
+              const revise = button('修正这里', () => {
+                const input = el('textarea');
+                input.maxLength = 4096;
+                input.value = current;
+                input.setAttribute('aria-label', '新解释');
+                const preview = el('div');
+                detail.replaceChildren(
+                  el('p', '当前解释：' + current),
+                  input,
+                  button('预览修改', () => {
+                    const value = input.value.trim();
+                    if (!value) return;
+                    preview.replaceChildren(
+                      el('p', '修改后：' + value),
+                      button('采纳', () => {
+                        if (!detail.contains(preview) || input.value.trim() !== value) return;
+                        save({
+                          ...read(),
+                          [key]: { ...read()[key], [target]: { base: original, value } },
+                        });
+                        b.click();
+                      }),
+                    );
+                  }),
+                  preview,
+                  button('取消', () => b.click()),
+                );
+              });
+              detail.append(revise);
+            }
             for (const other of buttons) other.setAttribute('aria-pressed', String(other === b));
           });
           b.setAttribute('aria-label', row + ' / ' + col);
@@ -253,6 +290,70 @@ function createFastRenderer(root, initial, read, save, report) {
         container.append(child);
         render(content, section.view, path + '/' + i, shared);
       }
+    } else if (view.kind === 'automaton') {
+      const editor = el('textarea'),
+        apply = el('button', '重新计算'),
+        result = el('div'),
+        error = el('p');
+      editor.setAttribute('aria-label', '自动机 JSON');
+      error.setAttribute('role', 'status');
+      container.append(editor, apply, error, result);
+      let machine = read()[path]?.machine ?? view;
+      editor.value = JSON.stringify(machine, null, 2);
+      function calculate() {
+        try {
+          const input = FastValidation.validateView(JSON.parse(editor.value));
+          if (input.kind !== 'automaton') throw Error('需要 automaton');
+          const { subsets, moves } = determinize(input);
+          const list = el('ol');
+          for (const s of subsets)
+            list.append(
+              el('li', s.id + ' = {' + s.members.join(', ') + '}' + (s.accepting ? ' · 终态' : '')),
+            );
+          const transitions = el(
+            'pre',
+            moves.map((m) => m.from + ' —' + m.symbol + '→ ' + m.to).join('\n'),
+          );
+          const chosen = el('select'),
+            evidence = el('p');
+          chosen.setAttribute('aria-label', 'DFA 子集');
+          for (const subset of subsets) chosen.add(new Option(subset.id, subset.id));
+          const graph = el('div');
+          const draw = () => {
+            const selected = subsets.find((s) => s.id === chosen.value) ?? subsets[0];
+            const nodeId = (s) => 'q' + input.states.indexOf(s);
+            render(
+              graph,
+              {
+                kind: 'state-diagram',
+                nodes: input.states.map((s) => ({ id: nodeId(s), label: s })),
+                edges: input.edges.map((e, i) => ({
+                  id: 'e' + i,
+                  from: nodeId(e.from),
+                  to: nodeId(e.to),
+                  label: e.symbol,
+                })),
+                highlight: selected.members.map(nodeId),
+              },
+              path + '/subset',
+            );
+            evidence.textContent = selected.id + ' 包含 ' + (selected.members.join('、') || '空集');
+          };
+          chosen.onchange = () => {
+            save({ ...read(), [path]: { machine: input, selected: chosen.value } });
+            draw();
+          };
+          chosen.value = read()[path]?.selected ?? 'D0';
+          result.replaceChildren(list, chosen, evidence, graph, transitions);
+          draw();
+          error.textContent = '';
+          save({ ...read(), [path]: { machine: input, selected: chosen.value } });
+        } catch (e) {
+          error.textContent = e.message;
+        }
+      }
+      apply.onclick = calculate;
+      calculate();
     } else if (view.kind === 'grammar') {
       const editor = el('textarea');
       editor.setAttribute('aria-label', '产生式（符号间用空格）');
@@ -328,6 +429,8 @@ function createFastRenderer(root, initial, read, save, report) {
         const nextState = { ...read(), [context?.key ?? path]: { grammar: currentGrammar } };
         nextState[path] = { ...nextState[path], input: pendingInput };
         save(nextState);
+        if (broadcast)
+          document.dispatchEvent(new CustomEvent('genui-grammar-edit', { detail: currentGrammar }));
         if (context && broadcast) {
           context.grammar = currentGrammar;
           for (const listener of context.listeners)
@@ -399,7 +502,7 @@ function createFastRenderer(root, initial, read, save, report) {
             });
         const target = el('div');
         output.append(target);
-        render(target, matrix, path + '/table');
+        render(target, matrix, path + '/table', { computed: true });
         const trace = message.trace;
         if (trace) {
           output.append(

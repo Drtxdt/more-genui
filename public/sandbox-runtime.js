@@ -102,6 +102,7 @@
     };
     if (config.spec) {
       theme(config.theme);
+      document.addEventListener('genui-grammar-edit', e => send('grammar-edit', e.detail));
       fastRenderer = createFastRenderer(document.body, config.spec, () => state, commit, report);
       let height = 0;
       new ResizeObserver(() => {

@@ -15,7 +15,9 @@ import { safeState } from './protocol.mjs';
 import { StateRepository } from './state.mjs';
 import { appParams, experimentPanel } from './experiment-panel.mjs';
 import sandboxHTML from './generated-sandbox';
+const groupEvents = new EventTarget();
 export interface SurfaceOptions {
+  answerId?: string;
   source: string;
   format?: 'html' | 'fast';
   diagnostic?: (stage: string) => void;
@@ -32,6 +34,27 @@ export interface SurfaceOptions {
   ) => void | Promise<void>;
 }
 export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
+  const parsedGroup = parseApp(options.source, options.format);
+  const groupKey =
+    parsedGroup.spec && parsedGroup.group && options.answerId
+      ? 'mg:group:' + JSON.stringify([options.scope, options.answerId, parsedGroup.group])
+      : '';
+  const grammarPath = parsedGroup.spec?.kind === 'lesson' ? '__fast/grammar' : '__fast';
+  function applyGrammar(grammar: unknown) {
+    state = safeState({
+      ...state,
+      [grammarPath]: { ...(state[grammarPath] as Record<string, unknown>), grammar },
+    });
+  }
+  function receiveGrammar(event: Event) {
+    const update = (event as CustomEvent).detail;
+    if (update.sender === host || disposed || !stateLoaded) return;
+    applyGrammar(update.grammar);
+    dirty++;
+    start();
+    void save();
+  }
+  if (groupKey) groupEvents.addEventListener(groupKey, receiveGrammar);
   const resolvedTheme = () =>
     options.theme?.() ??
     (document.documentElement.dataset.theme === 'light' ||
@@ -120,7 +143,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   overflow.hidden = true;
   overflow.setAttribute('role', 'group');
   overflow.setAttribute('aria-label', '更多应用操作');
-  overflow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;padding:8px';
+  overflow.style.cssText = 'display:flex;flex:none;align-items:center;gap:2px';
   panel.insertBefore(overflow, status);
   let actionCount = 0;
   const button = (label: string, icon: typeof Maximize, action: () => void | Promise<void>) => {
@@ -142,9 +165,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     b.setAttribute('aria-label', label);
     b.title = label;
     (actionCount++ < 2 ? bar : overflow).append(b);
-    if (overflow.contains(b)) {
-      b.textContent = label;
-    }
+
     return b;
   };
   button('放大', Maximize, () => {
@@ -260,6 +281,14 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         else r.reject(Error(message.value.error || '无效 PNG'));
         return;
       }
+      if (message.type === 'grammar-edit' && groupKey) {
+        const grammar = safeState(message.value);
+        void options.repository.storage
+          .set(groupKey, grammar)
+          .catch((e: Error) => setStatus(e.message));
+        groupEvents.dispatchEvent(new CustomEvent(groupKey, { detail: { sender: host, grammar } }));
+        return;
+      }
       if (message.type === 'state') {
         try {
           const nextState = safeState(message.value);
@@ -365,7 +394,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       more.focus();
     }
   };
-  bar.append(more);
+  bar.append(overflow,more);
   if (app.spec) {
     const download = (name: string, blob: Blob) => {
       const url = URL.createObjectURL(blob),
@@ -375,6 +404,22 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
+    button('导出离线教学卡', Code, () => {
+      const payload = JSON.stringify({
+        type: 'more-genui-init',
+        spec: app.spec,
+        state,
+        theme: resolvedTheme(),
+      }).replaceAll('<', '\\u003c');
+      const template = JSON.stringify(sandboxHTML).replaceAll('<', '\\u003c');
+      const html =
+        '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>More GenUI</title><style>body{margin:0}iframe{border:0;width:100%;height:100vh}</style><iframe sandbox="allow-scripts" title="教学卡"></iframe><script>const frame=document.querySelector("iframe");frame.onload=()=>{const channel=new MessageChannel();frame.contentWindow.postMessage(' +
+        payload +
+        ', "*",[channel.port2]);channel.port1.start()};frame.srcdoc=' +
+        template +
+        ';<\/script>';
+      download(app.id + '.html', new Blob([html], { type: 'text/html;charset=utf-8' }));
+    });
     button('导出图解 JSON', Code, () =>
       download(
         app.id + '.json',
@@ -427,10 +472,12 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   theme();
   keysPromise
     .then((keys) => options.repository.load(keys))
-    .then((value) => {
+    .then(async (value) => {
+      const shared = groupKey ? await options.repository.storage.get(groupKey) : undefined;
       if (!disposed) {
         state = options.initialState ?? value;
         if (options.initialState) dirty++;
+        if (shared) applyGrammar(shared);
         stateLoaded = true;
         start();
         void save();
@@ -440,6 +487,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   return {
     theme,
     dispose() {
+      if (groupKey) groupEvents.removeEventListener(groupKey, receiveGrammar);
       visibility.disconnect();
       document.removeEventListener('visibilitychange', tabVisibility);
       experiments.dispose();
