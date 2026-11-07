@@ -691,8 +691,8 @@ test('diagnostics opt in without exposing prompt or THINK content and visualize 
   await page.getByLabel('输入').fill('PRIVATE_PROMPT');
   await page.getByTestId('send-button').click();
   const panel = page.locator('.more-genui-diagnostics');
-  await expect(panel).toContainText('enhanced');
-  await expect(panel).toContainText('no-ui');
+  await expect(panel).toContainText('已附加规范');
+  await expect(panel).toContainText('模型选择文字');
   await expect(panel).not.toContainText('PRIVATE_PROMPT');
   await expect(panel).not.toContainText('PRIVATE_THINK');
   await page.getByLabel('输入').fill('原草稿');
@@ -784,27 +784,110 @@ test('history edit and regenerate do not consume the current composer intent; na
   expect(sent[2].prompt).toBe('当前草稿');
 });
 
-test('conversation index locates twenty apps in a hundred messages and releases frames on disable',async()=>{
-  await page.evaluate(()=>{
-    const fragment=document.createDocumentFragment();
-    for(let i=0;i<100;i++){
-      const article=document.createElement('article');article.className='ds-message';article.dataset.virtualListItemKey=String(i+10);
-      const body=document.createElement('div');body.className='ds-assistant-message-main-content';
-      body.textContent='解释 '+i;
-      if(i%5===0){
-        const pre=document.createElement('pre');
-        pre.textContent='<!-- more-genui: '+JSON.stringify({version:1,id:'demo',title:'实验 '+i,stateVersion:1})+' --><html><body>result</body></html>';
+test('conversation index locates twenty apps in a hundred messages and releases frames on disable', async () => {
+  await page.evaluate(() => {
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < 100; i++) {
+      const article = document.createElement('article');
+      article.className = 'ds-message';
+      article.dataset.virtualListItemKey = String(i + 10);
+      const body = document.createElement('div');
+      body.className = 'ds-assistant-message-main-content';
+      body.textContent = '解释 ' + i;
+      if (i % 5 === 0) {
+        const pre = document.createElement('pre');
+        pre.textContent =
+          '<!-- more-genui: ' +
+          JSON.stringify({ version: 1, id: 'demo', title: '实验 ' + i, stateVersion: 1 }) +
+          ' --><html><body>result</body></html>';
         body.append(pre);
       }
-      article.append(body);fragment.append(article);
+      article.append(body);
+      fragment.append(article);
     }
     document.querySelector('#messages').append(fragment);
   });
   await expect(page.locator('.more-genui-surface iframe')).toHaveCount(20);
-  await page.getByText('本对话图解',{exact:true}).click();
-  await page.getByRole('button',{name:'实验 85',exact:true}).click();
-  await expect.poll(()=>page.evaluate(()=>document.activeElement?.closest('[data-virtual-list-item-key]')?.getAttribute('data-virtual-list-item-key'))).toBe('95');
+  await page.getByText('本对话图解', { exact: true }).click();
+  await page.getByRole('button', { name: '实验 85', exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.activeElement
+          ?.closest('[data-virtual-list-item-key]')
+          ?.getAttribute('data-virtual-list-item-key'),
+      ),
+    )
+    .toBe('95');
   await page.locator('#more-genui-toggle').click();
   await expect(page.locator('.more-genui-surface iframe')).toHaveCount(0);
   await expect(page.locator('.more-genui-index')).toHaveCount(0);
+});
+
+test('learning counts distinct answer choices and requires explicit adoption', async () => {
+  const worker = context.serviceWorkers()[0];
+  await worker.evaluate(() => chrome.storage.local.set({ learning: true }));
+  for (const id of ['1', '1', '2', '3']) {
+    await page.evaluate((id) => {
+      document.querySelector('#messages').dataset.virtualListItemKey = id;
+      const body = document.querySelector('.ds-assistant-message-main-content');
+      const p = document.createElement('p');
+      p.textContent = '传播条件';
+      body.replaceChildren(p);
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+      p.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    }, id);
+    await page.getByLabel('选区用途').selectOption('steps');
+    await page.locator('.more-genui-selection button').first().click();
+  }
+  await expect
+    .poll(() =>
+      worker.evaluate(
+        async () => (await chrome.storage.local.get('choices')).choices?.steps?.length,
+      ),
+    )
+    .toBe(3);
+  expect(
+    await worker.evaluate(async () => (await chrome.storage.local.get('preferred')).preferred),
+  ).toBeUndefined();
+  const popup = await context.newPage();
+  await popup.goto(new URL('/popup.html', worker.url()).href);
+  await popup.getByText('采纳', { exact: true }).click();
+  await expect
+    .poll(() =>
+      worker.evaluate(async () => (await chrome.storage.local.get('preferred')).preferred),
+    )
+    .toBe('steps');
+  await popup.getByText('清空偏好记录', { exact: true }).click();
+  await expect
+    .poll(() => worker.evaluate(() => chrome.storage.local.get(['preferred', 'choices'])))
+    .toEqual({});
+});
+
+test('history requires the Fast UI language even for schema-valid JSON', async () => {
+  await page.evaluate(() => {
+    const body = document.querySelector('.ds-assistant-message-main-content');
+    const source = JSON.stringify({
+      version: 1,
+      stateVersion: 1,
+      id: 'same',
+      title: '例子',
+      kind: 'compare',
+      before: { label: '前', lines: ['a'] },
+      after: { label: '后', lines: ['b'] },
+    });
+    for (const lang of ['json', 'genui-json']) {
+      const pre = document.createElement('pre'),
+        code = document.createElement('code');
+      code.className = 'language-' + lang;
+      code.textContent = source;
+      pre.append(code);
+      body.append(pre);
+    }
+  });
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(1);
+  await expect(page.locator('.language-json')).toBeVisible();
 });

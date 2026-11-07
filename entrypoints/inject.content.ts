@@ -11,7 +11,8 @@ export default defineContentScript({
   main() {
     let enabled = false,
       mode = 'auto',
-      preferred = '', policy = 'A',
+      preferred = '',
+      policy = 'A',
       diagnostics = false;
     const intents = new GenerationIntent();
     document.addEventListener('more-genui-intent', (event) => {
@@ -85,7 +86,7 @@ export default defineContentScript({
         diagnostics = e.data.diagnostics === true;
         mode = e.data.mode ?? 'auto';
         policy = e.data.policy ?? 'A';
-        preferred = ['diagram','quiz','steps'].includes(e.data.preferred) ? e.data.preferred : '';
+        preferred = ['diagram', 'quiz', 'steps'].includes(e.data.preferred) ? e.data.preferred : '';
         if (!enabled) intents.clear();
       }
     });
@@ -119,9 +120,13 @@ export default defineContentScript({
           prompt:
             mode === 'visual'
               ? composePolicy(body.prompt, 'visual', match?.kind)
-              : ['B','C'].includes(policy)
+              : ['B', 'C'].includes(policy)
                 ? composePolicy(body.prompt, policy, match?.kind)
-                : augment(body.prompt, true, match?.kind ?? (preferred ? 'preference-'+preferred : '')),
+                : augment(
+                    body.prompt,
+                    true,
+                    match?.kind ?? (preferred ? 'preference-' + preferred : ''),
+                  ),
         }),
         enhanced: true,
       };
@@ -209,8 +214,12 @@ export default defineContentScript({
           if (ended) return;
           ended = true;
           diagnose(failed ? 'unsupported' : status);
-          if (!accumulator.emitted.size) diagnose('no-ui');
-          if (!failed && !sse.buffer.trim() && status === 'complete') accumulator.scanner.finish();
+          if (!failed && !sse.buffer.trim() && status === 'complete') {
+            accumulator.scanner.finish();
+            if (accumulator.scanner.fence) diagnose('invalid-protocol');
+            else if (enhanced && firstText && !accumulator.emitted.size) diagnose('no-ui');
+            else if (!firstText) diagnose('insufficient-evidence');
+          } else if (sse.buffer.trim()) diagnose('insufficient-evidence');
           post({ type: 'more-genui-end', id, route, status: failed ? 'unsupported' : status });
         },
       };

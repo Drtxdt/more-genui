@@ -27,6 +27,26 @@ export default defineContentScript({
     diagnosticPanel.style.cssText =
       'position:fixed;right:12px;bottom:64px;max-width:340px;max-height:40vh;overflow:auto;z-index:2147483646;background:Canvas;color:CanvasText;padding:12px;border:1px solid GrayText;font:12px system-ui';
     document.body.append(diagnosticPanel);
+    const stageNames: Record<string, string> = {
+      recognized: '识别请求',
+      policy: '发送策略',
+      skipped: '未附加规范',
+      enhanced: '已附加规范',
+      text: '首段响应内容',
+      'visible-text': '首段正文已显示',
+      'ui-output': '围栏完整',
+      mounted: '已挂载',
+      ready: '可用',
+      interaction: '首次操作',
+      feedback: '反馈',
+      'no-ui': '模型选择文字',
+      'invalid-protocol': '协议无效',
+      'execution-error': '运行失败',
+      ambiguous: '归属未明',
+      'insufficient-evidence': '证据不足',
+      complete: '响应结束',
+      cancelled: '已取消',
+    };
     function diagnostic(event: any) {
       const record = diagnostics.update(event);
       if (!record) return;
@@ -36,7 +56,16 @@ export default defineContentScript({
         line.textContent =
           row.id.slice(0, 8) +
           ' · ' +
-          row.events.map((e: any) => e.stage + ' ' + Math.round(e.ms) + 'ms').join(' → ');
+          row.events
+            .map(
+              (e: any) =>
+                (stageNames[e.stage] ?? e.stage) +
+                (e.policyHash ? ' ' + e.policyHash.slice(0, 12) : '') +
+                ' ' +
+                Math.round(e.ms) +
+                'ms',
+            )
+            .join(' → ');
         diagnosticPanel.append(line);
       }
       const retry = document.createElement('button');
@@ -387,6 +416,25 @@ export default defineContentScript({
         }
       for (const message of candidates) {
         const body = message.querySelector('.ds-assistant-message-main-content');
+        if (body && diagnostics.enabled) {
+          const key = message
+            .closest('[data-virtual-list-item-key]')
+            ?.getAttribute('data-virtual-list-item-key');
+          const request =
+            key && [...requests.values()].find((r) => r.key === key && !r.visibleText);
+          if (
+            request &&
+            [...body.querySelectorAll('p,li,h2,h3')].some(
+              (el) =>
+                !el.closest('aside,pre,.ds-think-content,.more-genui-surface') &&
+                el.textContent?.trim() &&
+                el.getClientRects().length,
+            )
+          ) {
+            request.visibleText = true;
+            diagnostic({ id: request.id, stage: 'visible-text' });
+          }
+        }
         if (body && !visualizeActions.has(message as HTMLElement)) {
           const action = document.createElement('button');
           action.className = 'more-genui-visualize';
@@ -417,6 +465,30 @@ export default defineContentScript({
           ?.getAttribute('data-virtual-list-item-key');
         const origin = ledger.classify(code, key, source);
         const owner = origin.owner;
+        if (source.trimStart().startsWith('{')) {
+          const pre = code.closest('pre');
+          const labeled = [code, pre].some(
+            (el) =>
+              el?.classList.contains('language-genui-json') ||
+              el?.getAttribute('data-language') === 'genui-json',
+          );
+          const wrapper = pre?.closest('.md-code-block');
+          const banner =
+            wrapper &&
+            [...wrapper.querySelectorAll('span,button,div')].some(
+              (el) =>
+                !pre?.contains(el) &&
+                !el.childElementCount &&
+                el.textContent?.trim() === 'genui-json',
+            );
+          const plain = [code, pre].some(
+            (el) =>
+              el?.classList.contains('language-json') ||
+              el?.getAttribute('data-language') === 'json',
+          );
+          if (plain || (!labeled && !banner && !(owner && ledger.confirmed(code, owner, source))))
+            continue;
+        }
         if (origin.kind === 'unknown')
           for (const id of active) diagnostic({ id, stage: 'ambiguous' });
         const requestId = owner?.id;
