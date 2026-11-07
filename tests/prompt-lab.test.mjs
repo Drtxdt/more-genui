@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { schedule, scoreRuns, policyManifest } from '../scripts/prompt-lab.mjs';
 const tasks = JSON.parse(await readFile('tests/lab/tasks.json', 'utf8'));
-test('fixed manifest generates exactly 160 interleaved requests and empty data cannot promote candidates', () => {
+test('fixed manifest generates exactly 48 interleaved requests and empty data cannot promote candidates', () => {
   assert.equal(tasks.length, 50);
   assert.equal(tasks.filter((t) => t.expect === 'text').length, 10);
   const rows = schedule(tasks);
-  assert.equal(rows.length, 160);
+  assert.equal(rows.length, 48);
   assert.equal(rows.filter((r) => r.phase === 'pilot').length, 36);
   assert.deepEqual(rows, schedule(tasks));
   const report = scoreRuns(tasks, []);

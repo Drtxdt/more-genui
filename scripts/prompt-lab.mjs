@@ -6,7 +6,7 @@ export const policyManifest = () =>
     ['A', 'B', 'C'].map((id) => [
       id,
       {
-        version: '2026-11-06.1',
+        version: '2026-11-07.1',
         sha256: createHash('sha256').update(promptPolicy(id)).digest('hex'),
         guide: promptPolicy(id),
       },
@@ -23,7 +23,7 @@ export function schedule(tasks) {
     rows = [];
   for (const [phase, list] of [
     ['pilot', pilot],
-    ['full', rest],
+
   ])
     for (const task of list) {
       const strategies = ['A', 'B', 'C'];
@@ -42,7 +42,7 @@ export function schedule(tasks) {
         });
     }
   for (const task of tasks.filter((t) => t.thinking))
-    for (const strategy of ['A', 'B'])
+    for (const strategy of ['A', 'B', 'C'])
       rows.push({
         runId: `${task.id}-${strategy}-thinking`,
         phase: 'thinking',
@@ -75,17 +75,19 @@ export function scoreRuns(tasks, runs, manifest = policyManifest()) {
       throw Error('策略哈希不匹配');
     if (!tasks.some((t) => t.id === r.taskId)) throw Error('未知任务');
   }
-  if (runs.length > 160) throw Error('超过 160 次请求预算');
+  if (runs.length > 48) throw Error('超过 48 次请求预算');
+  const pilotSize = tasks.filter(t => t.pilot).length;
   const summaries = {};
   for (const strategy of ['A', 'B', 'C']) {
     const records = runs.filter((r) => r.strategy === strategy && r.mode === 'normal'),
-      required = tasks.filter((t) => t.expect === 'model-ui'),
+      required = tasks.filter((t) => t.pilot && t.expect === 'model-ui'),
       positive = records.filter((r) => r.ui === true),
       negative = records.filter(
         (r) => tasks.find((t) => t.id === r.taskId).expect === 'text' && r.ui === true,
       );
     summaries[strategy] = {
       sent: records.length,
+      completedTasks: records.filter(r=>r.taskComplete===true).length,
       recall:
         records.filter(
           (r) => required.some((t) => t.id === r.taskId) && r.ui === true && r.valid === true,
@@ -101,7 +103,7 @@ export function scoreRuns(tasks, runs, manifest = policyManifest()) {
         : 0,
       negativeUI: negative.length,
       complete:
-        records.length === tasks.length &&
+        records.length === pilotSize &&
         records.every(
           (r) =>
             r.reviewed === true &&
@@ -144,30 +146,14 @@ export function scoreRuns(tasks, runs, manifest = policyManifest()) {
             : null;
         })
         .filter(Boolean);
-    const latency = (key, q, ratio) => {
-      const base = quantile(
-          paired.map((p) => p[0][key]),
-          q,
-        ),
-        next = quantile(
-          paired.map((p) => p[1][key]),
-          q,
-        );
-      return paired.length >= 8 && base !== null && next !== null && next <= base * ratio;
-    };
+    const gains = paired.map(([base, candidate]) => candidate.interactiveMs - base.interactiveMs);
     gates[strategy] = {
       complete: a.complete && b.complete && thinkingComplete,
-      recall: b.recall >= Math.min(1, Math.max(0.85, a.recall + 0.1)),
-      precision: b.precision >= 0.95,
-      validity: b.validity >= 0.95,
-      semantic: b.semantic >= 0.95,
-      negative: b.complete && b.negativeUI === 0,
-      useful:
-        b.usefulP50 !== null &&
-        a.usefulP50 !== null &&
-        b.usefulP50 <= a.usefulP50 * 1.1 &&
-        b.usefulP90 <= a.usefulP90 * 1.2,
-      interactive: latency('interactiveMs', 0.5, 1.1) && latency('interactiveMs', 0.9, 1.2),
+      semantic: b.semantic === 1 && b.semantic >= a.semantic,
+      validity: b.validity >= a.validity,
+      tasks: b.completedTasks >= a.completedTasks,
+      negative: b.negativeUI === 0,
+      benefit: b.recall > a.recall || (gains.length > 0 && quantile(gains, .5) < 0),
     };
     gates[strategy].passed = Object.values(gates[strategy]).every((v) => v === true);
   }

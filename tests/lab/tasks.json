@@ -1,23 +1,23 @@
 [
   {
     "id": "t01",
-    "prompt": "让两条边长之和固定为 10，边长从 5 调到 7，面积怎样变化？我想把两次实验放一起看。",
+    "prompt": "矩形两条相邻边的长度之和是 10，为什么边长从 5 变成 7 后面积反而变小了？",
     "rubric": "A/B；25 → 21，B−A 为 −4。",
     "expect": "model-ui",
     "pilot": true,
-    "thinking": false
+    "thinking": true
   },
   {
     "id": "t02",
-    "prompt": "一根弹簧的劲度系数是 20 N/m，让我从伸长 5 cm 调到 10 cm，看弹力大小。",
+    "prompt": "弹簧劲度系数是 20 N/m，伸长量从 5 cm 增加到 10 cm，弹力如何变化？",
     "rubric": "参数实验；1 N → 2 N。",
-    "expect": "model-ui",
+    "expect": "open",
     "pilot": true,
     "thinking": false
   },
   {
     "id": "t03",
-    "prompt": "正弦波的频率从 2 Hz 变到 4 Hz，振幅保持 3。让我比较两条波形。",
+    "prompt": "我总混淆频率和振幅。振幅为 3 的正弦波，频率从 2 Hz 变成 4 Hz，哪些特征变了，哪些没变？",
     "rubric": "同轴对照；周期从 0.5 s 到 0.25 s，振幅均为 3。",
     "expect": "model-ui",
     "pilot": false,
@@ -25,7 +25,7 @@
   },
   {
     "id": "t04",
-    "prompt": "一个 6 Ω 电阻接上 3 V 或 9 V 的理想电源，能给我调一下电压看电流吗？",
+    "prompt": "一个 6 Ω 电阻接上 3 V 或 9 V 的理想电源，电流分别是多少？电压变化时是什么关系？",
     "rubric": "参数实验；0.5 A 和 1.5 A。",
     "expect": "model-ui",
     "pilot": false,
@@ -33,15 +33,15 @@
   },
   {
     "id": "t05",
-    "prompt": "一步一步带我在 [1,3,5,7,9] 里找 7。从闭区间开始，我想自己点下一步。",
+    "prompt": "在有序数组 [1,3,5,7,9] 中二分查找 7，边界和中点是怎样变化的？从闭区间开始解释。",
     "rubric": "播放器；下标 2 的值为 5，下一轮 [3,4]，结果 3。",
     "expect": "model-ui",
     "pilot": true,
-    "thinking": true
+    "thinking": false
   },
   {
     "id": "t06",
-    "prompt": "让我逐步看 [3,1,2] 一趟冒泡排序以后变成什么。",
+    "prompt": "数组 [3,1,2] 经过一趟冒泡排序会变成什么？我不太明白每次交换的原因。",
     "rubric": "播放器；先 [1,3,2] 再 [1,2,3]。",
     "expect": "model-ui",
     "pilot": false,
@@ -49,7 +49,7 @@
   },
   {
     "id": "t07",
-    "prompt": "演示队列依次入 A、入 B、出队、入 C，能退回上一步检查。",
+    "prompt": "队列依次入 A、入 B、出队、入 C 后剩下什么？我容易把队头和队尾弄反。",
     "rubric": "逐步演示；终态 B,C，回退为 B。",
     "expect": "model-ui",
     "pilot": false,
@@ -57,10 +57,10 @@
   },
   {
     "id": "t08",
-    "prompt": "从 A 做广度优先搜索，A 连 B 和 C，B 连 D，邻居按字母序。让我观察队列。",
+    "prompt": "从 A 做广度优先搜索，A 连 B 和 C，B 连 D，邻居按字母序。访问顺序是什么，队列为什么这样变化？",
     "rubric": "演示；访问 A,B,C,D，D 只入队一次。",
     "expect": "model-ui",
-    "pilot": true,
+    "pilot": false,
     "thinking": false
   },
   {
@@ -129,15 +129,15 @@
   },
   {
     "id": "t17",
-    "prompt": "方案 A 月费 10 元另加每次 2 元，B 每次 3 元。让我改变次数找临界点。",
+    "prompt": "方案 A 月费 10 元另加每次 2 元，B 每次 3 元。使用次数不确定，怎样判断哪个划算？",
     "rubric": "决策实验；10 次同价，11 次 A 更低。",
-    "expect": "model-ui",
-    "pilot": false,
+    "expect": "open",
+    "pilot": true,
     "thinking": false
   },
   {
     "id": "t18",
-    "prompt": "甲设备 1000 元另加每年 50，乙设备 700 元另加每年 150。用年数比较。",
+    "prompt": "甲设备 1000 元另加每年 50，乙设备 700 元另加每年 150。使用多少年会改变购买选择？",
     "rubric": "决策实验；第 3 年同为 1150。",
     "expect": "model-ui",
     "pilot": false,
@@ -145,7 +145,7 @@
   },
   {
     "id": "t19",
-    "prompt": "一批 18 个零件，用每盒 4 个或 6 个包装。把两套结果并排给我。",
+    "prompt": "18 个零件分别用每盒 4 个或 6 个包装，需要多少盒，各有多少空位？",
     "rubric": "比较；分别需 5 盒和 3 盒，剩余空位 2 和 0。",
     "expect": "model-ui",
     "pilot": false,
@@ -153,7 +153,7 @@
   },
   {
     "id": "t20",
-    "prompt": "预算 120 元，两种套餐单价 15、20 元，能买的份数各是多少？让我调预算。",
+    "prompt": "预算 120 元，两种套餐单价 15、20 元，各能买多少份？预算变化时怎么判断？",
     "rubric": "取整实验；初始 8 和 6，预算为 0 时均为 0。",
     "expect": "model-ui",
     "pilot": false,
@@ -161,7 +161,7 @@
   },
   {
     "id": "t21",
-    "prompt": "出三道 HTTP 缓存预测题，答错先给提示，最后只复习错过的题。",
+    "prompt": "我想检查自己是否理解 HTTP 缓存，尤其是 ETag 与资源变化的关系。",
     "rubric": "单选组；区分持有 ETag 和资源未变，正确重试仍保留首错。",
     "expect": "model-ui",
     "pilot": false,
@@ -169,7 +169,7 @@
   },
   {
     "id": "t22",
-    "prompt": "用一道多选题考我 2、3、4、5 中哪些是质数。",
+    "prompt": "我想检查自己能否分辨 2、3、4、5 中的质数。",
     "rubric": "多选；正确集合 {2,3,5}，漏选或多选可重试。",
     "expect": "model-ui",
     "pilot": false,
@@ -177,7 +177,7 @@
   },
   {
     "id": "t23",
-    "prompt": "让我输入直径 2 m 的圆的面积，允许误差 0.01 平方米。",
+    "prompt": "我想练习直径为 2 m 的圆的面积计算，怎样知道自己是否算对？",
     "rubric": "数值题；3.14 通过，3.1 不通过，单位明确。",
     "expect": "model-ui",
     "pilot": false,
@@ -185,7 +185,7 @@
   },
   {
     "id": "t24",
-    "prompt": "把 TCP 三次握手给我打乱，让我用键盘排回正确顺序。",
+    "prompt": "TCP 为什么需要三次握手？我总记不住三条消息的先后关系。",
     "rubric": "排序；SYN、SYN-ACK、ACK；可用键盘移动。",
     "expect": "model-ui",
     "pilot": false,
@@ -241,15 +241,15 @@
   },
   {
     "id": "t31",
-    "prompt": "并排展示 E → E + T | T 消除直接左递归前后的文法，并解释新符号的作用。",
+    "prompt": "E → E + T | T 应该怎样消除直接左递归？为什么需要新的非终结符？",
     "rubric": "变换保持 T 为基底且尾部包含 ε。",
-    "expect": "model-ui",
+    "expect": "open",
     "pilot": true,
     "thinking": true
   },
   {
     "id": "t32",
-    "prompt": "解释 A → A a | b 如何用新的非终结符表示重复 a，给我变换前后对照。",
+    "prompt": "A → A a | b 为什么有左递归，消除后如何表达重复的 a？",
     "rubric": "A→b A′；A′→a A′|ε。",
     "expect": "model-ui",
     "pilot": false,
@@ -257,7 +257,7 @@
   },
   {
     "id": "t33",
-    "prompt": "A → B C，B → b | ε，C → c。让我切换 B 是否可空，观察 FIRST(A)。",
+    "prompt": "A → B C，B → b | ε，C → c。FIRST(A) 是什么？如果 B 不能推出空串，结果为什么会变？",
     "rubric": "包含 b；B可空时加入c。",
     "expect": "model-ui",
     "pilot": true,
@@ -265,7 +265,7 @@
   },
   {
     "id": "t34",
-    "prompt": "S → A B，A → a | ε，B → b | ε。展示 FIRST(S) 与可空传播。",
+    "prompt": "S → A B，A → a | ε，B → b | ε。FIRST(S) 是什么？空串是如何传播的？",
     "rubric": "FIRST(S)={a,b,ε}。",
     "expect": "model-ui",
     "pilot": false,
@@ -273,7 +273,7 @@
   },
   {
     "id": "t35",
-    "prompt": "S → A B，A → a | ε，B → b。展示 FOLLOW(A) 的来源。",
+    "prompt": "S → A B，A → a | ε，B → b。FOLLOW(A) 是什么，依据是什么？",
     "rubric": "FOLLOW(A)={b}。",
     "expect": "model-ui",
     "pilot": false,
@@ -281,7 +281,7 @@
   },
   {
     "id": "t36",
-    "prompt": "S → A B，A → a，B → b | ε。展示 FOLLOW(A) 如何接收 $。",
+    "prompt": "S → A B，A → a，B → b | ε。FOLLOW(A) 里为什么会有结束符 $？",
     "rubric": "FOLLOW(A)={b,$}。",
     "expect": "model-ui",
     "pilot": false,
@@ -289,7 +289,7 @@
   },
   {
     "id": "t37",
-    "prompt": "S → a A | b，A → c。逐步展示两个 S 产生式的 SELECT。",
+    "prompt": "S → a A | b，A → c。两个 S 产生式的 SELECT 集分别是什么，如何求得？",
     "rubric": "分别{a}和{b}。",
     "expect": "model-ui",
     "pilot": false,
@@ -297,7 +297,7 @@
   },
   {
     "id": "t38",
-    "prompt": "S → A b，A → a | ε。展示空产生式的 SELECT 为什么取 FOLLOW。",
+    "prompt": "S → A b，A → a | ε。为什么空产生式的 SELECT 要用 FOLLOW？",
     "rubric": "SELECT(A→ε)={b}。",
     "expect": "model-ui",
     "pilot": false,
@@ -305,23 +305,23 @@
   },
   {
     "id": "t39",
-    "prompt": "S → a A | a B，A → x，B → y。让我点击预测分析表中的冲突查看来源。",
+    "prompt": "S → a A | a B，A → x，B → y。这个文法是 LL(1) 吗？问题出在哪？",
     "rubric": "M[S,a]两个候选，FIRST/FIRST。",
     "expect": "model-ui",
     "pilot": true,
-    "thinking": true
+    "thinking": false
   },
   {
     "id": "t40",
-    "prompt": "S → A a，A → a | ε。展示 FIRST/FOLLOW 冲突。",
+    "prompt": "S → A a，A → a | ε。这个文法为什么不能用 LL(1) 确定地分析？",
     "rubric": "M[A,a]两项，分别FIRST与FOLLOW。",
-    "expect": "model-ui",
-    "pilot": false,
+    "expect": "open",
+    "pilot": true,
     "thinking": false
   },
   {
     "id": "t41",
-    "prompt": "S → a A | b，A → c | ε。给我可点击的 LL(1) 表。",
+    "prompt": "S → a A | b，A → c | ε。预测分析时应该怎样根据当前符号选择产生式？",
     "rubric": "M[S,a],M[S,b],M[A,c],M[A,$]正确。",
     "expect": "model-ui",
     "pilot": false,
@@ -329,15 +329,15 @@
   },
   {
     "id": "t42",
-    "prompt": "S → a A，A → c | ε。用栈、输入、动作联动分析 a c。",
+    "prompt": "S → a A，A → c | ε。LL(1) 分析器怎样处理输入 a c？我不理解栈和剩余输入的关系。",
     "rubric": "接受；开始栈$ S；输入a c $。",
     "expect": "model-ui",
-    "pilot": true,
+    "pilot": false,
     "thinking": false
   },
   {
     "id": "t43",
-    "prompt": "S → a A，A → c。演示输入 a a 在何处失败。",
+    "prompt": "S → a A，A → c。为什么输入 a a 不能被接受，分析在哪一步失败？",
     "rubric": "A与前瞻a无产生式，拒绝。",
     "expect": "model-ui",
     "pilot": false,
@@ -345,7 +345,7 @@
   },
   {
     "id": "t44",
-    "prompt": "S → A，A → ε。逐步分析空输入。",
+    "prompt": "S → A，A → ε。预测分析器怎样接受空输入？",
     "rubric": "展开S、A后接受$。",
     "expect": "model-ui",
     "pilot": false,
@@ -353,7 +353,7 @@
   },
   {
     "id": "t45",
-    "prompt": "画状态图：q0 经 ε 到 q1，q1 经 a 回到 q1，点击节点查看说明。",
+    "prompt": "自动机从 q0 经 ε 到 q1，q1 读到 a 仍留在 q1。这两种转移有什么不同？",
     "rubric": "两个节点，两条正确方向的边。",
     "expect": "model-ui",
     "pilot": false,
@@ -361,7 +361,7 @@
   },
   {
     "id": "t46",
-    "prompt": "逐步演示后缀表达式 2 3 + 的栈变化，支持回退。",
+    "prompt": "后缀表达式 2 3 + 怎样求值？每次读取符号后栈里有什么？",
     "rubric": "[]→[2]→[2,3]→[5]。",
     "expect": "model-ui",
     "pilot": false,

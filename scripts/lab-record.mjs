@@ -57,6 +57,7 @@ export function makeRecord(row, capture, manifest = policyManifest()) {
     reviewed: o.reviewed === true,
     appropriate: o.appropriate === true,
     semantic: o.semantic === true,
+    taskComplete: o.taskComplete === true,
   };
   for (const key of ['usefulMs', 'interactiveMs', 'feedbackMs'])
     if (Number.isFinite(o[key]) && o[key] >= 0) record[key] = o[key];
@@ -78,7 +79,7 @@ if (process.argv[1]?.endsWith('lab-record.mjs')) {
     if (error.code !== 'ENOENT') throw error;
   }
   if (records.some((r) => r.runId === runId)) throw Error('首轮记录已存在，不允许覆盖');
-  if (records.length >= 160) throw Error('请求预算已用完');
+  if (records.length >= 48) throw Error('请求预算已用完');
   await writeFile(directory + '/raw/' + runId + '.txt', text, { flag: 'wx' });
   records.push(record);
   await writeFile(directory + '/records.json', JSON.stringify(records, null, 2) + '\n');
