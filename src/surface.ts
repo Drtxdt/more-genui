@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Square,
   MoreHorizontal,
+  Bookmark,
 } from 'lucide';
 import { safeState } from './protocol.mjs';
 import { StateRepository } from './state.mjs';
@@ -17,6 +18,7 @@ import { appParams, experimentPanel } from './experiment-panel.mjs';
 import sandboxHTML from './generated-sandbox';
 const groupEvents = new EventTarget();
 export interface SurfaceOptions {
+  bookmark?: (state: Record<string,unknown>) => Promise<void>;
   refreshDataset?: (id: string) => Promise<unknown>;
   answerId?: string;
   source: string;
@@ -202,6 +204,10 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     ),
   );
   const pre = document.createElement('pre');
+  if (options.bookmark) button('收藏此卡和当前进度', Bookmark, async () => {
+    await options.bookmark!(safeState(state));
+    setStatus('已收藏，可在扩展的「我的卡片」中打开');
+  });
   if (app.spec?.kind === 'dataset' && options.refreshDataset) {
     button('刷新 USGS 快照', RefreshCw, async () => {
       const current = generation;

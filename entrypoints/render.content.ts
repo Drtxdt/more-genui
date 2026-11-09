@@ -623,6 +623,12 @@ export default defineContentScript({
         const allowRepair = confirmed && token && token === owner?.repairToken;
         reader.register(instance, appMeta.title, host);
         const surface = mountSurface(host, {
+          bookmark: async (state) => {
+            const id = crypto.randomUUID();
+            const saved = stripRequestProof(source).replace(/<!--\s*more-genui-repair:\s*[\w-]+\s*-->\s*/g,'');
+            const meta = {id,title:appMeta.title,route:location.pathname,tags:[],at:Date.now()};
+            await chrome.storage.local.set({['mg:bookmark:'+id]:meta,['mg:card:'+id]:{source:saved,state}});
+          },
           refreshDataset: async (dataset) => {
             const result = await chrome.runtime.sendMessage({type:'dataset:refresh',dataset});
             if (!result?.snapshot) throw Error(result?.error ?? '刷新失败');
