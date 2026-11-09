@@ -137,6 +137,7 @@ function createStepperAPI(read, save, report) {
           play.textContent = '播放';
         }
         function draw() {
+          if (timeline) timeline.value = String(index);
           title.textContent = index + 1 + '/' + steps.length + ' · ' + steps[index].title;
           text.textContent = steps[index].text;
           prev.disabled = index === 0;
@@ -150,6 +151,14 @@ function createStepperAPI(read, save, report) {
             sceneRenderer = renderFrame(graphic, steps[index].frame || scene, index, false);
           compareSteps();
           save(id, { index, hash });
+        }
+        let timeline;
+        if (steps.some(s => s.time)) {
+          timeline = document.createElement('select');
+          timeline.setAttribute('aria-label','跳到时间点');
+          steps.forEach((s,i)=>timeline.add(new Option((s.time || String(i+1))+' · '+s.title,String(i))));
+          timeline.onchange=()=>{stop();index=Number(timeline.value);draw();};
+          tools.append(timeline);
         }
         const prev = button('上一步', () => {
             stop();
