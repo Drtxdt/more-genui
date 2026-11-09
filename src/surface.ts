@@ -14,6 +14,7 @@ import {
   Undo2, Redo2, Accessibility,
 } from 'lucide';
 import { safeState } from './protocol.mjs';
+import { allowedInput } from './numeric-model.mjs';
 import { StateRepository } from './state.mjs';
 import { appParams, experimentPanel } from './experiment-panel.mjs';
 import sandboxHTML from './generated-sandbox';
@@ -43,7 +44,7 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   const parameter =
     parsedGroup.spec?.kind === 'switch'
       ? 'choice'
-      : ['grammar', 'lesson'].includes(parsedGroup.spec?.kind)
+      : parsedGroup.spec?.kind === 'model' ? 'inputs' : ['grammar', 'lesson'].includes(parsedGroup.spec?.kind)
         ? 'grammar'
         : '';
   const groupKey =
@@ -53,6 +54,18 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
       : '';
   const grammarPath = parsedGroup.spec?.kind === 'lesson' ? '__fast/grammar' : '__fast';
   function applyShared(value: Record<string, unknown>) {
+    if(parameter==='inputs'){
+      const old=(state.__fast??{}) as Record<string,any>, inputs={...old.inputs};
+      let matched=false;
+      for(const def of parsedGroup.spec.inputs){
+        const v=(value.inputs as Record<string,any>)?.[def.id];
+        if(v?.unit===def.unit && allowedInput(def,v.value) && inputs[def.id]!==v.value){
+          inputs[def.id]=v.value;matched=true;
+        }
+      }
+      if(matched) state=safeState({...state,__fast:{...old,inputs}});
+      return;
+    }
     if (parameter === 'choice') {
       if (parsedGroup.spec.options.some((o: { id: string }) => o.id === value.choice))
         state = safeState({ ...state, __fast: value.choice });
@@ -67,7 +80,8 @@ export function mountSurface(host: HTMLElement, options: SurfaceOptions) {
   function receiveGrammar(event: Event) {
     const update = (event as CustomEvent).detail;
     if (update.sender === host || disposed || !stateLoaded) return;
-    applyShared(update.value);
+    const prior=state;applyShared(update.value);
+    if(prior===state)return;
     dirty++;
     start();
     void save();
@@ -214,7 +228,8 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     (back?future:past).push(state);
     state=target;dirty++;
     if(groupKey){
-      const data=parameter==='choice'?{choice:state.__fast??app.spec.options[0].id}:
+      const data=parameter==='inputs'?modelGroup(state):
+        parameter==='choice'?{choice:state.__fast??app.spec.options[0].id}:
         {grammar:(state[grammarPath] as any)?.grammar??app.spec.grammar};
       if(Object.values(data).every(v=>v!==undefined)){
         void options.repository.storage.set(groupKey,data);
@@ -226,6 +241,11 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   if(app.spec) {
     button('撤销编辑',Undo2,()=>travel(true));
     button('重做编辑',Redo2,()=>travel(false));
+  }
+  function modelGroup(snapshot:Record<string,unknown>, prior?:Record<string,unknown>){
+    const values=(snapshot.__fast as any)?.inputs??{}, old=(prior?.__fast as any)?.inputs??{};
+    return {inputs:Object.fromEntries(app.spec.inputs.filter((d:any)=>!prior||(values[d.id]??d.value)!==(old[d.id]??d.value))
+      .map((d:any)=>[d.id,{unit:d.unit,value:values[d.id]??d.value}]))};
   }
   const access=button('易读模式',Accessibility,()=>{
     accessible=!accessible;
@@ -376,6 +396,13 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         try {
           const nextState = safeState(message.value);
           if (JSON.stringify(nextState) !== JSON.stringify(state)) {
+            if(groupKey && parameter==='inputs' && interactionPending){
+              const value=modelGroup(nextState,state);
+              if(Object.keys(value.inputs).length){
+                void options.repository.storage.set(groupKey,modelGroup(nextState));
+                groupEvents.dispatchEvent(new CustomEvent(groupKey,{detail:{sender:host,value}}));
+              }
+            }
             if (interactionPending) {
               if(app.spec){past.push(state);if(past.length>25)past.shift();future.length=0;}
               options.diagnostic?.('feedback');
