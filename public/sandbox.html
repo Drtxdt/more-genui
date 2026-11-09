@@ -1008,10 +1008,29 @@ function createFastRenderer(root, initial, read, save, report, rootPath = '__fas
             draw();
           };
           chosen.value = read()[path]?.selected ?? 'D0';
-          result.replaceChildren(list, chosen, evidence, graph, transitions);
+          const word=el('input'), verdict=el('output'), steps=el('ol');
+          word.setAttribute('aria-label','验证输入（符号间用空格）');
+          word.value=read()[path]?.word??'';
+          const runWord=()=>{
+            const tokens=word.value.trim()?word.value.trim().split(/\s+/):[];
+            if(tokens.length>256){verdict.textContent='输入最多 256 个符号';return;}
+            let at=subsets[0];steps.replaceChildren();
+            const row=(prefix)=>{
+              const li=el('li');
+              if(at){const id=at.id;li.append(button(prefix+'：{'+at.members.join(', ')+'}',()=>{chosen.value=id;draw();}));}
+              else li.textContent=prefix+'：空集';
+              steps.append(li);
+            };
+            row('初始 ε 闭包');
+            for(const token of tokens){const id=moves.find(m=>m.from===at?.id&&m.symbol===token)?.to;at=subsets.find(s=>s.id===id);row('读入 '+token);}
+            verdict.textContent=at?.accepting?'接受':'拒绝';
+          };
+          word.oninput=()=>{runWord();save({...read(),[path]:{machine:input,selected:chosen.value,word:word.value}});};
+          runWord();
+          result.replaceChildren(list, chosen, evidence, graph, transitions,word,verdict,steps);
           draw();
           error.textContent = '';
-          save({ ...read(), [path]: { machine: input, selected: chosen.value } });
+          save({ ...read(), [path]: { machine: input, selected: chosen.value,word:word.value } });
         } catch (e) {
           error.textContent = e.message;
         }
