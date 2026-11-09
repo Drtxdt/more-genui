@@ -623,6 +623,11 @@ export default defineContentScript({
         const allowRepair = confirmed && token && token === owner?.repairToken;
         reader.register(instance, appMeta.title, host);
         const surface = mountSurface(host, {
+          refreshDataset: async (dataset) => {
+            const result = await chrome.runtime.sendMessage({type:'dataset:refresh',dataset});
+            if (!result?.snapshot) throw Error(result?.error ?? '刷新失败');
+            return result.snapshot;
+          },
           source: stripRequestProof(source),
           diagnostic: (stage: string) => {
             if (requestId) diagnostic({ id: requestId, stage });

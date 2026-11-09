@@ -1,5 +1,5 @@
 import { publicURL, representativeImage } from './search-sources.mjs';
-async function download(url, limit, type, signal) {
+export async function download(url, limit, type, signal) {
   if (!publicURL(url)) throw Error('Unsupported URL');
   const res = await fetch(url, {
     signal,

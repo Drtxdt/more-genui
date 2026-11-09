@@ -44,6 +44,14 @@ document.querySelector<HTMLButtonElement>('#revoke')!.onclick = async () => {
   }
 };
 const diagnostic = document.querySelector<HTMLInputElement>('#diagnostics')!;
+const earthquakes = document.querySelector<HTMLInputElement>('#earthquakes')!;
+const quakeAccess = {origins:['https://earthquake.usgs.gov/*']};
+Promise.all([chrome.storage.local.get('earthquakes'),chrome.permissions.contains(quakeAccess)])
+  .then(([v,allowed]) => earthquakes.checked = v.earthquakes === true && allowed);
+earthquakes.onchange = async () => {
+  earthquakes.checked = earthquakes.checked && await chrome.permissions.request(quakeAccess).catch(()=>false);
+  await chrome.storage.local.set({earthquakes:earthquakes.checked});
+};
 void chrome.storage.local
   .get('diagnostics')
   .then((v) => (diagnostic.checked = v.diagnostics === true));

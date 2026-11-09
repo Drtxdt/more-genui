@@ -73,6 +73,26 @@ function createFastRenderer(root, initial, read, save, report, rootPath = '__fas
   function render(container, view, path, context) {
     cleanup(container);
     container.replaceChildren();
+    if (view.kind === 'dataset') {
+      const snap = read().__dataset, saved = read()[path];
+      container.append(el('p','来源：USGS · 最近一天 M4.5+ 地震'));
+      if (!snap || !Array.isArray(snap.events)) {
+        container.append(el('p','还没有快照。可在官网卡片操作中手动刷新。'));
+        return;
+      }
+      container.append(el('p','数据时间：'+new Date(snap.at).toISOString()));
+      const label=el('label','最低震级'), limit=el('input'), list=el('ul');
+      limit.type='number'; limit.step='0.1'; limit.value=String(saved?.min ?? 4.5);
+      const draw=()=>{
+        list.replaceChildren();
+        for(const e of snap.events.filter(e=>e.mag>=limit.valueAsNumber))
+          list.append(el('li',e.place+' · M'+e.mag+' · '+e.lat+', '+e.lon+' · USGS '+e.id));
+        if(!list.childNodes.length) list.append(el('li','此范围没有事件'));
+      };
+      limit.oninput=()=>{if(Number.isFinite(limit.valueAsNumber)){save({...read(),[path]:{min:limit.valueAsNumber}});draw();}};
+      label.append(limit);container.append(label,list);draw();
+      return;
+    }
     if (view.kind === 'chart') {
       mountDataChart(container, view, read()[path], value => save({ ...read(), [path]: value }));
       return;

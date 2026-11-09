@@ -4,6 +4,8 @@ import { database, restore, append } from '../src/preview-cache.mjs';
 import { defineBackground } from 'wxt/utils/define-background';
 import { imageFor } from '../src/preview-download.mjs';
 import { publicURL } from '../src/search-sources.mjs';
+import { dataset, endpoint, parseEarthquakes } from '../src/earthquake.mjs';
+import { download } from '../src/preview-download.mjs';
 export default defineBackground(() => {
   const cleanup = () => void purgeSourceHistory().catch(() => {});
   cleanup();
@@ -50,6 +52,18 @@ export default defineBackground(() => {
     registered.delete(tab);
   });
   chrome.runtime.onMessage.addListener((m, sender, respond) => {
+    if (m?.type === 'dataset:refresh' && m.dataset === dataset && sender.frameId === 0 &&
+        sender.tab?.id && sender.url?.startsWith('https://chat.deepseek.com/')) {
+      void (async () => {
+        const settings = await chrome.storage.local.get(['earthquakes','enabled']);
+        if (settings.enabled === false || !settings.earthquakes ||
+            !await chrome.permissions.contains({origins:['https://earthquake.usgs.gov/*']}))
+          throw Error('请先在扩展设置开启 USGS 数据刷新');
+        const response = await download(endpoint, 256 * 1024, /^application\/(?:geo\+)?json\b/i, AbortSignal.timeout(8000));
+        return parseEarthquakes(JSON.parse(await response.text()));
+      })().then(snapshot=>respond({snapshot}),error=>respond({error:String(error.message)}));
+      return true;
+    }
     if (
       sender.frameId !== 0 ||
       !sender.tab?.id ||

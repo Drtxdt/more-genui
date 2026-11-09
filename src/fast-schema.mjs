@@ -62,6 +62,7 @@ const coordinate = z
   })
   .strict();
 const definitions = {
+  dataset: z.object({kind:z.literal('dataset'),dataset:z.literal('usgs-m45-day')}).strict(),
   chart: chartSchema,
   model: modelSchema,
   checklist: z.object({ kind: z.literal('checklist'), items: entries(z.object(labeled)) }).strict(),
