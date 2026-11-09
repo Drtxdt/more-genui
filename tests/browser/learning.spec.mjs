@@ -71,7 +71,8 @@ test('multiple, number and ordering retain first attempts and review only mistak
   await expect(f.getByRole('status')).toContainText('[3,4]');
   await expect
     .poll(() =>
-      page.evaluate(() => Object.values(localStorage).some((v) => v.includes('__moreGenuiSteps'))),
+      page.evaluate(() => Object.entries(localStorage).some(([key, raw]) =>
+        key.startsWith('mg:state:') && JSON.parse(raw).__moreGenuiSteps?.binary?.index === 1)),
     )
     .toBe(true);
   await page.reload();

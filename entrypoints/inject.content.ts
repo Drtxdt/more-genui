@@ -121,7 +121,7 @@ export default defineContentScript({
           ...body,
           prompt: (mode === 'visual'
             ? composePolicy(body.prompt, 'visual', match?.kind)
-            : ['B', 'C'].includes(policy)
+            : ['B', 'C', 'D'].includes(policy)
               ? composePolicy(body.prompt, policy, match?.kind)
               : augment(
                   body.prompt,

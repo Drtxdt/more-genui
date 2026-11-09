@@ -589,9 +589,17 @@ frame.srcdoc = ${template};
     });
   });
   visibility.observe(host);
-  const tabVisibility = () => {
-    if (document.hidden) channel?.port1.postMessage({ type: 'visibility', visible: false });
+  const flushProgress = () => {
+    clearTimeout(saveTimer);
+    void save();
   };
+  const tabVisibility = () => {
+    if (document.hidden) {
+      flushProgress();
+      channel?.port1.postMessage({ type: 'visibility', visible: false });
+    }
+  };
+  window.addEventListener('pagehide', flushProgress);
   document.addEventListener('visibilitychange', tabVisibility);
   const media = matchMedia('(prefers-color-scheme: dark)');
   const theme = () => {
@@ -628,6 +636,7 @@ frame.srcdoc = ${template};
     dispose() {
       if (groupKey) groupEvents.removeEventListener(groupKey, receiveGrammar);
       visibility.disconnect();
+      window.removeEventListener('pagehide', flushProgress);
       document.removeEventListener('visibilitychange', tabVisibility);
       experiments.dispose();
       pngRequest?.reject(Error('应用已关闭'));

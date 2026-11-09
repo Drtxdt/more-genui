@@ -69,6 +69,7 @@ function effectiveSource(code: Element) {
   );
   return withPreamble(source, codeLanguage(code), lines);
 }
+const readPolicy = (v: unknown) => v === 'B' || v === 'C' || v === 'D' ? v : 'A';
 export default defineContentScript({
   matches: ['https://chat.deepseek.com/*'],
   main(ctx) {
@@ -281,7 +282,7 @@ export default defineContentScript({
             timeout = setTimeout(() => reject(Error('storage timeout')), 4000);
           }),
         ]);
-        labPolicy = value.labPolicy === 'C' ? 'C' : value.labPolicy === 'B' ? 'B' : 'A';
+        labPolicy = readPolicy(value.labPolicy);
         learning = value.learning === true;
         preferred = String(value.preferred ?? '');
         diagnostics.configure(value.diagnostics);
@@ -327,7 +328,7 @@ export default defineContentScript({
       }
       if (area === 'local' && changes.labPolicy) {
         labPolicy =
-          changes.labPolicy.newValue === 'C' ? 'C' : changes.labPolicy.newValue === 'B' ? 'B' : 'A';
+          readPolicy(changes.labPolicy.newValue);
         publish();
       }
       if (area === 'local' && changes.diagnostics) {
