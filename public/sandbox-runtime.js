@@ -33,6 +33,21 @@
     const theme = (value) => {
       document.documentElement.dataset.theme = value === 'dark' ? 'dark' : 'light';
     };
+    let accessStyle;
+    function setAccessible(value){
+      accessStyle?.remove();
+      if(!value)return;
+      accessStyle=document.createElement('style');
+      accessStyle.textContent='body{font-size:18px!important;line-height:1.7!important}button,input,select{min-height:40px!important;font-size:1em!important}:focus-visible{outline:3px solid Highlight!important;outline-offset:2px!important}*,*::after,*::before{animation-duration:0s!important;transition-duration:0s!important}';
+      document.head.append(accessStyle);
+    }
+    setAccessible(config.accessible);
+    if(config.spec) document.addEventListener('keydown',e=>{
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&e.isTrusted&&
+          !e.target.closest?.('input,textarea,[contenteditable=true]')){
+        e.preventDefault();send('history-shortcut',e.shiftKey?'redo':'undo');
+      }
+    });
     for (const event of ['click', 'input'])
       document.addEventListener(
         event,
@@ -100,6 +115,7 @@
     addEventListener('error', (e) => report(e.message));
     addEventListener('unhandledrejection', (e) => report(e.reason));
     port.onmessage = (e) => {
+      if(e.data?.type==='accessible')setAccessible(e.data.value);
       if (e.data?.type === 'png') {
         const id = e.data.id;
         (config.spec ? fastRenderer.png() : experiment.png()).then(
