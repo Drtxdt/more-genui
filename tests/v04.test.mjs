@@ -87,3 +87,21 @@ test('overlap cannot turn anonymous output into history on cancellation or rebui
   assert.equal(ledger.classify({}, 'old', 'saved').kind, 'history');
   ledger.clear();
 });
+
+test('retiring requests evicts both identity indexes while preserving late repair receipts', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const ledger = new RequestLifecycle(() => {});
+  for (let i = 0; i < 300; i++) {
+    ledger.start(i, new WeakMap(), 'repair-' + i, 'proof-' + i);
+    ledger.identify(i, 'message-' + i);
+    ledger.end(i);
+  }
+  t.mock.timers.tick(2001);
+  assert.equal(ledger.requests.size, 0);
+  assert.equal(ledger.bindings.size, 256);
+  assert.equal(ledger.proofs.size, 256);
+  assert.equal(ledger.owner({}, 'message-43'), undefined);
+  assert.equal(ledger.proofs.has('proof-43'), false);
+  assert.equal(ledger.owner({}, 'message-44').repairToken, 'repair-44');
+  ledger.clear();
+});

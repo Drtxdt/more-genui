@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "id": "roast",
+  "title": "备餐采购",
+  "stateVersion": 1,
+  "kind": "model",
+  "inputs": [
+    {
+      "id": "people",
+      "label": "人数",
+      "kind": "slider",
+      "unit": "1",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "value": 4
+    },
+    {
+      "id": "lamb",
+      "label": "每人羊排",
+      "kind": "number-input",
+      "unit": "g",
+      "min": 0,
+      "max": 2000,
+      "step": 1,
+      "value": 250
+    },
+    {
+      "id": "potato",
+      "label": "每人土豆",
+      "kind": "number-input",
+      "unit": "g",
+      "min": 0,
+      "max": 2000,
+      "step": 1,
+      "value": 200
+    }
+  ],
+  "outputs": [
+    {
+      "id": "meat",
+      "label": "羊排",
+      "unit": "g",
+      "op": "mul",
+      "args": [
+        "lamb",
+        "people"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "veg",
+      "label": "土豆",
+      "unit": "g",
+      "op": "mul",
+      "args": [
+        "potato",
+        "people"
+      ],
+      "kind": "computed-value"
+    }
+  ],
+  "checklist": [
+    "meat",
+    "veg"
+  ]
+}

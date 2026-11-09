@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "area",
+  "title": "矩形面积",
+  "stateVersion": 1,
+  "kind": "model",
+  "inputs": [
+    {
+      "id": "width",
+      "label": "宽",
+      "kind": "number-input",
+      "unit": "cm",
+      "min": 1,
+      "max": 500,
+      "step": 1,
+      "value": 50
+    },
+    {
+      "id": "height",
+      "label": "长",
+      "kind": "number-input",
+      "unit": "m",
+      "min": 0.1,
+      "max": 20,
+      "step": 0.1,
+      "value": 2
+    }
+  ],
+  "outputs": [
+    {
+      "id": "area",
+      "label": "面积",
+      "unit": "m²",
+      "op": "mul",
+      "args": [
+        "width",
+        "height"
+      ],
+      "kind": "computed-value"
+    }
+  ]
+}

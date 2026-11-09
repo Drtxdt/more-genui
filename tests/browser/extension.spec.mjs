@@ -107,6 +107,9 @@ for (const transport of ['fetch', 'xhr'])
     if (!(await page.getByRole('button', { name: '修复', exact: true }).first().isVisible()))
       await page.getByRole('button', { name: '更多', exact: true }).first().click();
     await page.getByRole('button', { name: '修复', exact: true }).click();
+    await expect(page.locator('textarea')).toHaveValue(/请修复应用/);
+    expect(sent.prompt).not.toContain('请修复应用');
+    await page.getByTestId('send-button').click();
     await expect.poll(() => sent.prompt).toContain('请修复应用');
     await page.evaluate(
       ({ output, old }) => {
