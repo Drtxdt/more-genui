@@ -94,6 +94,8 @@ test('visual stepper resets the scene when going backward', async ({ page }) => 
   const frame = page.frameLocator('#app iframe');
   await frame.getByRole('button', { name: '下一步', exact: true }).click();
   await expect(frame.getByRole('button', { name: 'A / id', exact: true })).toHaveText('完成');
+  await frame.getByRole('button',{name:'比较上一步'}).press('Enter');
+  await expect(frame.getByText(/A → id.*→ 完成/)).toBeVisible();
   await frame.getByRole('button', { name: '上一步', exact: true }).click();
   await expect(frame.getByRole('button', { name: 'A / id', exact: true })).toHaveText('A → id');
 });
