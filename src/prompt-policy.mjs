@@ -11,7 +11,7 @@ function taskGuide(question) {
   else if (/自动机|NFA|闭包/i.test(question))
     schema = 'automaton:{states:状态名数组,start,accepting:状态名数组,edges:[{from,to,symbol}]}，ε 边的 symbol 为 ε。';
   else if (/人数|采购|食材|人份|分账|小费|复利|储蓄|欧姆|用量/.test(question))
-    schema = 'model:{inputs:[{id,label,kind:"slider"或"number-input",unit,min,max,step,value}],outputs:[{id,label,kind:"computed-value",unit,op,args:引用ID数组}],checklist:可复制的输出ID数组(可省略)}。单位 1、%、g、kg、CNY 等；op 用 add/sub/mul/div/convert/annuity 或 share。share 的 args 为总金额、各人权重，position 从 0 开始。公式不能内嵌；常量用固定输入。';
+    schema = 'model:{inputs:[{id,label,kind:"slider"或"number-input",unit,min,max,step,value}],outputs:[{id,label,kind:"computed-value",unit,op,args:引用ID数组}],checklist:可复制的输出ID数组(可省略)}。单位 1、%、g、kg、CNY 等；op 用 add/sub/mul/div/convert/annuity 或 share。share 的 args 为总金额、各人权重，position 从 0 开始。公式不能内嵌；每人基准用量可作为有范围、有默认值的输入。';
   else if (/图表|分布|散点|直方图/.test(question))
     schema = 'chart:{style:"line"或"bar"或"scatter"或"histogram",xLabel,yLabel,points:[{x,y,group可选,low和high可选}]}。';
   else return '按解释需要选择纯文字或完整离线 genui-html 小实验，若选 HTML，请使用独立的具名 Markdown 围栏并将元数据注释放在内部。';
