@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "id": "bill",
+  "title": "逐项分账",
+  "stateVersion": 1,
+  "kind": "model",
+  "inputs": [
+    {
+      "id": "pizza",
+      "label": "披萨",
+      "kind": "number-input",
+      "unit": "CNY",
+      "min": 0,
+      "max": 1000,
+      "step": 0.01,
+      "value": 14
+    },
+    {
+      "id": "pasta",
+      "label": "乙的意面",
+      "kind": "number-input",
+      "unit": "CNY",
+      "min": 0,
+      "max": 1000,
+      "step": 0.01,
+      "value": 17
+    },
+    {
+      "id": "alice",
+      "label": "甲吃披萨",
+      "kind": "number-input",
+      "unit": "1",
+      "min": 0,
+      "max": 1,
+      "step": 1,
+      "value": 1
+    },
+    {
+      "id": "bob",
+      "label": "乙吃披萨",
+      "kind": "number-input",
+      "unit": "1",
+      "min": 0,
+      "max": 1,
+      "step": 1,
+      "value": 1
+    },
+    {
+      "id": "tax",
+      "label": "税",
+      "kind": "number-input",
+      "unit": "CNY",
+      "min": 0,
+      "max": 100,
+      "step": 0.01,
+      "value": 2.48
+    },
+    {
+      "id": "tip",
+      "label": "税前小费",
+      "kind": "number-input",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "value": 20
+    }
+  ],
+  "outputs": [
+    {
+      "id": "subtotal",
+      "label": "餐费",
+      "unit": "CNY",
+      "op": "add",
+      "args": [
+        "pizza",
+        "pasta"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "tips",
+      "label": "小费",
+      "unit": "CNY",
+      "op": "mul",
+      "args": [
+        "subtotal",
+        "tip"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "extra",
+      "label": "税及小费",
+      "unit": "CNY",
+      "op": "add",
+      "args": [
+        "tax",
+        "tips"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "first",
+      "label": "甲的餐费",
+      "unit": "CNY",
+      "op": "share",
+      "args": [
+        "pizza",
+        "alice",
+        "bob"
+      ],
+      "kind": "computed-value",
+      "position": 0
+    },
+    {
+      "id": "second",
+      "label": "乙的餐费",
+      "unit": "CNY",
+      "op": "sub",
+      "args": [
+        "subtotal",
+        "first"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "fee",
+      "label": "甲的税及小费",
+      "unit": "CNY",
+      "op": "share",
+      "args": [
+        "extra",
+        "first",
+        "second"
+      ],
+      "kind": "computed-value",
+      "position": 0
+    },
+    {
+      "id": "a",
+      "label": "甲应付",
+      "unit": "CNY",
+      "op": "add",
+      "args": [
+        "first",
+        "fee"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "total",
+      "label": "总额",
+      "unit": "CNY",
+      "op": "add",
+      "args": [
+        "subtotal",
+        "extra"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "b",
+      "label": "乙应付",
+      "unit": "CNY",
+      "op": "sub",
+      "args": [
+        "total",
+        "a"
+      ],
+      "kind": "computed-value"
+    }
+  ]
+}
