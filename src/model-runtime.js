@@ -74,6 +74,9 @@ function mountNumericModel(container, model, load, save) {
     };
   }
   container.append(equations, status);
+  const comparison = element('div');
+  let chartState = restored.chart;
+  if (model.sweep) container.append(comparison);
   function update(persist) {
     const inputs = {};
     for (const [id, { control, current }] of controls) {
@@ -83,6 +86,30 @@ function mountNumericModel(container, model, load, save) {
     }
     try {
       const values = FastValidation.calculateModel(model, inputs, order);
+      if (model.sweep) {
+        comparison.replaceChildren();
+        const s = model.sweep,
+          input = model.inputs.find((n) => n.id === s.input);
+        const outputs = s.outputs.map((id) => model.outputs.find((n) => n.id === id));
+        const points = s.values.flatMap((x) => {
+          const result = FastValidation.calculateModel(model, { ...inputs, [input.id]: x }, order);
+          return outputs.map((o) => ({ x, y: result[o.id], group: o.label }));
+        });
+        mountDataChart(
+          comparison,
+          {
+            style: 'line',
+            xLabel: input.label + ' (' + input.unit + ')',
+            yLabel: outputs[0].unit,
+            points,
+          },
+          chartState,
+          (value) => {
+            chartState = value;
+            save({ inputs, checked: [...checked], chart: value });
+          },
+        );
+      }
       for (const def of model.outputs) {
         const digits = def.unit === 'CNY' ? 2 : undefined;
         results.get(def.id).value =
@@ -104,8 +131,9 @@ function mountNumericModel(container, model, load, save) {
         status.textContent = '已完成 ' + checked.size + '/' + model.checklist.length;
       } else status.textContent = '';
       copy.disabled = false;
-      if (persist) save({ inputs, checked: [...checked] });
+      if (persist) save({ inputs, checked: [...checked], chart: chartState });
     } catch (error) {
+      comparison.replaceChildren();
       for (const value of results.values()) value.value = '—';
       status.textContent = error.message;
       copy.disabled = true;

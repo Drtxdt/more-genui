@@ -23,6 +23,7 @@ const fast =
   'const GRAMMAR_WORKER_SOURCE = ' +
   JSON.stringify(worker) +
   ';\n' +
+  (await readFile(new URL('../src/chart-runtime.js', import.meta.url), 'utf8')) + '\n' +
   (await readFile(new URL('../src/model-runtime.js', import.meta.url), 'utf8')) + '\n' +
   (await readFile(new URL('../src/fast-runtime.js', import.meta.url), 'utf8'));
 const script =

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { chartSchema } from './chart-data.mjs';
 import { compileModel, modelSchema } from './numeric-model.mjs';
 const text = z.string().max(8192),
   id = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
@@ -61,6 +62,7 @@ const coordinate = z
   })
   .strict();
 const definitions = {
+  chart: chartSchema,
   model: modelSchema,
   checklist: z.object({ kind: z.literal('checklist'), items: entries(z.object(labeled)) }).strict(),
   parts: z
