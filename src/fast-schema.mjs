@@ -40,7 +40,49 @@ const base = {
   title: z.string().min(1).max(160),
   stateVersion: z.number().int().positive(),
 };
+const labeled = { id, label: entity, detail: text };
+const entries = (schema) =>
+  z
+    .array(schema.strict())
+    .min(1)
+    .max(64)
+    .refine((items) => new Set(items.map((item) => item.id)).size === items.length, '条目 ID 重复');
+const position = z.number().finite().min(0).max(100);
+const coordinate = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+    source: z
+      .string()
+      .url()
+      .max(2048)
+      .regex(/^https:\/\//),
+  })
+  .strict();
 const definitions = {
+  checklist: z.object({ kind: z.literal('checklist'), items: entries(z.object(labeled)) }).strict(),
+  parts: z
+    .object({
+      kind: z.literal('parts'),
+      parts: entries(
+        z.object({
+          ...labeled,
+          x: position,
+          y: position,
+          outline: z
+            .array(z.tuple([position, position]))
+            .min(2)
+            .max(128),
+        }),
+      ),
+    })
+    .strict(),
+  route: z
+    .object({
+      kind: z.literal('route'),
+      stops: entries(z.object({ ...labeled, coordinate: coordinate.optional() })),
+    })
+    .strict(),
   automaton: z
     .object({
       kind: z.literal('automaton'),

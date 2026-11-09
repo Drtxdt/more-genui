@@ -72,6 +72,127 @@ function createFastRenderer(root, initial, read, save, report) {
   function render(container, view, path, context) {
     cleanup(container);
     container.replaceChildren();
+    if (view.kind === 'checklist') {
+      const checked = new Set(
+        view.items.filter((item) => read()[path]?.includes?.(item.id)).map((item) => item.id),
+      );
+      const status = el('output');
+      const summary = () => (status.textContent = checked.size + ' / ' + view.items.length);
+      for (const item of view.items) {
+        const label = el('label'),
+          input = el('input');
+        input.type = 'checkbox';
+        input.checked = checked.has(item.id);
+        input.onchange = () => {
+          if (input.checked) checked.add(item.id);
+          else checked.delete(item.id);
+          save({ ...read(), [path]: [...checked] });
+          summary();
+        };
+        label.append(input, document.createTextNode(item.label + '　' + item.detail));
+        const row = el('div');
+        row.append(label);
+        container.append(row);
+      }
+      summary();
+      container.append(
+        status,
+        button('复制清单', async () => {
+          const value = view.items
+            .map((item) => (checked.has(item.id) ? '☑ ' : '□ ') + item.label + ' ' + item.detail)
+            .join('\n');
+          try {
+            await navigator.clipboard.writeText(value);
+          } catch {
+            const selection = el('textarea');
+            selection.value = value;
+            selection.readOnly = true;
+            selection.setAttribute('aria-label', '可复制的清单');
+            container.append(selection);
+            selection.select();
+            if (document.execCommand('copy')) selection.remove();
+          }
+        }),
+      );
+      return;
+    }
+    if (view.kind === 'parts' || view.kind === 'route') {
+      const route = view.kind === 'route',
+        items = route ? view.stops : view.parts;
+      const graphic = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      graphic.setAttribute('viewBox', '-5 -5 110 110');
+      graphic.style.maxHeight = '240px';
+      graphic.setAttribute('role', 'img');
+      graphic.setAttribute('aria-label', route ? '按站点顺序绘制的位置示意' : '部件示意');
+      const coords = items.filter((i) => i.coordinate).map((i) => i.coordinate);
+      function scale(value, axis) {
+        const values = coords.map((c) => c[axis]),
+          min = Math.min(...values),
+          max = Math.max(...values);
+        return min === max ? 50 : ((value - min) * 90) / (max - min) + 5;
+      }
+      const detail = el('p'),
+        controls = el('div'),
+        shapes = new Map(),
+        buttons = new Map();
+      detail.setAttribute('aria-live', 'polite');
+      function draw(tag, attrs) {
+        const shape = document.createElementNS(graphic.namespaceURI, tag);
+        for (const [k, v] of Object.entries(attrs)) shape.setAttribute(k, String(v));
+        graphic.append(shape);
+        return shape;
+      }
+      function select(item) {
+        for (const [id, b] of buttons) b.setAttribute('aria-pressed', String(id === item.id));
+        for (const [id, shape] of shapes)
+          shape.setAttribute('stroke', id === item.id ? 'var(--accent)' : 'currentColor');
+        detail.textContent =
+          item.label +
+          '　' +
+          item.detail +
+          (item.coordinate ? '　坐标来源 ' + item.coordinate.source : '');
+        save({ ...read(), [path]: item.id });
+      }
+      let previous;
+      items.forEach((item, index) => {
+        const b = button((route ? index + 1 + '. ' : '') + item.label, () => select(item));
+        buttons.set(item.id, b);
+        controls.append(b);
+        let shape;
+        if (route && item.coordinate) {
+          const x = scale(item.coordinate.lon, 'lon'),
+            y = 100 - scale(item.coordinate.lat, 'lat');
+          if (previous)
+            draw('line', {
+              x1: previous.x,
+              y1: previous.y,
+              x2: x,
+              y2: y,
+              stroke: 'currentColor',
+              'stroke-width': 0.5,
+            });
+          shape = draw('circle', { cx: x, cy: y, r: 2, fill: 'var(--bg)' });
+          previous = { x, y };
+        } else if (!route) {
+          shape = draw('polyline', {
+            points: item.outline.map((p) => p.join(',')).join(' '),
+            fill: 'none',
+            'stroke-width': 3,
+            'stroke-linejoin': 'round',
+          });
+          draw('text', { x: item.x, y: item.y, 'font-size': 5, fill: 'currentColor' }).textContent =
+            String(index + 1);
+        } else previous = undefined;
+        if (shape) {
+          shapes.set(item.id, shape);
+          shape.onclick = () => select(item);
+        }
+      });
+      if (shapes.size) container.append(graphic);
+      container.append(controls, detail);
+      select(items.find((i) => i.id === read()[path]) ?? items[0]);
+      return;
+    }
     if (view.kind === 'compare') {
       const columns = el('div');
       columns.className = 'fast-columns';
@@ -160,7 +281,7 @@ function createFastRenderer(root, initial, read, save, report) {
         const column = view.columns.indexOf(selected[1]);
         if (row >= 0 && column >= 0) buttons[row * view.columns.length + column].click();
         else {
-          const state = {...read()};
+          const state = { ...read() };
           delete state[path];
           save(state);
         }
