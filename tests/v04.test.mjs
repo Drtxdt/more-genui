@@ -3,6 +3,24 @@ import assert from 'node:assert/strict';
 import { FenceScanner } from '../src/fences.mjs';
 import { RequestLifecycle } from '../src/request-lifecycle.mjs';
 import { searchSources, publicURL, representativeImage } from '../src/search-sources.mjs';
+test('a fresh anonymous request can claim its own closed block after an overlap', () => {
+  const ledger = new RequestLifecycle(() => {});
+  const proof = 'a740ca93-48a2-41ff-a73f-e4792c914f28';
+  const source = JSON.stringify({ id: 'wave', requestProof: proof });
+  try {
+    for (const id of ['a', 'b']) ledger.start(id, new WeakMap());
+    for (const id of ['a', 'b']) ledger.end(id);
+    ledger.start('c', new WeakMap(), undefined, proof);
+    assert.equal(ledger.classify({}, null, source, 'genui-json', 0).kind, 'unknown');
+    ledger.source('c', source, 'genui-json');
+    assert.equal(ledger.classify({}, null, source, 'genui-json', 0).owner?.id, 'c');
+    assert.equal(ledger.classify({}, null, '{"id":"wave"}', 'genui-json', 0).kind, 'unknown');
+    assert.equal(ledger.classify({}, null, source, 'json', 0).kind, 'unknown');
+    assert.equal(ledger.classify({}, null, source, 'genui-json', 1).kind, 'unknown');
+  } finally {
+    ledger.clear();
+  }
+});
 test('tail receipts require newline or successful finish', () => {
   const raw = '~~~genui-html\n<html></html>\n~~~';
   for (let i = 0; i <= raw.length; i++) {
