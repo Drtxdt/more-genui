@@ -263,6 +263,9 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     const next = document.createElement('iframe');
     frame = next;
     next.title = app.title;
+    // Keep layout measurable without exposing controls in the temporary 48px viewport.
+    next.style.visibility = 'hidden';
+    next.inert = true;
     next.sandbox.add('allow-scripts');
     next.referrerPolicy = 'no-referrer';
     if (!inline && options.sandboxUrl) next.src = options.sandboxUrl;
@@ -270,6 +273,15 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     channel = new MessageChannel();
     const connection = channel;
     let interactionPending = false;
+    let ready = false, measured = false;
+    function reveal() {
+      if (!ready || !measured || !next.inert || error) return;
+      clearTimeout(timeout);
+      setStatus(sizeWarning);
+      next.inert = false;
+      next.style.visibility = '';
+      options.diagnostic?.('ready');
+    }
     let loaded = false,
       sizeWarning = '';
     connection.port1.onmessage = (e) => {
@@ -332,7 +344,9 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         expand.hidden = message.value <= 1200;
         viewport.style.maxHeight = !expanded && message.value > 1200 ? '1200px' : '';
         sizeWarning = message.value > 20000 ? '内容尺寸超过 20000px 显示上限，超出部分未展示' : '';
+        measured = true;
         if (sizeWarning) setStatus(sizeWarning);
+        reveal();
       } else if (message.type === 'error') {
         clearTimeout(timeout);
         options.diagnostic?.('execution-error');
@@ -346,9 +360,8 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         };
         status.append(fix);
       } else if (message.type === 'ready') {
-        options.diagnostic?.('ready');
-        clearTimeout(timeout);
-        if (!error) setStatus(sizeWarning);
+        ready = true;
+        reveal();
       }
     };
     next.onload = () => {
