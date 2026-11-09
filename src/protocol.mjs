@@ -1,3 +1,4 @@
+import { FenceScanner } from './fences.mjs';
 import { z } from 'zod';
 export const MAX_SOURCE = 256 * 1024,
   MAX_STATE = 64 * 1024;
@@ -25,20 +26,11 @@ export function parseApp(source) {
 }
 export function fencedSources(raw) {
   const results = [];
-  let fence = '',
-    lines = [];
-  for (const line of raw.split(/\r?\n/)) {
-    if (!fence) {
-      const m = /^\s{0,3}(`{3,}|~{3,})genui-html\s*$/.exec(line);
-      if (m) {
-        fence = m[1];
-        lines = [];
-      }
-    } else if (new RegExp('^\\s{0,3}' + fence[0] + '{' + fence.length + ',}\\s*$').test(line)) {
-      results.push(lines.join('\n'));
-      fence = '';
-    } else lines.push(line);
-  }
+  const scanner = new FenceScanner((source, language) => {
+    if (language === 'genui-html') results.push(source);
+  });
+  scanner.update(raw);
+  scanner.finish();
   return results;
 }
 export function completeApps(raw) {

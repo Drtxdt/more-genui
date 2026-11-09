@@ -63,10 +63,10 @@ export class ReplyAccumulator {
   cursor = new DeltaCursor();
   constructor(onSource) {
     this.onSource = onSource;
-    this.scanner = new FenceScanner((source) => {
-      if (!this.emitted.has(source)) {
-        this.emitted.add(source);
-        this.onSource(source);
+    this.scanner = new FenceScanner((source, language) => {
+      if (!this.emitted.has(language + source)) {
+        this.emitted.add(language + source);
+        this.onSource(source, language);
       }
     });
   }

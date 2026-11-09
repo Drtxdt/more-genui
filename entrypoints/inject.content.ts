@@ -164,9 +164,9 @@ export default defineContentScript({
       let firstText = false;
       let ended = false,
         failed = false;
-      const accumulator = new ReplyAccumulator((source: string) => {
+      const accumulator = new ReplyAccumulator((source: string, language: string) => {
         diagnose('ui-output', new TextEncoder().encode(source).length);
-        post({ type: 'more-genui-source', id, route, source });
+        post({ type: 'more-genui-source', id, route, source, language });
       });
       let sourcesKey = '';
       const sse = new SSEDecoder(
@@ -216,7 +216,8 @@ export default defineContentScript({
           diagnose(failed ? 'unsupported' : status);
           if (!failed && !sse.buffer.trim() && status === 'complete') {
             accumulator.scanner.finish();
-            if (accumulator.scanner.fence) diagnose('invalid-protocol');
+            if (accumulator.scanner.fence && accumulator.scanner.explicit) diagnose('invalid-protocol');
+            else if (accumulator.scanner.candidate) diagnose('preview-candidate');
             else if (enhanced && firstText && !accumulator.emitted.size) diagnose('no-ui');
             else if (!firstText) diagnose('insufficient-evidence');
           } else if (sse.buffer.trim()) diagnose('insufficient-evidence');

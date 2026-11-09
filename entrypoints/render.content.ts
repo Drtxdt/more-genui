@@ -465,36 +465,20 @@ export default defineContentScript({
           ?.getAttribute('data-virtual-list-item-key');
         const origin = ledger.classify(code, key, source);
         const owner = origin.owner;
-        if (source.trimStart().startsWith('{')) {
-          const pre = code.closest('pre');
-          const labeled = [code, pre].some(
-            (el) =>
-              el?.classList.contains('language-genui-json') ||
-              el?.getAttribute('data-language') === 'genui-json',
-          );
-          const wrapper = pre?.closest('.md-code-block');
-          const banner =
-            wrapper &&
-            [...wrapper.querySelectorAll('span,button,div')].some(
-              (el) =>
-                !pre?.contains(el) &&
-                !el.childElementCount &&
-                el.textContent?.trim() === 'genui-json',
-            );
-          const plain = [code, pre].some(
-            (el) =>
-              el?.classList.contains('language-json') ||
-              el?.getAttribute('data-language') === 'json',
-          );
-          if (plain || (!labeled && !banner && !(owner && ledger.confirmed(code, owner, source))))
-            continue;
-        }
+        const pre = code.closest('pre');
+        const banner = [...(pre?.closest('.md-code-block')?.querySelectorAll('span,button,div') ?? [])]
+          .find(el => !pre?.contains(el) && !el.childElementCount && /^(genui-)?(json|html)$/.test(el.textContent?.trim() ?? ''));
+        const language = [code, pre].map(el => el?.getAttribute('data-language') ||
+          [...(el?.classList ?? [])].find(c => c.startsWith('language-'))?.slice(9)).find(Boolean) ?? banner?.textContent?.trim();
+        const expected = source.trimStart().startsWith('{') ? 'json' : 'html';
+        if (language && language !== expected && language !== 'genui-' + expected) continue;
+        const confirmed = owner && ledger.confirmed(code, owner, source);
+        const manual = language === expected || (!language && !confirmed);
         if (origin.kind === 'unknown')
           for (const id of active) diagnostic({ id, stage: 'ambiguous' });
         const requestId = owner?.id;
         if (
-          origin.kind !== 'history' &&
-          !(owner && ledger.confirmed(code, owner, source)) &&
+          (manual || (origin.kind !== 'history' && !confirmed)) &&
           approvals.get(code) !== source
         ) {
           if (!active.size && !recovery.has(code)) {
@@ -506,7 +490,7 @@ export default defineContentScript({
             const button = document.createElement('button');
             button.className = 'more-genui-recovery';
             button.dataset.source = source;
-            button.textContent = '未确认输出边界 · 运行此应用';
+            button.textContent = manual && language ? '点击预览' : '未确认输出边界 · 运行此应用';
             button.onclick = () => {
               if (code.textContent !== source || !code.isConnected) {
                 scan();
@@ -646,9 +630,10 @@ export default defineContentScript({
         m.source.length <= MAX_SOURCE
       ) {
         try {
-          parseApp(m.source);
+          parseApp(m.source, m.language === 'genui-json' ? 'fast' : m.language === 'genui-html' ? 'html' : undefined);
         } catch {
           diagnostic({ id: m.id, stage: 'invalid-protocol' });
+          return;
         }
         ledger.source(m.id, m.source.trim());
       } else if (m.type === 'more-genui-end' && requests.has(m.id)) {

@@ -50,3 +50,13 @@ test('all published declarative examples satisfy the same strict renderer schema
     if (name.startsWith('fast-') && name.endsWith('.json'))
       assert.ok(parseFast(await readFile('examples/' + name, 'utf8')).spec);
 });
+
+test('tutorial fences suppress nested apps and retain the declared language', () => {
+  const seen = [];
+  const scan = new FenceScanner((source, language) => seen.push([language,source]));
+  const tick = String.fromCharCode(96).repeat(3);
+  scan.update([tick+'~','ignored',tick,tick+'genui-json','{}',tick,''].join('\n'));
+  assert.deepEqual(seen,[['genui-json','{}']]);
+  const outer = new FenceScanner(() => assert.fail('nested example emitted'));
+  outer.update([tick+'`markdown',tick+'genui-json','{}',tick,tick+'`',''].join('\n'));
+});
