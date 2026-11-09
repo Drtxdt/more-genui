@@ -227,6 +227,7 @@ function mountNumericModel(container, model, load, save) {
   update(false);
 }
 
+let activeGrammarJobs = 0;
 function createFastRenderer(root, initial, read, save, report) {
   initial = FastValidation.validateView(initial);
   const resources = new Map();
@@ -785,12 +786,20 @@ function createFastRenderer(root, initial, read, save, report) {
       const workerURL = URL.createObjectURL(
         new Blob([GRAMMAR_WORKER_SOURCE], { type: 'text/javascript' }),
       );
-      const grammarWorker = new Worker(workerURL);
+      let worker, deadline;
+      function cancelJob() {
+        clearTimeout(deadline);
+        if (worker) {
+          worker.terminate();
+          worker = undefined;
+          activeGrammarJobs--;
+        }
+      }
       track(container, () => {
-        grammarWorker.terminate();
+        cancelJob();
         URL.revokeObjectURL(workerURL);
       });
-      grammarWorker.onmessage = (event) => {
+      const accept = (event) => {
         const message = event.data;
         if (message.revision !== localRevision) return;
         if (message.error) {
@@ -919,10 +928,12 @@ function createFastRenderer(root, initial, read, save, report) {
           }
         }
       };
-      grammarWorker.onerror = () => (error.textContent = '文法计算无法启动，请重新运行应用');
       function compute(transform = false, share = false) {
         localRevision++;
+        cancelJob();
         try {
+          if (editor.value.length > 32768 || input.value.length > 8192)
+            throw Error('文法最多 32768 字符，输入最多 8192 字符');
           const lines = editor.value
             .split(/\r?\n/)
             .map((s) => s.trim())
@@ -942,13 +953,33 @@ function createFastRenderer(root, initial, read, save, report) {
           broadcast = share;
           pendingGrammar = grammar;
           pendingInput = tokens;
-          grammarWorker.postMessage({
+          if (activeGrammarJobs >= 4) throw Error('已有四项文法计算，请稍后重新计算');
+          const job = new Worker(workerURL);
+          worker = job;
+          activeGrammarJobs++;
+          job.onmessage = (event) => {
+            if (worker !== job) return;
+            cancelJob();
+            accept(event);
+          };
+          job.onerror = () => {
+            if (worker !== job) return;
+            cancelJob();
+            error.textContent = '文法计算无法启动，请重新计算';
+          };
+          deadline = setTimeout(() => {
+            if (worker !== job) return;
+            cancelJob();
+            error.textContent = '文法计算超过 3 秒，请缩小输入并重新计算';
+          }, 3000);
+          job.postMessage({
             revision: localRevision,
             grammar,
             input: tokens,
             transform: transform === true,
           });
         } catch (e) {
+          cancelJob();
           error.textContent = String(e.message);
         }
       }
@@ -1719,6 +1750,12 @@ function createQuizAPI(read, save, report) {
       if (!failed) send('ready', true);
       return;
     }
+    // CSPs are cumulative. Install this before importing any model-authored DOM,
+    // including inline handlers. Removing this element cannot relax the policy.
+    const workerPolicy = document.createElement('meta');
+    workerPolicy.httpEquiv = 'Content-Security-Policy';
+    workerPolicy.content = "worker-src 'none'";
+    document.head.append(workerPolicy);
     const leadingComments = /^\s*(?:<!--[^]*?-->\s*)*/.exec(config.html)[0];
     const requirement = [...leadingComments.matchAll(/<!--([^]*?)-->/g)]
       .map((match) => /^\s*more-genui-requires:\s*([^]*)$/.exec(match[1]))
