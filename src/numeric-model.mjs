@@ -51,6 +51,14 @@ export const modelSchema = z
     inputs: z.array(input).min(1).max(64),
     outputs: z.array(formula).min(1).max(96),
     checklist: z.array(symbol).min(1).max(64).optional(),
+    sweep: z
+      .object({
+        input: symbol,
+        values: z.array(z.number().finite()).min(2).max(128),
+        outputs: z.array(symbol).min(1).max(4),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -126,6 +134,19 @@ export function compileModel(model) {
     new Set(model.checklist).size !== (model.checklist?.length ?? 0)
   )
     throw Error('清单引用无效');
+  if (model.sweep) {
+    const s = model.sweep,
+      input = model.inputs.find((n) => n.id === s.input);
+    const outputs = s.outputs.map((id) => model.outputs.find((o) => o.id === id));
+    if (
+      !input ||
+      s.values.some((v) => !allowedInput(input, v)) ||
+      new Set(s.values).size !== s.values.length ||
+      outputs.some((o) => !o || o.unit !== outputs[0]?.unit) ||
+      new Set(s.outputs).size !== s.outputs.length
+    )
+      throw Error('方案对照需要有效的输入取值和相同单位的结果');
+  }
   return order;
 }
 
