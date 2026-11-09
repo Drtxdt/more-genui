@@ -17,6 +17,7 @@ import { appParams, experimentPanel } from './experiment-panel.mjs';
 import sandboxHTML from './generated-sandbox';
 const groupEvents = new EventTarget();
 export interface SurfaceOptions {
+  refreshDataset?: (id: string) => Promise<unknown>;
   answerId?: string;
   source: string;
   format?: 'html' | 'fast';
@@ -201,6 +202,17 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     ),
   );
   const pre = document.createElement('pre');
+  if (app.spec?.kind === 'dataset' && options.refreshDataset) {
+    button('刷新 USGS 快照', RefreshCw, async () => {
+      const current = generation;
+      const snapshot = await options.refreshDataset!(app.spec.dataset);
+      if (disposed || current !== generation) return;
+      state = safeState({...state, __dataset:snapshot});
+      dirty++;
+      await save();
+      if (!disposed && current === generation) start();
+    });
+  }
   pre.id = 'source';
   pre.hidden = true;
   pre.textContent = options.source;
