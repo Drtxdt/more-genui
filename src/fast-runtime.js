@@ -1,5 +1,5 @@
-function createFastRenderer(root, initial, read, save, report) {
-  initial = FastValidation.validateView(initial);
+function createFastRenderer(root, initial, read, save, report, rootPath = '__fast', inherited) {
+  initial = FastValidation.validateView(initial, 0, !!inherited?.grammar);
   const resources = new Map();
   function track(container, fn) {
     if (!resources.has(container)) resources.set(container, []);
@@ -430,6 +430,12 @@ function createFastRenderer(root, initial, read, save, report) {
         id: path.replace(/[^A-Za-z0-9_-]/g, '_'),
         scene: view.scene,
         steps: view.steps,
+      }, {
+        hasGrammar: !!context?.grammar,
+        frame: (element, frame, index, comparison) => createFastRenderer(
+          element, frame, read, comparison ? () => {} : save, report, path + '/step/' + index,
+          comparison && context ? { ...context, listeners: new Set() } : context,
+        ),
       });
       if (api?.dispose) track(container, () => api.dispose());
     } else if (view.kind === 'lesson') {
@@ -734,7 +740,7 @@ function createFastRenderer(root, initial, read, save, report) {
     cleanup(root);
     style.remove();
   }
-  render(root, initial, '__fast');
+  render(root, initial, rootPath, inherited);
   return {
     dispose,
     render: (target, view) => render(target, view, '__scene'),
