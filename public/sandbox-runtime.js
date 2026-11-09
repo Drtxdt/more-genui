@@ -117,13 +117,15 @@
       document.addEventListener('genui-grammar-edit', (e) => send('grammar-edit', e.detail));
       fastRenderer = createFastRenderer(document.body, config.spec, () => state, commit, report);
       let height = 0;
-      new ResizeObserver(() => {
+      const measure = () => {
         const next = Math.ceil(document.body.getBoundingClientRect().height + 32);
         if (height !== next) {
           height = next;
           send('resize', next);
         }
-      }).observe(document.body);
+      };
+      new ResizeObserver(measure).observe(document.body);
+      measure();
       if (!failed) send('ready', true);
       return;
     }
@@ -233,13 +235,14 @@
     content.append(...document.body.childNodes);
     document.body.append(content);
     let lastHeight = 0;
-    new ResizeObserver(() => {
+    const measure = () => {
       const height = Math.max(24, content.getBoundingClientRect().height + 32);
       if (height !== lastHeight) {
         lastHeight = height;
         send('resize', height);
       }
-    }).observe(content);
+    };
+    new ResizeObserver(measure).observe(content);
     for (const script of scripts) {
       if (script.external) {
         report('External scripts are not supported');
@@ -258,6 +261,7 @@
       document.body.append(element);
     }
     document.dispatchEvent(new Event('DOMContentLoaded'));
+    measure();
     if (!failed) send('ready', true);
   });
 })();
