@@ -5,7 +5,7 @@ export class RequestLifecycle {
   requests = new Map();
   bindings = new Map();
   active = new Set();
-  owners = new WeakMap();
+
   verified = new WeakMap();
   history = new Map();
   historicalNodes = new WeakMap();
@@ -17,7 +17,7 @@ export class RequestLifecycle {
       return { kind: 'history' };
     if (this.observedTraffic) {
       const proof = readProof(source);
-      const request = proof && this.proofs.get(proof);
+      const request = this.proofs.get(proof);
       const receipt = request?.blocks[index];
       if (
         request?.ended &&
@@ -52,7 +52,7 @@ export class RequestLifecycle {
         receipt.source === source.trim()
       ) {
         if (key) this.identify(request.id, key);
-        this.owners.set(code, request);
+
         return { kind: 'live', owner: request };
       }
       return { kind: 'unknown' };
@@ -106,7 +106,7 @@ export class RequestLifecycle {
     });
   }
   owner(code, key, source) {
-    return this.bindings.get(key) ?? this.owners.get(code);
+    return this.bindings.get(key);
   }
   confirmed(code, r, source, language, index) {
     const block = index == null ? undefined : r.blocks[index];
@@ -115,8 +115,8 @@ export class RequestLifecycle {
     if (r.complete.has(source.trim())) return true;
     if (!r.ended || !r.hashes.size) return false;
     const cached = this.verified.get(code);
-    if (cached?.source === source && cached.r === r) return cached.ok;
-    const check = { source, r, ok: false };
+    if (cached?.source === source && cached.r === r && cached.index === index) return cached.ok;
+    const check = { source, r, index, ok: false };
     this.verified.set(code, check);
     void digest(source.trim()).then((hash) => {
       if (block ? block.hash === hash : r.hashes.has(hash)) {
@@ -148,7 +148,7 @@ export class RequestLifecycle {
     this.requests.clear();
     this.bindings.clear();
     this.active.clear();
-    this.owners = new WeakMap();
+
     this.verified = new WeakMap();
   }
 }

@@ -46,13 +46,23 @@ for (const transport of ['fetch', 'xhr'])
           input.value = '';
         };
       });
-    let sent;
+    let sent, output;
+    const pending = [];
     await context.route('**/api/v0/chat/completion', async (route) => {
       sent = route.request().postDataJSON();
       const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)?.[1];
-      const output = token
-        ? source.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>')
-        : source;
+      const proof = /本次归属标记：([a-f0-9-]+)/.exec(sent.prompt)?.[1];
+      const marked = source.replace(
+        /-->/,
+        (end) => end + '\n<!-- more-genui-request: ' + proof + ' -->',
+      );
+      output = token
+        ? marked.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>')
+        : marked;
+      if (sent.prompt.startsWith('hold-')) {
+        pending.push(route);
+        return;
+      }
       await route.fulfill({
         contentType: 'text/event-stream',
         body:
@@ -65,6 +75,13 @@ for (const transport of ['fetch', 'xhr'])
           '\n\n',
       });
     });
+    for (const prompt of ['hold-A', 'hold-B']) {
+      await page.getByLabel('输入').fill(prompt);
+      await page.getByTestId('send-button').click();
+    }
+    await expect.poll(() => pending.length).toBe(2);
+    for (const route of pending)
+      await route.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
     await page.getByLabel('输入').fill('解释正弦波');
     await page.getByTestId('send-button').click();
     await expect.poll(() => sent?.prompt).toContain('[More GenUI v1]');
@@ -73,10 +90,11 @@ for (const transport of ['fetch', 'xhr'])
       const wrapper = document.createElement('div');
       wrapper.className = 'md-code-block';
       const pre = document.createElement('pre');
+      pre.dataset.language = 'genui-html';
       pre.textContent = source;
       wrapper.append(pre);
       document.querySelector('.ds-assistant-message-main-content').append(wrapper);
-    }, source);
+    }, output);
     const frame = page.frameLocator('.more-genui-surface iframe');
     await expect(frame.getByLabel('振幅')).toBeVisible();
     await frame.getByLabel('振幅').fill('1.8');
@@ -90,14 +108,19 @@ for (const transport of ['fetch', 'xhr'])
       await page.getByRole('button', { name: '更多', exact: true }).first().click();
     await page.getByRole('button', { name: '修复', exact: true }).click();
     await expect.poll(() => sent.prompt).toContain('请修复应用');
-    const token = /本次修复标识：([a-f0-9-]+)/.exec(sent.prompt)[1];
     await page.evaluate(
-      (source) => {
-        const pre = document.createElement('pre');
-        pre.textContent = source;
-        document.querySelector('.ds-assistant-message-main-content').append(pre);
+      ({ output, old }) => {
+        const message = document.createElement('div');
+        message.className = 'ds-message';
+        message.innerHTML =
+          '<div class="ds-assistant-message-main-content"><pre data-language="genui-html"></pre></div>';
+        document.body.append(message);
+        message.querySelector('pre').textContent = output;
+        const clone = message.cloneNode(true);
+        clone.querySelector('pre').textContent = old;
+        document.body.append(clone);
       },
-      source.replace('</html>', '<!-- more-genui-repair: ' + token + ' --></html>'),
+      { output, old: source },
     );
     await expect(page.locator('.more-genui-surface iframe')).toHaveCount(2);
     await expect(
@@ -130,6 +153,8 @@ test('unfinished streaming documents never execute; plain prose and disabled mod
       window.postMessage({ type: 'more-genui-source', id: 'test', source }, location.origin),
     source,
   );
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(0);
+  await page.getByRole('button', { name: /运行此应用/ }).click();
   await expect(page.locator('.more-genui-surface iframe')).toHaveCount(1);
   await page.locator('#more-genui-toggle').click();
   let sent;
@@ -143,9 +168,11 @@ test('unfinished streaming documents never execute; plain prose and disabled mod
 });
 
 test('XHR transport rewrites only known prompt fields and decodes official BATCH events', async () => {
-  let sent;
+  let sent, marked;
   await context.route('**/api/v0/chat/completion', (route) => {
     sent = route.request().postDataJSON();
+    const proof = /本次归属标记：([a-f0-9-]+)/.exec(sent.prompt)[1];
+    marked = source.replace('-->', '-->\n<!-- more-genui-request: ' + proof + ' -->');
     return route.fulfill({
       contentType: 'text/event-stream',
       body:
@@ -156,7 +183,7 @@ test('XHR transport rewrites only known prompt fields and decodes official BATCH
         JSON.stringify({
           p: 'response',
           o: 'BATCH',
-          v: [{ p: 'fragments/-1/content', o: 'APPEND', v: '```genui-html\n' + source + '\n```' }],
+          v: [{ p: 'fragments/-1/content', o: 'APPEND', v: '```genui-html\n' + marked + '\n```' }],
         }) +
         '\n\n',
     });
@@ -178,10 +205,11 @@ test('XHR transport rewrites only known prompt fields and decodes official BATCH
     const block = document.createElement('div');
     block.className = 'md-code-block';
     const pre = document.createElement('pre');
+    pre.dataset.language = 'genui-html';
     pre.textContent = source;
     block.append(pre);
     document.querySelector('.ds-assistant-message-main-content').append(block);
-  }, source);
+  }, marked);
   await expect(page.frameLocator('.more-genui-surface iframe').getByLabel('振幅')).toBeVisible();
   await context.route('**/api/v0/chat/continue', (route) => {
     sent = route.request().postDataJSON();
