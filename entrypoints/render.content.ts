@@ -1,6 +1,7 @@
 import { advancePreamble, withPreamble } from '../src/html-preamble.mjs';
 import buttonStyles from '../src/extension-buttons.css?inline';
 import { rawApplications } from '../src/raw-applications.mjs';
+import { localGrammar, fieldFailure } from '../src/inline-aids.mjs';
 import { stripRequestProof } from '../src/request-proof.mjs';
 import { readerIndex } from '../src/reader-index.mjs';
 import { GenerationDiagnostics } from '../src/diagnostics.mjs';
@@ -399,7 +400,21 @@ export default defineContentScript({
       for (const action of visualizeActions.values()) action.remove();
       visualizeActions.clear();
     }
+    type Aid = {host: HTMLElement;text:string;pending:boolean;dispose?:()=>void};
+    const inlineAids=new Map<Element,Aid>();
+    function aid(node:Element,label:string,pending:boolean,action?:()=>void) {
+      const host=document.createElement('div');host.className='more-genui-recovery';
+      const control=document.createElement(action?'button':'span');control.textContent=label;
+      if(action)control.onclick=action;else control.setAttribute('role','status');
+      host.append(control);(node.closest('pre')??node).after(host);
+      const entry:Aid={host,text:node.textContent??'',pending};inlineAids.set(node,entry);return entry;
+    }
     function scan(changedOnly = false) {
+      for(const [node,entry] of inlineAids)
+        if(!enabled || route!==location.pathname || !node.isConnected ||
+            node.textContent!==entry.text || (entry.pending&&!active.size)) {
+          entry.dispose?.();entry.host.remove();inlineAids.delete(node);
+        }
       if (!enabled || route !== location.pathname) raw.clear();
       raw.prune();
       if (route !== location.pathname) {
@@ -476,6 +491,17 @@ export default defineContentScript({
         }
       for (const message of candidates) {
         const body = message.querySelector('.ds-assistant-message-main-content');
+        if(body&&!active.size) for(const node of body.querySelectorAll('p,pre')) {
+          if(inlineAids.has(node)||node.closest('nav,aside,.ds-think-content,[role=tooltip]'))continue;
+          const spec=localGrammar(node.textContent??'');if(!spec)continue;
+          const entry=aid(node,'本地分析文法',false,()=>{
+            if(entry.dispose)return;
+            const target=document.createElement('div');entry.host.append(target);
+            const surface=mountSurface(target,{source:JSON.stringify(spec),scope:route,instance:'inline:'+JSON.stringify(spec.grammar),
+              repository,sandboxUrl:chrome.runtime.getURL('sandbox.html'),draft,repair:draft});
+            entry.dispose=()=>surface.dispose();
+          });
+        }
         if (body && !active.size && !body.closest('aside,nav,.ds-think-content,[role=tooltip]'))
           raw.refresh(body);
         if (body && diagnostics.enabled) {
@@ -555,6 +581,9 @@ export default defineContentScript({
         const confirmed =
           owner &&
           ledger.confirmed(code, owner, source, language, ordinal >= 0 ? ordinal : undefined);
+        if (owner && active.has(owner.id) && !confirmed && language?.startsWith('genui-') && !inlineAids.has(code))
+          aid(code,'正在生成卡片…',true);
+        if(confirmed && inlineAids.get(code)?.pending) {inlineAids.get(code)!.host.remove();inlineAids.delete(code);}
         const manual = language === expected || (!language && !confirmed);
         if (origin.kind === 'unknown')
           for (const id of active) diagnostic({ id, stage: 'ambiguous' });
@@ -590,8 +619,12 @@ export default defineContentScript({
         }
         try {
           parseApp(source);
-        } catch {
+        } catch (err) {
           if (requestId) diagnostic({ id: requestId, stage: 'invalid-protocol' });
+          if (!active.size && language?.startsWith('genui-') && !inlineAids.has(code)){
+            const reason=fieldFailure(err);
+            aid(code,'修正卡片 · '+reason,false,()=>draft('请修正这份卡片。错误：'+reason+'\n原源码：\n'+stripRequestProof(source)));
+          }
           continue;
         }
         const host = document.createElement('div');
@@ -829,6 +862,8 @@ export default defineContentScript({
       diagnostics.clear();
       reader.clear();
       composition.dispose();
+      for(const entry of inlineAids.values()){entry.dispose?.();entry.host.remove();}
+      inlineAids.clear();
       cards.clear();
       tables.clear();
       discovery.disconnect();
