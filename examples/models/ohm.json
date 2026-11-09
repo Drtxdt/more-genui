@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "ohm",
+  "title": "欧姆定律",
+  "stateVersion": 1,
+  "kind": "model",
+  "inputs": [
+    {
+      "id": "voltage",
+      "label": "电压",
+      "kind": "number-input",
+      "unit": "V",
+      "min": 0,
+      "max": 240,
+      "step": 1,
+      "value": 9
+    },
+    {
+      "id": "resistance",
+      "label": "电阻",
+      "kind": "number-input",
+      "unit": "Ω",
+      "min": 0,
+      "max": 200,
+      "step": 1,
+      "value": 6
+    }
+  ],
+  "outputs": [
+    {
+      "id": "current",
+      "label": "电流",
+      "unit": "A",
+      "op": "div",
+      "args": [
+        "voltage",
+        "resistance"
+      ],
+      "kind": "computed-value"
+    }
+  ]
+}

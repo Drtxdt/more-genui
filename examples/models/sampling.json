@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "sampling",
+  "title": "均匀总体的样本均值",
+  "stateVersion": 1,
+  "kind": "chart",
+  "style": "histogram",
+  "xLabel": "抽样编号",
+  "yLabel": "样本均值",
+  "sample": {
+    "seed": 42,
+    "count": 300,
+    "meanOf": 16
+  },
+  "bins": 12
+}

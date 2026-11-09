@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "id": "budget",
+  "title": "活动预算",
+  "stateVersion": 1,
+  "kind": "model",
+  "inputs": [
+    {
+      "id": "limit",
+      "label": "预算",
+      "kind": "number-input",
+      "unit": "CNY",
+      "min": 0,
+      "max": 10000,
+      "step": 0.01,
+      "value": 120
+    },
+    {
+      "id": "price",
+      "label": "单价",
+      "kind": "number-input",
+      "unit": "CNY",
+      "min": 0,
+      "max": 1000,
+      "step": 0.01,
+      "value": 5
+    },
+    {
+      "id": "quantity",
+      "label": "数量",
+      "kind": "number-input",
+      "unit": "1",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "value": 6
+    }
+  ],
+  "outputs": [
+    {
+      "id": "spent",
+      "label": "支出",
+      "unit": "CNY",
+      "op": "mul",
+      "args": [
+        "price",
+        "quantity"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "left",
+      "label": "剩余",
+      "unit": "CNY",
+      "op": "sub",
+      "args": [
+        "limit",
+        "spent"
+      ],
+      "kind": "computed-value"
+    }
+  ]
+}

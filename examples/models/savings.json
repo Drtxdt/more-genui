@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "id": "savings",
+  "title": "月末定投",
+  "stateVersion": 1,
+  "kind": "model",
+  "inputs": [
+    {
+      "id": "deposit",
+      "label": "每月投入",
+      "kind": "number-input",
+      "unit": "CNY",
+      "min": 0,
+      "max": 100000,
+      "step": 0.01,
+      "value": 500
+    },
+    {
+      "id": "rate",
+      "label": "假设年收益率",
+      "kind": "slider",
+      "unit": "%",
+      "min": -50,
+      "max": 50,
+      "step": 0.1,
+      "value": 5
+    },
+    {
+      "id": "years",
+      "label": "期限",
+      "kind": "number-input",
+      "unit": "year",
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "value": 30
+    }
+  ],
+  "outputs": [
+    {
+      "id": "periods",
+      "label": "期数",
+      "unit": "1",
+      "op": "months",
+      "args": [
+        "years"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "principal",
+      "label": "本金",
+      "unit": "CNY",
+      "op": "mul",
+      "args": [
+        "deposit",
+        "periods"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "total",
+      "label": "本息总额",
+      "unit": "CNY",
+      "op": "annuity",
+      "args": [
+        "deposit",
+        "rate",
+        "years"
+      ],
+      "kind": "computed-value"
+    },
+    {
+      "id": "growth",
+      "label": "增长",
+      "unit": "CNY",
+      "op": "sub",
+      "args": [
+        "total",
+        "principal"
+      ],
+      "kind": "computed-value"
+    }
+  ],
+  "sweep": {
+    "input": "years",
+    "values": [
+      0,
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45
+    ],
+    "outputs": [
+      "principal",
+      "total"
+    ]
+  }
+}

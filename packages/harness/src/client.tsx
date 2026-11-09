@@ -62,7 +62,6 @@ function App(props: ChatNodeViewProps<'more-genui-app'>) {
             token +
             ' -->，仅本次修复使用。',
         );
-        actions.submit();
       },
     });
     return () => surface.dispose();

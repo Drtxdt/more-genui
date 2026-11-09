@@ -4,6 +4,7 @@ export class RequestLifecycle {
   proofs = new Map();
   requests = new Map();
   bindings = new Map();
+  retained = new Map();
   active = new Set();
 
   verified = new WeakMap();
@@ -71,12 +72,11 @@ export class RequestLifecycle {
     this.rescan = rescan;
   }
   start(id, baseline, repairToken, proof) {
-    const r = { id, baseline, repairToken, complete: new Set(), hashes: new Set(), ended: false };
+    const r = { id, baseline, proof, repairToken, complete: new Set(), hashes: new Set(), ended: false };
     this.observedTraffic = true;
     r.blocks = [];
     if (proof) {
       this.proofs.set(proof, r);
-      if (this.proofs.size > 256) this.proofs.delete(this.proofs.keys().next().value);
     }
     this.requests.set(id, r);
     this.active.add(id);
@@ -128,7 +128,7 @@ export class RequestLifecycle {
   }
   end(id) {
     const r = this.requests.get(id);
-    if (!r) return;
+    if (!r || r.ended) return;
     this.active.delete(id);
     r.ended = true;
     r.timer = setTimeout(() => {
@@ -137,11 +137,19 @@ export class RequestLifecycle {
 
       r.baseline = new WeakMap();
       this.requests.delete(id);
+      this.retained.set(id, r);
+      if (this.retained.size > 256) {
+        const oldest = this.retained.values().next().value;
+        this.retained.delete(oldest.id);
+        if (this.bindings.get(oldest.key) === oldest) this.bindings.delete(oldest.key);
+        if (this.proofs.get(oldest.proof) === oldest) this.proofs.delete(oldest.proof);
+      }
     }, 2000);
   }
   clear() {
     for (const r of this.requests.values()) clearTimeout(r.timer);
     this.history.clear();
+    this.retained.clear();
     this.historicalNodes = new WeakMap();
     this.observedTraffic = false;
     this.proofs.clear();

@@ -72,6 +72,14 @@ function createFastRenderer(root, initial, read, save, report) {
   function render(container, view, path, context) {
     cleanup(container);
     container.replaceChildren();
+    if (view.kind === 'chart') {
+      mountDataChart(container, view, read()[path], value => save({ ...read(), [path]: value }));
+      return;
+    }
+    if (view.kind === 'model') {
+      mountNumericModel(container, view, () => read()[path], value => save({ ...read(), [path]: value }));
+      return;
+    }
     if (view.kind === 'checklist') {
       const checked = new Set(
         view.items.filter((item) => read()[path]?.includes?.(item.id)).map((item) => item.id),
