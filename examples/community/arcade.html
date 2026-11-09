@@ -1,0 +1,220 @@
+<!-- more-genui: {"version":1,"id":"arcade","title":"迷你街机","stateVersion":1} -->
+<html lang="zh">
+  <body>
+    <main class="stack">
+      <label
+        >游戏
+        <select>
+          <option>贪吃蛇</option>
+          <option>打砖块</option>
+          <option>Pong</option>
+        </select></label
+      ><canvas
+        width="320"
+        height="192"
+        tabindex="0"
+        aria-label="游戏场地，方向键移动"
+        style="max-width: 100%; background: #172029"
+      ></canvas>
+      <div id="pad"></div>
+      <button id="start">开始 / 暂停</button><button id="reset">重新开始</button
+      ><output aria-live="polite"></output>
+    </main>
+    <script>
+      const canvas = document.querySelector('canvas'),
+        ctx = canvas.getContext('2d'),
+        choice = document.querySelector('select'),
+        out = document.querySelector('output');
+      let state,
+        timer,
+        visible = true,
+        running = false;
+      function reset() {
+        running = false;
+        clearInterval(timer);
+        state = {
+          score: 0,
+          over: false,
+          snake: [
+            [5, 5],
+            [4, 5],
+          ],
+          dx: 1,
+          dy: 0,
+          food: [9, 5],
+          paddle: 140,
+          opponent: 70,
+          x: 160,
+          y: 115,
+          vx: 3,
+          vy: -3,
+          bricks: Array.from({ length: 16 }, (_, i) => i),
+        };
+        draw();
+      }
+      function rect(x, y, w, h, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, w, h);
+      }
+      function draw() {
+        ctx.clearRect(0, 0, 320, 192);
+        if (choice.selectedIndex === 0) {
+          state.snake.forEach(([x, y]) => rect(x * 16, y * 16, 15, 15, '#83caa4'));
+          rect(state.food[0] * 16, state.food[1] * 16, 15, 15, '#ffbc68');
+        } else {
+          rect(state.x - 3, state.y - 3, 6, 6, 'white');
+          if (choice.selectedIndex === 1) {
+            state.bricks.forEach((i) =>
+              rect((i % 8) * 40, Math.floor(i / 8) * 14 + 12, 38, 11, '#78c6da'),
+            );
+            rect(state.paddle, 182, 52, 7, '#ffbc68');
+          } else {
+            rect(6, state.paddle, 6, 44, '#ffbc68');
+            rect(308, state.opponent, 6, 44, '#78c6da');
+          }
+        }
+        out.textContent =
+          (state.over ? '本局结束' : running && visible ? '进行中' : '已暂停') +
+          ' · 得分 ' +
+          state.score;
+      }
+      function tick() {
+        if (choice.selectedIndex === 0) {
+          const [x, y] = state.snake[0],
+            next = [x + state.dx, y + state.dy],
+            eat = next.every((v, i) => v === state.food[i]);
+          if (!eat) state.snake.pop();
+          if (
+            next[0] < 0 ||
+            next[0] >= 20 ||
+            next[1] < 0 ||
+            next[1] >= 12 ||
+            state.snake.some((p) => p[0] === next[0] && p[1] === next[1])
+          )
+            state.over = true;
+          else {
+            state.snake.unshift(next);
+            if (eat) {
+              state.score++;
+              const free = Array.from({ length: 240 }, (_, i) => [
+                i % 20,
+                Math.floor(i / 20),
+              ]).filter((p) => !state.snake.some((q) => p[0] === q[0] && p[1] === q[1]));
+              if (free.length) state.food = free[Math.floor(Math.random() * free.length)];
+              else state.over = true;
+            }
+          }
+        } else {
+          state.x += state.vx;
+          state.y += state.vy;
+          if (choice.selectedIndex === 1) {
+            if (state.x <= 3 || state.x >= 317) state.vx *= -1;
+            if (state.y <= 3) state.vy = Math.abs(state.vy);
+            const hit = state.bricks.find(
+              (i) =>
+                state.x >= (i % 8) * 40 &&
+                state.x < (i % 8) * 40 + 38 &&
+                state.y >= 12 + Math.floor(i / 8) * 14 &&
+                state.y <= 23 + Math.floor(i / 8) * 14,
+            );
+            if (hit !== undefined) {
+              state.bricks = state.bricks.filter((i) => i !== hit);
+              state.vy *= -1;
+              state.score++;
+            }
+            if (
+              state.vy > 0 &&
+              state.y >= 179 &&
+              state.y <= 185 &&
+              state.x >= state.paddle &&
+              state.x <= state.paddle + 52
+            )
+              state.vy = -Math.abs(state.vy);
+            state.over = state.y > 192 || !state.bricks.length;
+          } else {
+            if (state.y <= 3 || state.y >= 189) state.vy *= -1;
+            state.opponent = Math.max(
+              0,
+              Math.min(148, state.opponent + Math.sign(state.y - state.opponent - 22) * 1.4),
+            );
+            if (
+              state.vx < 0 &&
+              state.x <= 15 &&
+              state.x >= 8 &&
+              state.y >= state.paddle &&
+              state.y <= state.paddle + 44
+            )
+              state.vx = Math.abs(state.vx);
+            if (
+              state.vx > 0 &&
+              state.x >= 305 &&
+              state.y >= state.opponent &&
+              state.y <= state.opponent + 44
+            )
+              state.vx = -Math.abs(state.vx);
+            if (state.x > 320) {
+              state.score++;
+              state.x = 160;
+            }
+            state.over = state.x < 0;
+          }
+        }
+        if (state.over) {
+          running = false;
+          clearInterval(timer);
+        }
+        draw();
+      }
+      function schedule() {
+        clearInterval(timer);
+        if (running && visible && !document.hidden)
+          timer = setInterval(tick, choice.selectedIndex ? 35 : 150);
+        draw();
+      }
+      function move(key) {
+        const [dx, dy] = { Left: [-1, 0], Right: [1, 0], Up: [0, -1], Down: [0, 1] }[key];
+        if (!choice.selectedIndex) {
+          if (dx !== -state.dx || dy !== -state.dy) {
+            state.dx = dx;
+            state.dy = dy;
+          }
+        } else
+          state.paddle = Math.max(
+            0,
+            Math.min(
+              choice.selectedIndex === 1 ? 268 : 148,
+              state.paddle + (choice.selectedIndex === 1 ? dx : dy) * 14,
+            ),
+          );
+        draw();
+      }
+      for (const [key, label] of Object.entries({ Left: '←', Up: '↑', Down: '↓', Right: '→' })) {
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.onclick = () => move(key);
+        document.querySelector('#pad').append(b);
+      }
+      canvas.onkeydown = (e) => {
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+          e.preventDefault();
+          move(e.key.slice(5));
+        }
+      };
+      document.querySelector('#start').onclick = () => {
+        if (state.over) reset();
+        running = !running;
+        schedule();
+        canvas.focus();
+      };
+      document.querySelector('#reset').onclick = reset;
+      choice.onchange = reset;
+      document.addEventListener('genui-visibility', (e) => {
+        visible = e.detail;
+        schedule();
+      });
+      document.addEventListener('visibilitychange', schedule);
+      window.addEventListener('pagehide', () => clearInterval(timer));
+      reset();
+    </script>
+  </body>
+</html>

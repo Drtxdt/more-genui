@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "road-trip",
+  "title": "英格兰路线示意",
+  "stateVersion": 1,
+  "kind": "route",
+  "stops": [
+    {
+      "id": "greenwich",
+      "label": "格林尼治",
+      "detail": "从本初子午线附近出发。",
+      "coordinate": {
+        "lat": 51.478,
+        "lon": -0.0015,
+        "source": "https://www.openstreetmap.org/?mlat=51.478&mlon=-0.0015"
+      }
+    },
+    {
+      "id": "oxford",
+      "label": "牛津",
+      "detail": "停下来步行探索大学城区。",
+      "coordinate": {
+        "lat": 51.752,
+        "lon": -1.2577,
+        "source": "https://www.openstreetmap.org/?mlat=51.752&mlon=-1.2577"
+      }
+    },
+    {
+      "id": "lunch",
+      "label": "午餐停靠",
+      "detail": "由同行者决定，位置待定。"
+    }
+  ]
+}

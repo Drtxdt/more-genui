@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "id": "gdp",
+  "title": "哪些交易计入 GDP？",
+  "stateVersion": 1,
+  "kind": "quiz",
+  "questions": [
+    {
+      "id": "new",
+      "prompt": "一辆本年在国内生产的新车售出，计入本年 GDP 吗？",
+      "correct": "yes",
+      "explanation": "当期国内最终产品计入。",
+      "options": [
+        {
+          "id": "yes",
+          "text": "计入",
+          "hint": "检查生产发生在哪一年。"
+        },
+        {
+          "id": "no",
+          "text": "不计入",
+          "hint": "想想本期是否有新的产品或服务。"
+        }
+      ]
+    },
+    {
+      "id": "used",
+      "prompt": "私人转售去年生产的旧车，车价再计入吗？",
+      "correct": "no",
+      "explanation": "旧车价值已在生产时计入。",
+      "options": [
+        {
+          "id": "yes",
+          "text": "计入",
+          "hint": "检查生产发生在哪一年。"
+        },
+        {
+          "id": "no",
+          "text": "不计入",
+          "hint": "想想本期是否有新的产品或服务。"
+        }
+      ]
+    },
+    {
+      "id": "fee",
+      "prompt": "二手车交易中本年新提供的中介服务计入吗？",
+      "correct": "yes",
+      "explanation": "本期新提供的服务属于本期产出。",
+      "options": [
+        {
+          "id": "yes",
+          "text": "计入",
+          "hint": "检查生产发生在哪一年。"
+        },
+        {
+          "id": "no",
+          "text": "不计入",
+          "hint": "想想本期是否有新的产品或服务。"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "wardrobe",
+  "title": "两种场合的衣橱",
+  "stateVersion": 1,
+  "kind": "switch",
+  "options": [
+    {
+      "id": "work",
+      "label": "工作日",
+      "view": {
+        "kind": "checklist",
+        "items": [
+          {
+            "id": "shirt",
+            "label": "蓝衬衫",
+            "detail": "通勤和周末都可穿"
+          },
+          {
+            "id": "coat",
+            "label": "西装外套",
+            "detail": "会议时搭配"
+          },
+          {
+            "id": "pants",
+            "label": "深色长裤",
+            "detail": "两套搭配共用"
+          }
+        ]
+      }
+    },
+    {
+      "id": "weekend",
+      "label": "周末",
+      "view": {
+        "kind": "checklist",
+        "items": [
+          {
+            "id": "shirt",
+            "label": "蓝衬衫",
+            "detail": "敞开当薄外套"
+          },
+          {
+            "id": "tee",
+            "label": "白 T 恤",
+            "detail": "内搭"
+          },
+          {
+            "id": "pants",
+            "label": "深色长裤",
+            "detail": "两套搭配共用"
+          }
+        ]
+      }
+    }
+  ]
+}

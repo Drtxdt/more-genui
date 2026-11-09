@@ -1,5 +1,6 @@
 import './tests/browser/environment.mjs';
 import { defineConfig } from '@playwright/test';
+const baseURL = 'http://127.0.0.1:' + (process.env.GENUI_TEST_PORT || '4183');
 export default defineConfig({
   testDir: 'tests/browser',
   testMatch: '*.spec.mjs',
@@ -7,7 +8,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ['json', { outputFile: 'test-results/results.json' }]],
   use: {
-    baseURL: 'http://127.0.0.1:4183',
+    baseURL,
     headless: true,
     launchOptions: { timeout: 15000 },
     trace: 'retain-on-failure',
@@ -15,7 +16,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'node tests/browser/server.mjs',
-    url: 'http://127.0.0.1:4183',
+    url: baseURL,
     reuseExistingServer: false,
   },
   projects: [

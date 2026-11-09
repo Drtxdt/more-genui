@@ -1,0 +1,70 @@
+<!-- more-genui: {"version":1,"id":"monty","title":"换门，还是留下？","stateVersion":1} -->
+<html lang="zh">
+  <body>
+    <main class="stack">
+      <p>奖品随机藏在一扇门后。主持人知道答案，只开一扇没被选中的空门。</p>
+      <div id="doors"></div>
+      <output aria-live="polite"></output>
+      <div id="actions"></div>
+      <button id="simulate">模拟 1000 局</button>
+      <p id="stats"></p>
+    </main>
+    <script>
+      const randomDoor = () => Math.floor(Math.random() * 3);
+      let game = genui.getState().game ?? { prize: randomDoor() };
+      function button(parent, label, click) {
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.onclick = click;
+        parent.append(b);
+      }
+      function draw() {
+        const doors = document.querySelector('#doors'),
+          actions = document.querySelector('#actions'),
+          out = document.querySelector('output');
+        doors.replaceChildren();
+        actions.replaceChildren();
+        for (let i = 0; i < 3; i++)
+          button(doors, '门 ' + (i + 1), () => {
+            if (game.pick !== undefined) return;
+            game.pick = i;
+            const empty = [0, 1, 2].filter((d) => d !== i && d !== game.prize);
+            game.open ??= empty[Math.floor(Math.random() * empty.length)];
+            draw();
+          });
+        out.textContent = '请选择一扇门';
+        if (game.pick !== undefined) {
+          out.textContent = '已选门 ' + (game.pick + 1) + '，主持人打开空门 ' + (game.open + 1);
+          if (game.final === undefined) {
+            for (const change of [false, true])
+              button(actions, change ? '换门' : '留下', () => {
+                game.final = change ? 3 - game.open - game.pick : game.pick;
+                draw();
+              });
+          } else {
+            out.textContent +=
+              '。奖品在门 ' +
+              (game.prize + 1) +
+              (game.final === game.prize ? '，猜中了。' : '，本局没有中奖。');
+            button(actions, '重放本局', () => {
+              delete game.final;
+              draw();
+            });
+            button(actions, '新一局', () => {
+              game = { prize: randomDoor() };
+              draw();
+            });
+          }
+        }
+        genui.setState({ game });
+      }
+      document.querySelector('#simulate').onclick = () => {
+        let wins = 0;
+        for (let i = 0; i < 1000; i++) if (randomDoor() !== randomDoor()) wins++;
+        document.querySelector('#stats').textContent =
+          '同一批 1000 局：换门胜 ' + wins + '，留下胜 ' + (1000 - wins);
+      };
+      draw();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+<!-- more-genui: {"version":1,"id":"drone","title":"航拍覆盖宽度","stateVersion":1} -->
+<html lang="zh">
+  <body>
+    <main class="stack">
+      <p>相机垂直向下，地面水平。</p>
+      <svg viewBox="0 0 300 140" aria-label="相机与地面的视场截面">
+        <path fill="none" stroke="currentColor" stroke-width="2" /></svg
+      ><label
+        >高度（米）
+        <input id="height" type="number" min="1" max="500" step="1" value="100" required
+      /></label>
+      <label
+        >水平视场角（度）
+        <input id="angle" type="number" min="5" max="150" step="1" value="60" required /></label
+      ><output aria-live="polite"></output>
+    </main>
+    <script>
+      function setup(compute) {
+        const inputs = [...document.querySelectorAll('input')],
+          out = document.querySelector('output');
+        const state = genui.getState();
+        function update() {
+          if (!inputs.every((input) => input.checkValidity())) {
+            out.textContent = '请检查输入范围';
+            return;
+          }
+          const values = Object.fromEntries(inputs.map((input) => [input.id, input.valueAsNumber]));
+          genui.setState(values);
+          out.textContent = compute(values);
+        }
+        for (const input of inputs) {
+          if (Number.isFinite(state[input.id])) input.value = state[input.id];
+          input.oninput = update;
+        }
+        update();
+      }
+      setup(({ height, angle }) => {
+        const width = 2 * height * Math.tan((angle * Math.PI) / 360);
+        const scale = Math.min(270 / width, 110 / height);
+        document
+          .querySelector('path')
+          .setAttribute(
+            'd',
+            'M150 10 l' + (-width * scale) / 2 + ' ' + height * scale + ' h' + width * scale + ' Z',
+          );
+        return '地面覆盖宽度 ' + width.toFixed(2) + ' 米';
+      });
+    </script>
+  </body>
+</html>

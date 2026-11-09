@@ -1,0 +1,79 @@
+<!-- more-genui: {"version":1,"id":"clt","title":"均匀总体与样本均值","stateVersion":1} -->
+<html lang="zh">
+  <body>
+    <main class="stack">
+      <p>重复抽取 2000 组。两行直方图分别显示单次抽样值和组均值，横轴均为 0–1。</p>
+      <canvas
+        width="500"
+        height="170"
+        style="max-width: 100%"
+        aria-label="总体抽样与均值分布"
+      ></canvas
+      ><label
+        >每组样本量 <input id="n" type="number" min="1" max="100" step="1" value="5" required
+      /></label>
+      <label
+        >随机种子
+        <input id="seed" type="number" min="1" max="999999" step="1" value="42" required /></label
+      ><output aria-live="polite"></output>
+    </main>
+    <script>
+      function setup(compute) {
+        const inputs = [...document.querySelectorAll('input')],
+          out = document.querySelector('output');
+        const state = genui.getState();
+        function update() {
+          if (!inputs.every((input) => input.checkValidity())) {
+            out.textContent = '请检查输入范围';
+            return;
+          }
+          const values = Object.fromEntries(inputs.map((input) => [input.id, input.valueAsNumber]));
+          genui.setState(values);
+          out.textContent = compute(values);
+        }
+        for (const input of inputs) {
+          if (Number.isFinite(state[input.id])) input.value = state[input.id];
+          input.oninput = update;
+        }
+        update();
+      }
+      setup(({ n, seed }) => {
+        let state = seed;
+        const random = () => {
+          state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+          return state / 4294967296;
+        };
+        const bins = [Array(20).fill(0), Array(20).fill(0)];
+        let sum = 0,
+          squares = 0;
+        for (let i = 0; i < 2000; i++) {
+          let m = 0;
+          for (let j = 0; j < n; j++) {
+            const x = random();
+            if (!j) bins[0][Math.floor(x * 20)]++;
+            m += x;
+          }
+          m /= n;
+          bins[1][Math.floor(m * 20)]++;
+          sum += m;
+          squares += m * m;
+        }
+        const ctx = document.querySelector('canvas').getContext('2d');
+        ctx.clearRect(0, 0, 500, 170);
+        bins.forEach((row, i) => {
+          ctx.fillStyle = i ? '#bf713a' : '#4378ad';
+          row.forEach((count, j) => {
+            const h = (count / Math.max(...row)) * 72;
+            ctx.fillRect(j * 25, 80 + i * 84 - h, 22, h);
+          });
+        });
+        return (
+          '组均值标准差 ' +
+          Math.sqrt(squares / 2000 - (sum / 2000) ** 2).toFixed(4) +
+          '，理论值 ' +
+          Math.sqrt(1 / (12 * n)).toFixed(4)
+        );
+      });
+    </script>
+  </body>
+</html>

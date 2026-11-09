@@ -1,0 +1,115 @@
+<!-- more-genui: {"version":1,"id":"bill","title":"逐菜分账","stateVersion":1} -->
+<html lang="zh">
+  <body>
+    <main class="stack">
+      <p>勾选每道菜的参与者，税和税前小费按各人的消费比例分配。</p>
+      <div id="items"></div>
+      <button id="add">添加菜品</button
+      ><label>税额 <input id="tax" type="number" min="0" max="100000" step=".01" required /></label
+      ><label>小费 % <input id="tip" type="number" min="0" max="100" step=".1" required /></label
+      ><output aria-live="polite"></output>
+    </main>
+    <script>
+      const saved = genui.getState(),
+        guests = ['甲', '乙'];
+      const rows = saved.rows ?? [
+        { name: '披萨', price: 14, who: [true, true] },
+        { name: '意面', price: 17, who: [false, true] },
+      ];
+      const tax = document.querySelector('#tax'),
+        tip = document.querySelector('#tip');
+      tax.value = saved.tax ?? 2.48;
+      tip.value = saved.tip ?? 20;
+      function update() {
+        const out = document.querySelector('output');
+        if (
+          ![...document.querySelectorAll('input[type=number]')].every((x) => x.checkValidity()) ||
+          rows.some((r) => !r.who.some(Boolean))
+        ) {
+          out.textContent = '请检查金额，并为每道菜选择参与者。';
+          return;
+        }
+        const weights = [0, 0];
+        let sub = 0;
+        for (const row of rows) {
+          const cents = Math.round(100 * row.price),
+            count = row.who.filter(Boolean).length;
+          sub += cents;
+          row.who.forEach((yes, i) => {
+            if (yes) weights[i] += cents / count;
+          });
+        }
+        const total = sub + Math.round(tax.value * 100) + Math.round((sub * tip.value) / 100);
+        if (!sub && total) {
+          out.textContent = '需要非零消费才能分摊税费';
+          return;
+        }
+        const exact = weights.map((x) => (sub ? (x / sub) * total : 0)),
+          shares = exact.map(Math.floor);
+        const remainder = total - shares[0] - shares[1];
+        if (remainder) shares[exact[0] - shares[0] >= exact[1] - shares[1] ? 0 : 1] += remainder;
+        out.textContent =
+          guests.map((g, i) => g + ' ' + (shares[i] / 100).toFixed(2)).join('，') +
+          '；合计 ' +
+          (total / 100).toFixed(2);
+        genui.setState({ rows, tax: tax.value, tip: tip.value });
+      }
+      function draw() {
+        const list = document.querySelector('#items');
+        list.replaceChildren();
+        rows.forEach((row, index) => {
+          const line = document.createElement('fieldset'),
+            name = document.createElement('input'),
+            price = document.createElement('input');
+          name.value = row.name;
+          name.setAttribute('aria-label', '菜名');
+          name.oninput = () => {
+            row.name = name.value;
+            update();
+          };
+          Object.assign(price, {
+            type: 'number',
+            min: 0,
+            max: 100000,
+            step: '.01',
+            required: true,
+            value: row.price,
+          });
+          price.setAttribute('aria-label', '价格');
+          price.oninput = () => {
+            row.price = price.valueAsNumber;
+            update();
+          };
+          line.append(name, price);
+          guests.forEach((g, i) => {
+            const l = document.createElement('label'),
+              box = document.createElement('input');
+            box.type = 'checkbox';
+            box.checked = row.who[i];
+            box.onchange = () => {
+              row.who[i] = box.checked;
+              update();
+            };
+            l.append(box, g);
+            line.append(l);
+          });
+          const remove = document.createElement('button');
+          remove.textContent = '移除';
+          remove.onclick = () => {
+            rows.splice(index, 1);
+            draw();
+          };
+          line.append(remove);
+          list.append(line);
+        });
+        update();
+      }
+      tax.oninput = tip.oninput = update;
+      document.querySelector('#add').onclick = () => {
+        rows.push({ name: '新菜', price: 0, who: [true, true] });
+        draw();
+      };
+      draw();
+    </script>
+  </body>
+</html>

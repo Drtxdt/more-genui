@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "id": "roast",
+  "title": "周日备餐",
+  "stateVersion": 1,
+  "kind": "lesson",
+  "sections": [
+    {
+      "title": "按人数采购",
+      "view": {
+        "kind": "switch",
+        "options": [
+          {
+            "id": "n4",
+            "label": "4 人",
+            "view": {
+              "kind": "checklist",
+              "items": [
+                {
+                  "id": "lamb",
+                  "label": "羊排",
+                  "detail": "1000 克"
+                },
+                {
+                  "id": "potatoes",
+                  "label": "土豆",
+                  "detail": "800 克"
+                },
+                {
+                  "id": "carrot",
+                  "label": "胡萝卜",
+                  "detail": "320 克"
+                }
+              ]
+            }
+          },
+          {
+            "id": "n6",
+            "label": "6 人",
+            "view": {
+              "kind": "checklist",
+              "items": [
+                {
+                  "id": "lamb",
+                  "label": "羊排",
+                  "detail": "1500 克"
+                },
+                {
+                  "id": "potatoes",
+                  "label": "土豆",
+                  "detail": "1200 克"
+                },
+                {
+                  "id": "carrot",
+                  "label": "胡萝卜",
+                  "detail": "480 克"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "title": "备餐顺序",
+      "view": {
+        "kind": "checklist",
+        "items": [
+          {
+            "id": "prep",
+            "label": "提前准备",
+            "detail": "清洗蔬菜，分装调味料"
+          },
+          {
+            "id": "roast",
+            "label": "安排烤制",
+            "detail": "根据肉块大小安排进炉时间"
+          },
+          {
+            "id": "serve",
+            "label": "准备上桌",
+            "detail": "装盘并核对配菜"
+          }
+        ]
+      }
+    }
+  ]
+}
