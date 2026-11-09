@@ -210,9 +210,9 @@ export function validateView(value, depth = 0, hasGrammar = false) {
       })
       .strict()
       .parse(value);
-    if (result.scene) result.scene = validateView(result.scene, depth + 1);
+    if (result.scene) result.scene = validateView(result.scene, depth + 1, hasGrammar);
     for (const step of result.steps)
-      if (step.frame) step.frame = validateView(step.frame, depth + 1);
+      if (step.frame) step.frame = validateView(step.frame, depth + 1, hasGrammar);
   } else if (value?.kind === 'lesson') {
     result = z
       .object({

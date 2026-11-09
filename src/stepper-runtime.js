@@ -39,7 +39,7 @@ function stepEntries(view) {
 function createStepperAPI(read, save, report) {
   const mounts = new WeakMap();
   return Object.freeze({
-    mount(container, { id, steps, scene }) {
+    mount(container, { id, steps, scene }, environment) {
       try {
         mounts.get(container)?.dispose();
         if (
@@ -51,8 +51,11 @@ function createStepperAPI(read, save, report) {
           steps.some((s) => typeof s?.title !== 'string' || typeof s.text !== 'string')
         )
           throw Error('分步演示需要 id 和 1–2048 个含 title、text 的步骤');
-        if (scene) scene = FastValidation.validateView(scene);
-        for (const step of steps) if (step.frame) FastValidation.validateView(step.frame);
+        const validate = (view) => FastValidation.validateView(view, 0, !!environment?.hasGrammar);
+        if (scene) scene = validate(scene);
+        for (const step of steps) if (step.frame) validate(step.frame);
+        const renderFrame = environment?.frame ?? ((target, view) =>
+          createFastRenderer(target, view, () => ({}), () => {}, report));
         const key = JSON.stringify(scene ? { steps, scene } : steps);
         let hash = 2166136261;
         for (const c of key) hash = Math.imul(hash ^ c.charCodeAt(0), 16777619);
@@ -110,13 +113,7 @@ function createStepperAPI(read, save, report) {
             differences.append(section);
             if (views[i])
               comparisonRenderers.push(
-                createFastRenderer(
-                  block,
-                  views[i],
-                  () => ({}),
-                  () => {},
-                  report,
-                ),
+                renderFrame(block, views[i], index - 1 + i, true),
               );
             else block.textContent = step.text;
           });
@@ -150,13 +147,7 @@ function createStepperAPI(read, save, report) {
           sceneRenderer = undefined;
           graphic.replaceChildren();
           if (steps[index].frame || scene)
-            sceneRenderer = createFastRenderer(
-              graphic,
-              steps[index].frame || scene,
-              () => ({}),
-              () => {},
-              report,
-            );
+            sceneRenderer = renderFrame(graphic, steps[index].frame || scene, index, false);
           compareSteps();
           save(id, { index, hash });
         }

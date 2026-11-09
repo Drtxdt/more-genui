@@ -345,3 +345,25 @@ test('missing packaged handshake falls back once and binary boundaries can be co
   await f.getByText('上一步', { exact: true }).click();
   await expect(f.getByText('[0,4]', { exact: true })).toBeVisible();
 });
+
+test('lesson grammar survives stepping out of and back into an inherited frame', async ({ page }) => {
+  await page.goto('/');
+  await show(page, {
+    kind: 'lesson',
+    grammar: { start: 'A', productions: [{ id: 'p', lhs: 'A', rhs: ['x'] }] },
+    sections: [{ title: '推导', view: { kind: 'stepper', steps: [
+      { title: '观察', text: '修改产生式', frame: { kind: 'grammar' } },
+      { title: '结论', text: '返回核对' },
+    ] } }],
+  });
+  const frame = page.frameLocator('#app iframe');
+  const editor = frame.getByLabel('产生式（符号间用空格）');
+  await expect(editor).toHaveValue('A → x');
+  await editor.fill('A → y');
+  await frame.getByRole('button', { name: '重新计算', exact: true }).click();
+  await expect(frame.getByRole('button', { name: 'A / y', exact: true }).first()).toBeVisible();
+  await frame.getByRole('button', { name: '下一步', exact: true }).last().click();
+  await expect(editor).toHaveCount(0);
+  await frame.getByRole('button', { name: '上一步', exact: true }).click();
+  await expect(editor).toHaveValue('A → y');
+});
