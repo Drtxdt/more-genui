@@ -39,7 +39,11 @@ export default defineContentScript({
       ready: '可用',
       interaction: '首次操作',
       feedback: '反馈',
-      'no-ui': '模型选择文字',
+      'no-ui': '正文未含应用围栏',
+      'sandbox-boot': '沙箱握手成功',
+      'sandbox-fallback': '尝试内嵌沙箱',
+      'preview-candidate': '普通代码含应用标记',
+      'response-bytes': '正文字节数',
       'invalid-protocol': '协议无效',
       'execution-error': '运行失败',
       ambiguous: '归属未明',
@@ -66,6 +70,19 @@ export default defineContentScript({
                 'ms',
             )
             .join(' → ');
+        const copy = document.createElement('button');
+        copy.textContent = '复制本次验收记录';
+        copy.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(
+              JSON.stringify({ version: 1, events: row.events }, null, 2),
+            );
+            copy.textContent = '已复制';
+          } catch {
+            copy.textContent = '复制失败，请重试';
+          }
+        };
+        line.append(copy);
         diagnosticPanel.append(line);
       }
       const retry = document.createElement('button');
@@ -441,15 +458,28 @@ export default defineContentScript({
             diagnostic({ id: request.id, stage: 'visible-text' });
           }
         }
-        if (body && !visualizeActions.has(message as HTMLElement)) {
+        if (body && visualizeActions.get(message as HTMLElement)?.previousElementSibling !== body) {
+          visualizeActions.get(message as HTMLElement)?.remove();
+          while (body.nextElementSibling?.matches('button.more-genui-visualize'))
+            body.nextElementSibling.remove();
           const action = document.createElement('button');
           action.className = 'more-genui-visualize';
           action.textContent = '请求可视化';
           action.onclick = () => {
             const excerpt = [...body.querySelectorAll<HTMLElement>('p,li,h2,h3')]
-              .filter(el => el.getClientRects().length && !el.closest('aside,pre,.ds-think-content,.more-genui-surface'))
-              .map(el => el.innerText.trim()).filter(Boolean).join(' ').slice(0,180);
-            draft('请用一块图解解释这条回答中的变化、关系或冲突。' + (excerpt ? '\n回答摘录：“'+excerpt+'”' : ''));
+              .filter(
+                (el) =>
+                  el.getClientRects().length &&
+                  !el.closest('aside,pre,.ds-think-content,.more-genui-surface'),
+              )
+              .map((el) => el.innerText.trim())
+              .filter(Boolean)
+              .join(' ')
+              .slice(0, 180);
+            draft(
+              '请用一块图解解释这条回答中的变化、关系或冲突。' +
+                (excerpt ? '\n回答摘录：“' + excerpt + '”' : ''),
+            );
           };
           body.after(action);
           visualizeActions.set(message as HTMLElement, action);
@@ -476,10 +506,22 @@ export default defineContentScript({
         const origin = ledger.classify(code, key, source);
         const owner = origin.owner;
         const pre = code.closest('pre');
-        const banner = [...(pre?.closest('.md-code-block')?.querySelectorAll('span,button,div') ?? [])]
-          .find(el => !pre?.contains(el) && !el.childElementCount && /^(genui-)?(json|html)$/.test(el.textContent?.trim() ?? ''));
-        const language = [code, pre].map(el => el?.getAttribute('data-language') ||
-          [...(el?.classList ?? [])].find(c => c.startsWith('language-'))?.slice(9)).find(Boolean) ?? banner?.textContent?.trim();
+        const banner = [
+          ...(pre?.closest('.md-code-block')?.querySelectorAll('span,button,div') ?? []),
+        ].find(
+          (el) =>
+            !pre?.contains(el) &&
+            !el.childElementCount &&
+            /^(genui-)?(json|html)$/.test(el.textContent?.trim() ?? ''),
+        );
+        const language =
+          [code, pre]
+            .map(
+              (el) =>
+                el?.getAttribute('data-language') ||
+                [...(el?.classList ?? [])].find((c) => c.startsWith('language-'))?.slice(9),
+            )
+            .find(Boolean) ?? banner?.textContent?.trim();
         const expected = source.trimStart().startsWith('{') ? 'json' : 'html';
         if (language && language !== expected && language !== 'genui-' + expected) continue;
         const confirmed = owner && ledger.confirmed(code, owner, source);
@@ -528,7 +570,7 @@ export default defineContentScript({
         container?.after(host);
         if (!host.isConnected) continue;
         const display = container.style.display;
-        container.style.display = 'none';
+        if (!manual) container.style.display = 'none';
         const identity = messageIdentity(code);
         const blocks = codeBlocks(identity.message);
         const appMeta = parseApp(source);
@@ -640,7 +682,10 @@ export default defineContentScript({
         m.source.length <= MAX_SOURCE
       ) {
         try {
-          parseApp(m.source, m.language === 'genui-json' ? 'fast' : m.language === 'genui-html' ? 'html' : undefined);
+          parseApp(
+            m.source,
+            m.language === 'genui-json' ? 'fast' : m.language === 'genui-html' ? 'html' : undefined,
+          );
         } catch {
           diagnostic({ id: m.id, stage: 'invalid-protocol' });
           return;

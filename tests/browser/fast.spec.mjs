@@ -94,7 +94,7 @@ test('visual stepper resets the scene when going backward', async ({ page }) => 
   const frame = page.frameLocator('#app iframe');
   await frame.getByRole('button', { name: '下一步', exact: true }).click();
   await expect(frame.getByRole('button', { name: 'A / id', exact: true })).toHaveText('完成');
-  await frame.getByRole('button',{name:'比较上一步'}).press('Enter');
+  await frame.getByRole('button', { name: '比较上一步' }).press('Enter');
   await expect(frame.getByText(/A → id.*→ 完成/)).toBeVisible();
   await frame.getByRole('button', { name: '上一步', exact: true }).click();
   await expect(frame.getByRole('button', { name: 'A / id', exact: true })).toHaveText('A → id');
@@ -203,11 +203,9 @@ test('offscreen native playback pauses, current graph exports a real PNG, and di
       .map((f) => f.evaluate(() => window.intervalCount())),
   );
   expect(timers.reduce((a, b) => a + b, 0)).toBe(0);
-  await test
-    .info()
-    .attach('resource-counts', {
-      body: JSON.stringify({ messages: 100, apps: 20, activePlaybackTimers: 0 }),
-    });
+  await test.info().attach('resource-counts', {
+    body: JSON.stringify({ messages: 100, apps: 20, activePlaybackTimers: 0 }),
+  });
   await page.evaluate(() => window.disposeStress());
   await expect(page.locator('#stress')).toHaveCount(0);
   await expect(page.locator('iframe')).toHaveCount(1);
@@ -282,27 +280,68 @@ test('a late grammar result cannot erase a newer syntax error', async ({ page })
     const NativeWorker = Worker;
     window.Worker = class extends NativeWorker {
       set onmessage(fn) {
-        this.addEventListener('message', event => { window.releaseGrammar = () => fn(event); });
+        this.addEventListener('message', (event) => {
+          window.releaseGrammar = () => fn(event);
+        });
       }
     };
   });
   await page.goto('/');
-  await show(page,{kind:'grammar',grammar:{start:'S',productions:[{id:'s',lhs:'S',rhs:['a']}]},input:['a']});
+  await show(page, {
+    kind: 'grammar',
+    grammar: { start: 'S', productions: [{ id: 's', lhs: 'S', rhs: ['a'] }] },
+    input: ['a'],
+  });
   const iframe = page.frameLocator('#app iframe');
   await iframe.locator('textarea').fill('invalid');
-  await iframe.getByText('重新计算',{exact:true}).click();
-  const child = page.frames().find(frame => frame.parentFrame());
+  await iframe.getByText('重新计算', { exact: true }).click();
+  const child = page.frames().find((frame) => frame.parentFrame());
   await child.waitForFunction(() => typeof window.releaseGrammar === 'function');
   await child.evaluate(() => window.releaseGrammar());
   await expect(iframe.getByText(/第 1 行需要/)).toBeVisible();
 });
 
-test('a removed matrix column clears the previous selection', async ({page}) => {
+test('a removed matrix column clears the previous selection', async ({ page }) => {
   await page.goto('/');
-  const view = {...matrix,rows:['A','B']};
-  await show(page,view);
-  await page.frameLocator('iframe').getByLabel('B / $',{exact:true}).click();
+  const view = { ...matrix, rows: ['A', 'B'] };
+  await show(page, view);
+  await page.frameLocator('iframe').getByLabel('B / $', { exact: true }).click();
   await page.waitForTimeout(350);
-  await show(page,{...view,columns:['id','new']});
+  await show(page, { ...view, columns: ['id', 'new'] });
   await expect(page.frameLocator('iframe').getByRole('status')).toBeEmpty();
+});
+
+test('missing packaged handshake falls back once and binary boundaries can be compared and restored', async ({
+  page,
+}) => {
+  await page.route('**/unresponsive-sandbox', (r) =>
+    r.fulfill({ contentType: 'text/html', body: '<body></body>' }),
+  );
+  await page.goto('/');
+  const range = (value) => ({
+    kind: 'matrix',
+    rows: ['区间'],
+    columns: ['范围'],
+    cells: [{ row: '区间', column: '范围', text: value }],
+  });
+  const spec = {
+    ...meta,
+    kind: 'stepper',
+    steps: ['[0,4]', '[3,4]'].map((v, i) => ({
+      title: '第' + (i + 1) + '轮',
+      text: '查找 7',
+      frame: range(v),
+    })),
+  };
+  await page.evaluate(
+    (s) => window.show('binary', JSON.stringify(s), '/unresponsive-sandbox'),
+    spec,
+  );
+  const f = page.frameLocator('#app iframe');
+  await expect(f.getByText('[0,4]', { exact: true })).toBeVisible({ timeout: 12000 });
+  await f.getByText('下一步', { exact: true }).click();
+  await f.getByText('比较上一步', { exact: true }).click();
+  await expect(f.getByText('区间 / 范围：[0,4] → [3,4]')).toBeVisible();
+  await f.getByText('上一步', { exact: true }).click();
+  await expect(f.getByText('[0,4]', { exact: true })).toBeVisible();
 });

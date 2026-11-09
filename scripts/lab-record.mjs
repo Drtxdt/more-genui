@@ -16,13 +16,16 @@ export function inspectCapture(capture) {
   } else if (typeof capture.text === 'string') text = capture.text;
   else throw Error('需要 RESPONSE 正文、事件数组或 SSE');
   const sources = [],
-    scanner = new FenceScanner((source, language) => sources.push({source, language}));
+    scanner = new FenceScanner((source, language) => sources.push({ source, language }));
   scanner.update(text);
   if (capture.observation?.status === 'complete') scanner.finish();
   const ui = scanner.declared;
   let valid =
-    ui && sources.length > 0 && !(scanner.fence && scanner.explicit) && capture.observation?.status === 'complete';
-  for (const {source,language} of sources)
+    ui &&
+    sources.length > 0 &&
+    !(scanner.fence && scanner.explicit) &&
+    capture.observation?.status === 'complete';
+  for (const { source, language } of sources)
     try {
       parseRenderable(source, language === 'genui-json' ? 'fast' : 'html');
     } catch {

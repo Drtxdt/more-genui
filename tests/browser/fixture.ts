@@ -10,13 +10,14 @@ const repository = new StateRepository({
 });
 let requestVersion = 0;
 let surface: ReturnType<typeof mountSurface> | undefined;
-async function show(name = 'wave', source?: string) {
+async function show(name = 'wave', source?: string, sandboxUrl?: string) {
   const version = ++requestVersion;
   const html = source ?? (await (await fetch('/examples/' + name + '.html')).text());
   if (version !== requestVersion) return;
   surface?.dispose();
   surface = mountSurface(document.querySelector('#app')!, {
     source: html,
+    sandboxUrl,
     scope: 'test-conversation',
     instance: name,
     repository,

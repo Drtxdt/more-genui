@@ -352,6 +352,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       }
     };
     next.onload = () => {
+      if (disposed || frame !== next || generation !== current) return;
       if (loaded) {
         setStatus('应用发生了不支持的导航，已停止');
         next.remove();
@@ -368,19 +369,19 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         clearTimeout(timeout);
         timeout = setTimeout(() => failedStartup('应用已启动，等待运行结果超时'), 8000);
         next.contentWindow?.postMessage(
-        {
-          type: 'more-genui-init',
-          revision,
-          html: app.html,
-          spec: app.spec,
-          state,
-          theme: resolvedTheme(),
-        },
-        '*',
-        [connection.port2],
+          {
+            type: 'more-genui-init',
+            revision,
+            html: app.html,
+            spec: app.spec,
+            state,
+            theme: resolvedTheme(),
+          },
+          '*',
+          [connection.port2],
         );
       };
-      next.contentWindow?.postMessage({type: 'more-genui-connect'}, '*', [handshake.port2]);
+      next.contentWindow?.postMessage({ type: 'more-genui-connect' }, '*', [handshake.port2]);
     };
     viewport.append(next);
     function failedStartup(reason: string) {
@@ -388,7 +389,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       options.diagnostic?.('mount-timeout');
       setStatus(reason);
       pre.hidden = false;
-      sourceButton.setAttribute('aria-expanded','true');
+      sourceButton.setAttribute('aria-expanded', 'true');
       const saveCard = document.createElement('button');
       saveCard.textContent = '保存离线卡';
       saveCard.onclick = () => exportCard.click();
@@ -473,31 +474,33 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         ';<\/script>';
       download(app.id + '.html', new Blob([html], { type: 'text/html;charset=utf-8' }));
     });
-    if (app.spec) button('导出图解 JSON', Code, () =>
-      download(
-        app.id + '.json',
-        new Blob([JSON.stringify({ spec: JSON.parse(options.source), state }, null, 2)], {
-          type: 'application/json',
-        }),
-      ),
-    );
-    if (app.spec) button('导出图解 PNG', Code, async () =>
-      download(
-        app.id + '.png',
-        await new Promise<Blob>((resolve, reject) => {
-          if (!channel) return reject(Error('应用未运行'));
-          const id = crypto.randomUUID();
-          pngRequest = { id, resolve, reject };
-          channel.port1.postMessage({ type: 'png', id });
-          setTimeout(() => {
-            if (pngRequest?.id === id) {
-              pngRequest = undefined;
-              reject(Error('PNG 导出超时'));
-            }
-          }, 5000);
-        }),
-      ),
-    );
+    if (app.spec)
+      button('导出图解 JSON', Code, () =>
+        download(
+          app.id + '.json',
+          new Blob([JSON.stringify({ spec: JSON.parse(options.source), state }, null, 2)], {
+            type: 'application/json',
+          }),
+        ),
+      );
+    if (app.spec)
+      button('导出图解 PNG', Code, async () =>
+        download(
+          app.id + '.png',
+          await new Promise<Blob>((resolve, reject) => {
+            if (!channel) return reject(Error('应用未运行'));
+            const id = crypto.randomUUID();
+            pngRequest = { id, resolve, reject };
+            channel.port1.postMessage({ type: 'png', id });
+            setTimeout(() => {
+              if (pngRequest?.id === id) {
+                pngRequest = undefined;
+                reject(Error('PNG 导出超时'));
+              }
+            }, 5000);
+          }),
+        ),
+      );
   }
   const visibility = new IntersectionObserver((entries) => {
     channel?.port1.postMessage({

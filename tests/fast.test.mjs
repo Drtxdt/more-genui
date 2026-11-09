@@ -53,10 +53,22 @@ test('all published declarative examples satisfy the same strict renderer schema
 
 test('tutorial fences suppress nested apps and retain the declared language', () => {
   const seen = [];
-  const scan = new FenceScanner((source, language) => seen.push([language,source]));
+  const scan = new FenceScanner((source, language) => seen.push([language, source]));
   const tick = String.fromCharCode(96).repeat(3);
-  scan.update([tick+'~','ignored',tick,tick+'genui-json','{}',tick,''].join('\n'));
-  assert.deepEqual(seen,[['genui-json','{}']]);
+  scan.update([tick + '~', 'ignored', tick, tick + 'genui-json', '{}', tick, ''].join('\n'));
+  assert.deepEqual(seen, [['genui-json', '{}']]);
   const outer = new FenceScanner(() => assert.fail('nested example emitted'));
-  outer.update([tick+'`markdown',tick+'genui-json','{}',tick,tick+'`',''].join('\n'));
+  outer.update([tick + '`markdown', tick + 'genui-json', '{}', tick, tick + '`', ''].join('\n'));
+});
+
+test('Prompt Lab rejects JSON labeled as HTML and ignores a Markdown tutorial', async () => {
+  const { inspectCapture } = await import('../scripts/lab-record.mjs');
+  const tick = String.fromCharCode(96).repeat(3);
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile('examples/fast-compare.json', 'utf8');
+  const inspect = (lines) =>
+    inspectCapture({ text: lines.join('\n'), observation: { status: 'complete' } });
+  assert.equal(inspect([tick + 'genui-html', src, tick]).valid, false);
+  assert.equal(inspect([tick + 'genui-json', src, tick]).valid, true);
+  assert.equal(inspect([tick + '~', tick + 'genui-json', src, tick, tick]).ui, false);
 });

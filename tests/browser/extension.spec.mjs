@@ -288,7 +288,7 @@ test('same IDs in separate messages stay isolated and stable messages restore af
         (id) =>
           '<article class="ds-message" data-virtual-list-item-key="' +
           id +
-          '"><div class="ds-assistant-message-main-content"><pre></pre></div></article>',
+          '"><div class="ds-assistant-message-main-content"><pre data-language="genui-html"></pre></div></article>',
       )
       .join('');
     document.querySelectorAll('pre').forEach((pre) => (pre.textContent = source));
@@ -422,6 +422,7 @@ test('migrates yesterday’s image after worker restart and restores cached tab 
       const msg = document.querySelector('#messages');
       msg.dataset.virtualListItemKey = 'quiz';
       const pre = document.createElement('pre');
+      pre.dataset.language = 'genui-html';
       pre.textContent = source;
       msg.querySelector('.ds-assistant-message-main-content').append(pre);
     }, quiz);
@@ -692,7 +693,7 @@ test('diagnostics opt in without exposing prompt or THINK content and visualize 
   await page.getByTestId('send-button').click();
   const panel = page.locator('.more-genui-diagnostics');
   await expect(panel).toContainText('已附加规范');
-  await expect(panel).toContainText('模型选择文字');
+  await expect(panel).toContainText('正文未含应用围栏');
   await expect(panel).not.toContainText('PRIVATE_PROMPT');
   await expect(panel).not.toContainText('PRIVATE_THINK');
   await page.getByLabel('输入').fill('原草稿');
@@ -796,6 +797,7 @@ test('conversation index locates twenty apps in a hundred messages and releases 
       body.textContent = '解释 ' + i;
       if (i % 5 === 0) {
         const pre = document.createElement('pre');
+        pre.dataset.language = 'genui-html';
         pre.textContent =
           '<!-- more-genui: ' +
           JSON.stringify({ version: 1, id: 'demo', title: '实验 ' + i, stateVersion: 1 }) +
@@ -890,19 +892,81 @@ test('history requires the Fast UI language even for schema-valid JSON', async (
   });
   await expect(page.locator('.more-genui-surface iframe')).toHaveCount(1);
   await expect(page.locator('.language-json')).toBeVisible();
+  await page.getByText('点击预览', { exact: true }).click();
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(2);
+  await expect(page.locator('.language-json')).toBeVisible();
 });
 
 test('a visualization draft quotes the clicked answer and disabling removes its actions', async () => {
   await page.evaluate(() => {
     const first = document.querySelector('#messages');
-    first.querySelector('.ds-assistant-message-main-content').innerHTML='<p>第一条讲候选区间</p>';
-    const second=first.cloneNode(true);
+    first.querySelector('.ds-assistant-message-main-content').innerHTML = '<p>第一条讲候选区间</p>';
+    const second = first.cloneNode(true);
     second.removeAttribute('id');
-    second.querySelector('.ds-assistant-message-main-content').innerHTML='<p>第二条讲文法</p>';
+    second.querySelector('.ds-assistant-message-main-content').innerHTML = '<p>第二条讲文法</p>';
     first.after(second);
   });
-  await page.getByText('请求可视化',{exact:true}).first().click();
+  await page.getByText('请求可视化', { exact: true }).first().click();
   await expect(page.getByRole('textbox')).toHaveValue(/第一条讲候选区间/);
   await page.locator('#more-genui-toggle').click();
-  await expect(page.getByText('请求可视化',{exact:true})).toHaveCount(0);
+  await expect(page.getByText('请求可视化', { exact: true })).toHaveCount(0);
+});
+
+test('a historical HTML example needs a click for each revision', async () => {
+  await page.evaluate((source) => {
+    const pre = document.createElement('pre');
+    pre.dataset.language = 'html';
+    pre.textContent = source;
+    document.querySelector('.ds-assistant-message-main-content').append(pre);
+  }, source);
+  await expect(page.getByText('点击预览', { exact: true })).toBeVisible();
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(0);
+  await page.getByText('点击预览', { exact: true }).click();
+  await expect(page.frameLocator('.more-genui-surface iframe').getByLabel('振幅')).toBeVisible();
+  await page
+    .locator('pre[data-language="html"]')
+    .evaluate(
+      (el) => (el.textContent = el.textContent.replace('</html>', '<!-- update --></html>')),
+    );
+  await expect(page.getByText('点击预览', { exact: true })).toBeVisible();
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(0);
+});
+test('an inline grammar recalculates FIRST when epsilon is removed', async () => {
+  await page.evaluate(() => {
+    const pre = document.createElement('pre');
+    pre.dataset.language = 'genui-json';
+    pre.textContent = JSON.stringify({
+      version: 1,
+      stateVersion: 1,
+      id: 'nullable',
+      title: '可空文法',
+      kind: 'grammar',
+      grammar: {
+        start: 'A',
+        productions: [
+          { id: '1', lhs: 'A', rhs: ['B', 'C'] },
+          { id: '2', lhs: 'B', rhs: ['a'] },
+          { id: '3', lhs: 'B', rhs: [] },
+          { id: '4', lhs: 'C', rhs: ['c'] },
+        ],
+      },
+      input: ['c'],
+    });
+    document.querySelector('.ds-assistant-message-main-content').append(pre);
+  });
+  const frame = page.frameLocator('.more-genui-surface iframe');
+  await expect(
+    frame
+      .locator('pre')
+      .filter({ hasText: /A\s+FIRST=\{a, c\}/ })
+      .first(),
+  ).toBeVisible();
+  await frame.getByLabel('产生式（符号间用空格）').fill('A → B C\nB → a\nC → c');
+  await frame.getByRole('button', { name: '重新计算', exact: true }).click();
+  await expect(
+    frame
+      .locator('pre')
+      .filter({ hasText: /A\s+FIRST=\{a\}/ })
+      .first(),
+  ).toBeVisible();
 });

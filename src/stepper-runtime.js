@@ -1,17 +1,37 @@
 function stepEntries(view) {
   const entries = new Map();
-  const add = (id, label, value) => entries.set(JSON.stringify(id), {label, value});
+  const add = (id, label, value) => entries.set(JSON.stringify(id), { label, value });
   if (view?.kind === 'compare') {
-    for (const side of ['before','after']) {
-      view[side].lines.forEach((line,i) => add([side,i], view[side].label + ' · ' + (i+1), line));
+    for (const side of ['before', 'after']) {
+      view[side].lines.forEach((line, i) =>
+        add([side, i], view[side].label + ' · ' + (i + 1), line),
+      );
     }
   } else if (view?.kind === 'matrix') {
-    for (const c of view.cells) add([c.row,c.column], c.row+' / '+c.column,
-      [c.text,c.conflict?'冲突':'',c.explanation].filter(Boolean).join(' · '));
+    for (const c of view.cells)
+      add(
+        [c.row, c.column],
+        c.row + ' / ' + c.column,
+        [c.text, c.conflict ? '冲突' : '', c.explanation].filter(Boolean).join(' · '),
+      );
   } else if (view?.kind === 'state-diagram') {
-    for (const [kind,items] of [['节点',view.nodes],['边',view.edges]]) {
-      for (const item of items) add([kind,item.id], kind+' '+item.id,
-        [item.from && (item.from+' → '+item.to),item.label,item.explanation,view.highlight?.includes(item.id)?'高亮':''].filter(Boolean).join(' · '));
+    for (const [kind, items] of [
+      ['节点', view.nodes],
+      ['边', view.edges],
+    ]) {
+      for (const item of items)
+        add(
+          [kind, item.id],
+          kind + ' ' + item.id,
+          [
+            item.from && item.from + ' → ' + item.to,
+            item.label,
+            item.explanation,
+            view.highlight?.includes(item.id) ? '高亮' : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        );
     }
   } else return null;
   return entries;
@@ -63,28 +83,42 @@ function createStepperAPI(read, save, report) {
           compare.disabled = index === 0;
           compare.setAttribute('aria-pressed', String(comparing && index > 0));
           if (!comparing || !index) return;
-          const pair = steps.slice(index-1,index+1);
-          const views = pair.map(step => step.frame || scene);
+          const pair = steps.slice(index - 1, index + 1);
+          const views = pair.map((step) => step.frame || scene);
           const [old, next] = views.map(stepEntries);
           if (old && next && views[0].kind === views[1].kind) {
-            for (const id of new Set([...old.keys(),...next.keys()])) {
-              const a=old.get(id), b=next.get(id);
+            for (const id of new Set([...old.keys(), ...next.keys()])) {
+              const a = old.get(id),
+                b = next.get(id);
               if (a?.value === b?.value) continue;
               const line = document.createElement('p');
-              line.textContent = (b ?? a).label+'：'+(a?.value ?? '无')+' → '+(b?.value ?? '无');
+              line.textContent =
+                (b ?? a).label + '：' + (a?.value ?? '无') + ' → ' + (b?.value ?? '无');
               differences.append(line);
             }
             if (!differences.childElementCount) differences.textContent = '两步的图示内容相同';
             return;
           }
-          differences.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:8px';
-          pair.forEach((step,i) => {
-            const section=document.createElement('section'), caption=document.createElement('strong'), block=document.createElement('div');
-            caption.textContent=(i?'这一步 · ':'上一步 · ')+step.title;
-            section.append(caption,block);
+          differences.style.cssText =
+            'display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:8px';
+          pair.forEach((step, i) => {
+            const section = document.createElement('section'),
+              caption = document.createElement('strong'),
+              block = document.createElement('div');
+            caption.textContent = (i ? '这一步 · ' : '上一步 · ') + step.title;
+            section.append(caption, block);
             differences.append(section);
-            if (views[i]) comparisonRenderers.push(createFastRenderer(block,views[i],()=>({}),()=>{},report));
-            else block.textContent=step.text;
+            if (views[i])
+              comparisonRenderers.push(
+                createFastRenderer(
+                  block,
+                  views[i],
+                  () => ({}),
+                  () => {},
+                  report,
+                ),
+              );
+            else block.textContent = step.text;
           });
         }
         let sceneRenderer;
@@ -136,7 +170,11 @@ function createStepperAPI(read, save, report) {
             index++;
             draw();
           });
-        const compare = button('比较上一步', () => { stop(); comparing = !comparing; compareSteps(); });
+        const compare = button('比较上一步', () => {
+          stop();
+          comparing = !comparing;
+          compareSteps();
+        });
         const play = button('播放', () => {
           if (timer) {
             stop();

@@ -1,4 +1,8 @@
 const stages = new Set([
+  'sandbox-boot',
+  'sandbox-fallback',
+  'preview-candidate',
+  'response-bytes',
   'recognized',
   'policy',
   'mounted',
@@ -43,6 +47,11 @@ export class GenerationDiagnostics {
     if (Number.isFinite(event.bytes)) item.bytes = Math.max(0, event.bytes);
     if (typeof event.policyHash === 'string' && /^[a-f0-9]{64}$/.test(event.policyHash))
       item.policyHash = event.policyHash;
+    if (
+      ['interaction', 'feedback', 'sandbox-boot', 'ready'].includes(item.stage) &&
+      record.events.some((e) => e.stage === item.stage)
+    )
+      return record;
     record.events.push(item);
     if (record.events.length > 32) record.events.shift();
     this.records.set(event.id, record);

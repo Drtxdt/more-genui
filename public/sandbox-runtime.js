@@ -2,7 +2,12 @@
   'use strict';
   let initialized = false;
   addEventListener('message', (event) => {
-    if (!initialized && event.source === parent && event.data?.type === 'more-genui-connect' && event.ports.length === 1) {
+    if (
+      !initialized &&
+      event.source === parent &&
+      event.data?.type === 'more-genui-connect' &&
+      event.ports.length === 1
+    ) {
       event.ports[0].postMessage('booted');
       event.ports[0].close();
       return;

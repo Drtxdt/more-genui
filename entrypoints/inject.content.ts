@@ -215,6 +215,7 @@ export default defineContentScript({
           ended = true;
           diagnose(failed ? 'unsupported' : status);
           if (!failed && !sse.buffer.trim() && status === 'complete') {
+            diagnose('response-bytes',new TextEncoder().encode(accumulator.text).length);
             accumulator.scanner.finish();
             if (accumulator.scanner.fence && accumulator.scanner.explicit) diagnose('invalid-protocol');
             else if (accumulator.scanner.candidate) diagnose('preview-candidate');

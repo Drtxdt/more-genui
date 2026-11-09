@@ -32,7 +32,9 @@ export class FenceScanner {
       this.pending = '';
     }
   }
-  get explicit() { return ['genui-html', 'genui-json'].includes(this.language); }
+  get explicit() {
+    return ['genui-html', 'genui-json'].includes(this.language);
+  }
   closes(line) {
     return new RegExp('^\\s{0,3}' + this.fence[0] + '{' + this.fence.length + ',}\\s*$').test(line);
   }
@@ -48,7 +50,12 @@ export class FenceScanner {
     } else if (this.closes(line)) {
       const source = this.lines.join('\n');
       if (this.explicit) this.onSource(source, this.language);
-      else if (['html','json',''].includes(this.language) && (/^\s*<!--\s*more-genui:/.test(source) || (/^\s*\{/.test(source) && source.includes('"stateVersion"')))) this.candidate = true;
+      else if (
+        ['html', 'json', ''].includes(this.language) &&
+        (/^\s*<!--\s*more-genui:/.test(source) ||
+          (/^\s*\{/.test(source) && source.includes('"stateVersion"')))
+      )
+        this.candidate = true;
       this.language = '';
       this.fence = '';
       this.lines = [];
