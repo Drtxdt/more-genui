@@ -4,7 +4,7 @@ export class RepairContexts {
   pending = new Map();
   create(scope, app, state) {
     for (const [key, value] of this.pending)
-      if (value.expires < Date.now() || value.scope === scope) this.pending.delete(key);
+      if (value.expires < Date.now()) this.pending.delete(key);
     const token = crypto.randomUUID();
     this.pending.set(token, {
       scope,
