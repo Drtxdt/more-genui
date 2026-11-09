@@ -336,13 +336,15 @@ function createFastRenderer(root, initial, read, save, report, rootPath = '__fas
     } else if (view.kind === 'state-diagram') {
       const ns = 'http://www.w3.org/2000/svg',
         svg = document.createElementNS(ns, 'svg');
-      const height = Math.ceil(view.nodes.length / 4) * 100 + 40;
-      svg.setAttribute('viewBox', '0 0 720 ' + height);
+      const key=path+'/graph';
+      const authored=view, prev=read()[key]??{};
+      if(view.interaction==='topology' && prev.edges){
+        try{view=FastValidation.validateView({...view,edges:prev.edges});}catch{/* discard incompatible edits */}
+      }
+      const {positions,width,height}=FastValidation.graphLayout(view.nodes,view.edges);
+      svg.setAttribute('viewBox', '0 0 '+width+' '+height);
       svg.setAttribute('role', 'img');
       svg.setAttribute('aria-label', '状态关系图');
-      const positions = new Map(
-        view.nodes.map((n, i) => [n.id, [90 + (i % 4) * 180, 60 + Math.floor(i / 4) * 100]]),
-      );
       const detail = el('p');
       detail.setAttribute('role', 'status');
       const node = (tag, attrs, text) => {
@@ -439,6 +441,45 @@ function createFastRenderer(root, initial, read, save, report, rootPath = '__fas
         svg.append(g);
       }
       container.append(svg, detail);
+      if(view.interaction) {
+        const revise=(patch)=>{
+          save({...read(),[key]:{...prev,...patch}});
+          render(container,authored,path,context);
+          container.querySelector('[data-graph-focus]')?.focus();
+        };
+        const label=id=>view.nodes.find(n=>n.id===id)?.label??id;
+        if(view.interaction==='flow') {
+          const route=(prev.route??[]).filter(id=>positions.has(id)).slice(-256);
+          if(!route.length)route.push(view.nodes[0].id);
+          const current=route.at(-1), desc=el('p',route.map(label).join(' → '));
+          desc.tabIndex=-1;desc.dataset.graphFocus='';container.append(desc);
+          for(const e of view.edges.filter(e=>e.from===current))
+            container.append(button(e.label||label(e.to),()=>revise({route:[...route,e.to].slice(-256)})));
+          if(route.length>1)container.append(button('回到上个分支',()=>revise({route:route.slice(0,-1)})));
+        } else {
+          const pick=(name,value)=>{
+            const s=el('select');s.setAttribute('aria-label',name);
+            view.nodes.forEach(n=>s.add(new Option(n.label,n.id)));
+            if(positions.has(value))s.value=value;
+            container.append(s);return s;
+          };
+          const from=pick('起点',prev.from),to=pick('终点',prev.to);
+          from.dataset.graphFocus='';
+          const pathInfo=el('p');pathInfo.setAttribute('role','status');container.append(pathInfo);
+          const show=()=>{const p=FastValidation.graphPath(view.edges,from.value,to.value);pathInfo.textContent=p.length?'可达：'+p.map(label).join(' → '):'不可达';};
+          from.onchange=to.onchange=show;show();
+          const edit=(add)=>{
+            const same=e=>e.from===from.value&&e.to===to.value;
+            const edges=add ? [...view.edges] : view.edges.filter(e=>!same(e));
+            if(add&&!edges.some(same)){
+              if(edges.length>=256){pathInfo.textContent='最多 256 条连接';return;}
+              edges.push({id:crypto.randomUUID(),from:from.value,to:to.value});
+            }
+            revise({edges,from:from.value,to:to.value});
+          };
+          container.append(button('添加连接',()=>edit(true)),button('删除该方向连接',()=>edit(false)));
+        }
+      }
     } else if (view.kind === 'quiz') {
       genui.quiz.mount(container, {
         id: path.replace(/[^A-Za-z0-9_-]/g, '_'),

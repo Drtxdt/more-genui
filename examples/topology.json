@@ -1,0 +1,1 @@
+{"version":1,"id":"routing-lab","title":"断开链路后还能到达吗？","stateVersion":1,"kind":"state-diagram","interaction":"topology","nodes":[{"id":"a","label":"电脑"},{"id":"b","label":"路由器"},{"id":"c","label":"服务器"}],"edges":[{"id":"ab","from":"a","to":"b"},{"id":"bc","from":"b","to":"c"}]}

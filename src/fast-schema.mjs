@@ -155,6 +155,7 @@ const definitions = {
   'state-diagram': z
     .object({
       kind: z.literal('state-diagram'),
+      interaction: z.enum(['flow','topology']).optional(),
       nodes: z
         .array(z.object({ id: entity, label: text, explanation: text.optional() }).strict())
         .min(1)
@@ -209,7 +210,7 @@ export function validateView(value, depth = 0, hasGrammar = false) {
         kind: z.literal('stepper'),
         scene: z.unknown().optional(),
         steps: z
-          .array(z.object({ title: text, text, frame: z.unknown().optional() }).strict())
+          .array(z.object({ title: text, text, time: entity.optional(), frame: z.unknown().optional() }).strict())
           .min(1)
           .max(2048),
       })
