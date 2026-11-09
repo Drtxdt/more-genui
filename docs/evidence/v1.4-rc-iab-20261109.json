@@ -1,0 +1,516 @@
+{
+  "date": "2026-11-09",
+  "browser": "Codex in-app browser, DeepSeek web",
+  "buildScheduled": "07391d461682c948097b9ed61d32f017c9718bd6",
+  "observation": "Each completed response matched the displayed 12-character policy hash prefix and the DeepSeek thinking toggle. Runs were grouped by strategy at user request. Stage times are extension receipts collected at response completion. Later ready events may be missing. Raw wire output bytes were not captured.",
+  "firstAttemptsCompleted": 47,
+  "completedAfterRetry": 48,
+  "failedFirstAttempt": {
+    "runId": "t25-C-thinking",
+    "diagnostic": "unsupported",
+    "reason": "消息发送过于频繁，请稍后重试"
+  },
+  "smoke": {
+    "policy": "007d9984021f",
+    "responses": [
+      "FIRST short definition with epsilon condition",
+      "Wave: amplitude 3, period 0.5 to 0.25 seconds",
+      "Binary search: [0,4] to [3,4], found at 3"
+    ],
+    "firstResponseForm": [
+      "text",
+      "text",
+      "text"
+    ],
+    "explicitFollowUp": "Binary stepper mounted, timed out, timed out again after rerun. Exported card verified with next, next, previous: 1/3 to 2/3 to 3/3 to 2/3."
+  },
+  "groups": {
+    "A-normal": {
+      "answers": 12,
+      "firstTextMedianMs": 914.5,
+      "textTimingSamples": 12,
+      "fenceConfirmed": 3,
+      "mounted": 3,
+      "readyAtCapture": 0
+    },
+    "A-thinking": {
+      "answers": 4,
+      "firstTextMedianMs": 25981.0,
+      "textTimingSamples": 4,
+      "fenceConfirmed": 0,
+      "mounted": 0,
+      "readyAtCapture": 0
+    },
+    "B-normal": {
+      "answers": 12,
+      "firstTextMedianMs": 707,
+      "textTimingSamples": 11,
+      "fenceConfirmed": 0,
+      "mounted": 0,
+      "readyAtCapture": 0
+    },
+    "B-thinking": {
+      "answers": 4,
+      "firstTextMedianMs": 24269.5,
+      "textTimingSamples": 4,
+      "fenceConfirmed": 0,
+      "mounted": 0,
+      "readyAtCapture": 0
+    },
+    "C-normal": {
+      "answers": 12,
+      "firstTextMedianMs": 668.0,
+      "textTimingSamples": 12,
+      "fenceConfirmed": 0,
+      "mounted": 0,
+      "readyAtCapture": 0
+    },
+    "C-thinking": {
+      "answers": 4,
+      "firstTextMedianMs": 3306.0,
+      "textTimingSamples": 4,
+      "fenceConfirmed": 0,
+      "mounted": 0,
+      "readyAtCapture": 0
+    }
+  },
+  "records": [
+    {
+      "runId": "t01-A-normal",
+      "requestIdPrefix": "d99a3ba1",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 821,
+        "响应结束": 8674
+      }
+    },
+    {
+      "runId": "t02-A-normal",
+      "requestIdPrefix": "113208b8",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 525,
+        "响应结束": 1293
+      }
+    },
+    {
+      "runId": "t05-A-normal",
+      "requestIdPrefix": "85d6b3a9",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 951,
+        "响应结束": 7057
+      }
+    },
+    {
+      "runId": "t17-A-normal",
+      "requestIdPrefix": "1aef99c2",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 1095,
+        "围栏完整": 6658,
+        "已挂载": 6922,
+        "响应结束": 6948
+      }
+    },
+    {
+      "runId": "t25-A-normal",
+      "requestIdPrefix": "da4ca613",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 760,
+        "响应结束": 1329
+      }
+    },
+    {
+      "runId": "t26-A-normal",
+      "requestIdPrefix": "323e0033",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 1004,
+        "响应结束": 1370
+      }
+    },
+    {
+      "runId": "t27-A-normal",
+      "requestIdPrefix": "00fea92d",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 1007,
+        "响应结束": 1126
+      }
+    },
+    {
+      "runId": "t30-A-normal",
+      "requestIdPrefix": "5848e113",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 859,
+        "响应结束": 1329
+      }
+    },
+    {
+      "runId": "t31-A-normal",
+      "requestIdPrefix": "6ffe0aa2",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 920,
+        "围栏完整": 7123,
+        "响应结束": 7871,
+        "已挂载": 7881
+      }
+    },
+    {
+      "runId": "t33-A-normal",
+      "requestIdPrefix": "6092b7ec",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 2825,
+        "响应结束": 7861,
+        "围栏完整": 7862,
+        "已挂载": 7875
+      }
+    },
+    {
+      "runId": "t39-A-normal",
+      "requestIdPrefix": "c1989846",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 420,
+        "响应结束": 2283
+      }
+    },
+    {
+      "runId": "t40-A-normal",
+      "requestIdPrefix": "ef3865bc",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 909,
+        "响应结束": 7075
+      }
+    },
+    {
+      "runId": "t01-A-thinking",
+      "requestIdPrefix": "3e6a1a03",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 28040,
+        "响应结束": 37647
+      }
+    },
+    {
+      "runId": "t25-A-thinking",
+      "requestIdPrefix": "cb7d96c8",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 2858,
+        "响应结束": 2884
+      }
+    },
+    {
+      "runId": "t31-A-thinking",
+      "requestIdPrefix": "ab4635fd",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 71045,
+        "响应结束": 90823
+      }
+    },
+    {
+      "runId": "t33-A-thinking",
+      "requestIdPrefix": "a02c6395",
+      "policyHashPrefix": "f7bb3893cacd",
+      "observedStagesMs": {
+        "首段正文已显示": 23922,
+        "响应结束": 34456
+      }
+    },
+    {
+      "runId": "t01-B-normal",
+      "requestIdPrefix": "4c0f9cf1",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 707,
+        "响应结束": 8362
+      }
+    },
+    {
+      "runId": "t02-B-normal",
+      "requestIdPrefix": "e1155bf3",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 599,
+        "响应结束": 1204
+      }
+    },
+    {
+      "runId": "t05-B-normal",
+      "requestIdPrefix": "dbf5c8fa",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 594,
+        "响应结束": 19027
+      }
+    },
+    {
+      "runId": "t17-B-normal",
+      "requestIdPrefix": "e624c5b1",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 1021,
+        "响应结束": 22002
+      }
+    },
+    {
+      "runId": "t25-B-normal",
+      "requestIdPrefix": "03f636b2",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 856,
+        "响应结束": 1330
+      }
+    },
+    {
+      "runId": "t26-B-normal",
+      "requestIdPrefix": "95b769c8",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 894,
+        "响应结束": 1249
+      }
+    },
+    {
+      "runId": "t27-B-normal",
+      "requestIdPrefix": "81370794",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 917,
+        "响应结束": 970
+      }
+    },
+    {
+      "runId": "t30-B-normal",
+      "requestIdPrefix": "f365dc13",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 678,
+        "响应结束": 1109
+      }
+    },
+    {
+      "runId": "t31-B-normal",
+      "requestIdPrefix": "6fb2f9b1",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 694,
+        "响应结束": 14267
+      }
+    },
+    {
+      "runId": "t33-B-normal",
+      "requestIdPrefix": "0a22663b",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "响应结束": 16880
+      }
+    },
+    {
+      "runId": "t39-B-normal",
+      "requestIdPrefix": "2a569739",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 928,
+        "响应结束": 10954
+      }
+    },
+    {
+      "runId": "t40-B-normal",
+      "requestIdPrefix": "806b8654",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 481,
+        "响应结束": 3358
+      }
+    },
+    {
+      "runId": "t25-B-thinking",
+      "requestIdPrefix": "a7facd73",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 19005,
+        "响应结束": 25899
+      }
+    },
+    {
+      "runId": "t01-B-thinking",
+      "requestIdPrefix": "e9dccd40",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 29534,
+        "响应结束": 44052
+      }
+    },
+    {
+      "runId": "t33-B-thinking",
+      "requestIdPrefix": "7a191663",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 11961,
+        "响应结束": 17902
+      }
+    },
+    {
+      "runId": "t01-C-normal",
+      "requestIdPrefix": "debca588",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 442,
+        "响应结束": 1435
+      }
+    },
+    {
+      "runId": "t02-C-normal",
+      "requestIdPrefix": "4761712d",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 535,
+        "响应结束": 1618
+      }
+    },
+    {
+      "runId": "t05-C-normal",
+      "requestIdPrefix": "3a000569",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 554,
+        "响应结束": 1820
+      }
+    },
+    {
+      "runId": "t17-C-normal",
+      "requestIdPrefix": "9e860ae7",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 623,
+        "响应结束": 1626
+      }
+    },
+    {
+      "runId": "t31-B-thinking",
+      "requestIdPrefix": "d1ce5684",
+      "policyHashPrefix": "4493acbb1216",
+      "observedStagesMs": {
+        "首段正文已显示": 63252,
+        "响应结束": 76020
+      }
+    },
+    {
+      "runId": "t25-C-normal",
+      "requestIdPrefix": "0e6013e0",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 894,
+        "响应结束": 1145
+      }
+    },
+    {
+      "runId": "t26-C-normal",
+      "requestIdPrefix": "0eaba7f9",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 682,
+        "响应结束": 834
+      }
+    },
+    {
+      "runId": "t27-C-normal",
+      "requestIdPrefix": "b5bfe0a8",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 718,
+        "响应结束": 773
+      }
+    },
+    {
+      "runId": "t30-C-normal",
+      "requestIdPrefix": "1d5d0787",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 804,
+        "响应结束": 1132
+      }
+    },
+    {
+      "runId": "t31-C-normal",
+      "requestIdPrefix": "a9d7b618",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 764,
+        "响应结束": 2735
+      }
+    },
+    {
+      "runId": "t33-C-normal",
+      "requestIdPrefix": "59b296ef",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 654,
+        "响应结束": 1950
+      }
+    },
+    {
+      "runId": "t39-C-normal",
+      "requestIdPrefix": "c68b0651",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 649,
+        "响应结束": 2794
+      }
+    },
+    {
+      "runId": "t40-C-normal",
+      "requestIdPrefix": "aa7e5659",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 713,
+        "响应结束": 2200
+      }
+    },
+    {
+      "runId": "t01-C-thinking",
+      "requestIdPrefix": "cdce61b9",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 4036,
+        "响应结束": 4776
+      }
+    },
+    {
+      "runId": "t25-C-thinking",
+      "requestIdPrefix": "edda0c7c",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 2168,
+        "响应结束": 2323
+      }
+    },
+    {
+      "runId": "t31-C-thinking",
+      "requestIdPrefix": "115f9ba6",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 6158,
+        "响应结束": 8315
+      }
+    },
+    {
+      "runId": "t33-C-thinking",
+      "requestIdPrefix": "fa666878",
+      "policyHashPrefix": "007d9984021f",
+      "observedStagesMs": {
+        "首段正文已显示": 2576,
+        "响应结束": 3335
+      }
+    }
+  ]
+}
