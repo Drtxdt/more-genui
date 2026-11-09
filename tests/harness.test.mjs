@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { Context } from '@deepseek-ai/cordis';
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt';
 import { ToolRuntime } from '@deepseek-ai/dsh-tools';
@@ -21,10 +21,36 @@ test('published Harness services execute render_app with durable metadata', asyn
     assert.equal(result.isError, false, JSON.stringify(result));
     assert.equal(result.meta.source, source);
     assert.equal(result.meta.kind, 'more-genui-app');
-    const spec = {version:1,stateVersion:1,id:'compare',title:'前后',kind:'compare',before:{label:'前',lines:['A']},after:{label:'后',lines:['B']}};
-    const visual = await ctx.tools.execute({callId:'visual-call',name:'render_visual',arguments:{spec},signal:new AbortController().signal});
-    assert.equal(visual.isError,false,JSON.stringify(visual));
-    assert.deepEqual(JSON.parse(visual.meta.source),spec);
+    const spec = {
+      version: 1,
+      stateVersion: 1,
+      id: 'compare',
+      title: '前后',
+      kind: 'compare',
+      before: { label: '前', lines: ['A'] },
+      after: { label: '后', lines: ['B'] },
+    };
+    const visual = await ctx.tools.execute({
+      callId: 'visual-call',
+      name: 'render_visual',
+      arguments: { spec },
+      signal: new AbortController().signal,
+    });
+    assert.equal(visual.isError, false, JSON.stringify(visual));
+    assert.deepEqual(JSON.parse(visual.meta.source), spec);
+    for (const file of await readdir('examples/community')) {
+      const raw = await readFile('examples/community/' + file, 'utf8');
+      const json = file.endsWith('.json');
+      const result = await ctx.tools.execute({
+        callId: 'community-' + file,
+        name: json ? 'render_visual' : 'render_app',
+        arguments: json ? { spec: JSON.parse(raw) } : { source: raw },
+        signal: new AbortController().signal,
+      });
+      assert.equal(result.isError, false, file);
+      if (json) assert.deepEqual(JSON.parse(result.meta.source), JSON.parse(raw));
+      else assert.equal(result.meta.source, raw);
+    }
     const bad = await ctx.tools.execute({
       callId: 'bad-call',
       name: 'render_app',
