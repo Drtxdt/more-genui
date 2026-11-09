@@ -641,7 +641,7 @@ export default defineContentScript({
         ]);
         // An explicit repair echo must also belong to its captured request when streaming.
         const token = /<!-- more-genui-repair: ([a-f0-9-]+) -->/.exec(source)?.[1];
-        const allowRepair = requestId && token === requests.get(requestId)?.repairToken;
+        const allowRepair = confirmed && token && token === owner?.repairToken;
         reader.register(instance, appMeta.title, host);
         const surface = mountSurface(host, {
           source: stripRequestProof(source),
