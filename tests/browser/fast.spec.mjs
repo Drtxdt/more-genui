@@ -345,3 +345,25 @@ test('missing packaged handshake falls back once and binary boundaries can be co
   await f.getByText('上一步', { exact: true }).click();
   await expect(f.getByText('[0,4]', { exact: true })).toBeVisible();
 });
+
+test('trusted meal model updates quantities and restores the checked purchase', async ({ page }) => {
+  const { readFile } = await import('node:fs/promises');
+  const spec = JSON.parse(await readFile('examples/models/roast.json', 'utf8'));
+  await page.goto('/');
+  await show(page, spec);
+  const frame = page.frameLocator('#app iframe');
+  const people = frame.getByRole('slider');
+  await people.focus();
+  await people.press('ArrowRight');
+  await people.press('ArrowRight');
+  await expect(frame.getByText('1,500 g', {exact:true})).toBeVisible();
+  await expect(frame.getByText('1,200 g', {exact:true})).toBeVisible();
+  await frame.getByRole('checkbox').first().check();
+  await expect(frame.getByRole('button',{name:'复制当前清单'})).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some(key =>
+    key.startsWith('mg:state:') && localStorage[key].includes('"meat"')))).toBe(true);
+  await page.reload();
+  await show(page, spec);
+  await expect(people).toHaveValue('6');
+  await expect(frame.getByRole('checkbox').first()).toBeChecked();
+});

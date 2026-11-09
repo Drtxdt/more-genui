@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { compileModel, modelSchema } from './numeric-model.mjs';
 const text = z.string().max(8192),
   id = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
 const entity = z.string().min(1).max(128);
@@ -60,6 +61,7 @@ const coordinate = z
   })
   .strict();
 const definitions = {
+  model: modelSchema,
   checklist: z.object({ kind: z.literal('checklist'), items: entries(z.object(labeled)) }).strict(),
   parts: z
     .object({
@@ -232,6 +234,7 @@ export function validateView(value, depth = 0, hasGrammar = false) {
     if (!schema) throw Error('不支持的 Fast UI 类型');
     result = schema.parse(value);
   }
+  if (result.kind === 'model') compileModel(result);
   if (result.kind === 'grammar' && !result.grammar && !hasGrammar)
     throw Error('文法视图缺少文法输入');
   if (result.kind === 'automaton') {
