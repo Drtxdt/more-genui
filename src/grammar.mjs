@@ -34,6 +34,20 @@ export function analyzeGrammar(grammar) {
   const first = Object.fromEntries(nonterminals.map((s) => [s, new Set()])),
     follow = Object.fromEntries(nonterminals.map((s) => [s, new Set()]));
   const nullable = new Set();
+  // Keep the first successful derivation. Its premises were already known;
+  // circular grammars therefore cannot make a circular explanation.
+  const evidence = Object.create(null);
+  const fact = (kind, n, t) => JSON.stringify([kind, n, t]);
+  function premises(rhs, token) {
+    const via = [];
+    for (const s of rhs) {
+      if (!Object.hasOwn(first, s)) break;
+      if (token !== 'ε' && first[s].has(token)) return [...via, fact('FIRST', s, token)];
+      if (!nullable.has(s)) break;
+      via.push(fact('FIRST', s, 'ε'));
+    }
+    return via;
+  }
   const sequence = (rhs) => {
     const out = new Set();
     let empty = true;
@@ -64,14 +78,18 @@ export function analyzeGrammar(grammar) {
     changed = false;
     for (const p of productions) {
       const f = sequence(p.rhs);
+      for (const t of f.values) if (!first[p.lhs].has(t))
+        evidence[fact('FIRST', p.lhs, t)] = {rule:p.id, via:premises(p.rhs, t)};
       add(first[p.lhs], f.values);
       if (f.nullable && !nullable.has(p.lhs)) {
+        evidence[fact('FIRST', p.lhs, 'ε')] = {rule:p.id, via:premises(p.rhs, 'ε')};
         nullable.add(p.lhs);
         changed = true;
       }
     }
   }
   follow[start].add('$');
+  evidence[fact('FOLLOW', start, '$')] = {rule:null, via:[]};
   changed = true;
   while (changed) {
     changed = false;
@@ -80,8 +98,14 @@ export function analyzeGrammar(grammar) {
         const s = p.rhs[i];
         if (!Object.hasOwn(follow, s)) continue;
         const suffix = sequence(p.rhs.slice(i + 1));
+        for (const t of suffix.values) if (!follow[s].has(t))
+          evidence[fact('FOLLOW', s, t)] = {rule:p.id, via:premises(p.rhs.slice(i+1), t)};
         add(follow[s], suffix.values);
-        if (suffix.nullable) add(follow[s], follow[p.lhs]);
+        if (suffix.nullable) {
+          for (const t of follow[p.lhs]) if (!follow[s].has(t))
+            evidence[fact('FOLLOW', s, t)] = {rule:p.id, via:[...premises(p.rhs.slice(i+1),'ε'),fact('FOLLOW',p.lhs,t)]};
+          add(follow[s], follow[p.lhs]);
+        }
       }
   }
   const table = Object.create(null),
@@ -136,6 +160,7 @@ export function analyzeGrammar(grammar) {
     ),
     follow: Object.fromEntries(nonterminals.map((n) => [n, [...follow[n]]])),
     select,
+    evidence,
     table,
     conflicts,
     leftRecursive,

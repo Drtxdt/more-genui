@@ -642,6 +642,29 @@ function createFastRenderer(root, initial, read, save, report, rootPath = '__fas
             a.leftRecursive.length ? '左递归：' + a.leftRecursive.join(', ') : '未检测到左递归',
           ),
         );
+        const proof = el('details'), choices = el('select'), trail = el('ol');
+        proof.append(el('summary','核对集合成员的推导依据'),choices,trail);
+        choices.setAttribute('aria-label','查看集合成员');
+        const label = (key) => {
+          const [kind,n,t] = JSON.parse(key);
+          return t+' ∈ '+kind+'('+n+')';
+        };
+        for (const key of Object.keys(a.evidence)) choices.add(new Option(label(key),key));
+        function explain() {
+          trail.replaceChildren();
+          const pending=[choices.value], seen=new Set();
+          while(pending.length) {
+            const key=pending.pop(), step=a.evidence[key];
+            if(!step || seen.has(key)) continue;
+            seen.add(key);
+            const rule=a.productions.find(p=>p.id===step.rule);
+            trail.append(el('li',label(key)+'：'+(rule ? rule.lhs+' → '+(rule.rhs.join(' ') || 'ε') : '开始符号的输入结束标记')));
+            pending.push(...step.via.slice().reverse());
+          }
+        }
+        choices.onchange=explain;
+        explain();
+        output.append(proof);
         const matrix = {
           kind: 'matrix',
           rows: a.nonterminals,
