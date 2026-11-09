@@ -891,3 +891,18 @@ test('history requires the Fast UI language even for schema-valid JSON', async (
   await expect(page.locator('.more-genui-surface iframe')).toHaveCount(1);
   await expect(page.locator('.language-json')).toBeVisible();
 });
+
+test('a visualization draft quotes the clicked answer and disabling removes its actions', async () => {
+  await page.evaluate(() => {
+    const first = document.querySelector('#messages');
+    first.querySelector('.ds-assistant-message-main-content').innerHTML='<p>第一条讲候选区间</p>';
+    const second=first.cloneNode(true);
+    second.removeAttribute('id');
+    second.querySelector('.ds-assistant-message-main-content').innerHTML='<p>第二条讲文法</p>';
+    first.after(second);
+  });
+  await page.getByText('请求可视化',{exact:true}).first().click();
+  await expect(page.getByRole('textbox')).toHaveValue(/第一条讲候选区间/);
+  await page.locator('#more-genui-toggle').click();
+  await expect(page.getByText('请求可视化',{exact:true})).toHaveCount(0);
+});

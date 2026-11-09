@@ -343,8 +343,13 @@ export default defineContentScript({
       element.style.display = value.display;
       folded.delete(element);
     }
+    function clearVisualizeActions() {
+      for (const action of visualizeActions.values()) action.remove();
+      visualizeActions.clear();
+    }
     function scan(changedOnly = false) {
       if (route !== location.pathname) {
+        clearVisualizeActions();
         route = location.pathname;
         reader.clear();
         composition.reset();
@@ -390,6 +395,7 @@ export default defineContentScript({
         }
       composition.update();
       if (!enabled) {
+        clearVisualizeActions();
         approvals = new WeakMap();
         for (const id of active) ledger.end(id);
         tables.clear();
@@ -439,8 +445,12 @@ export default defineContentScript({
           const action = document.createElement('button');
           action.className = 'more-genui-visualize';
           action.textContent = '请求可视化';
-          action.onclick = () =>
-            draft('请用最合适的一块图解解释上面这条回答中的变化、关系或冲突。');
+          action.onclick = () => {
+            const excerpt = [...body.querySelectorAll<HTMLElement>('p,li,h2,h3')]
+              .filter(el => el.getClientRects().length && !el.closest('aside,pre,.ds-think-content,.more-genui-surface'))
+              .map(el => el.innerText.trim()).filter(Boolean).join(' ').slice(0,180);
+            draft('请用一块图解解释这条回答中的变化、关系或冲突。' + (excerpt ? '\n回答摘录：“'+excerpt+'”' : ''));
+          };
           body.after(action);
           visualizeActions.set(message as HTMLElement, action);
         }
