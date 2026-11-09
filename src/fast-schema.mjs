@@ -232,11 +232,15 @@ export function validateView(value, depth = 0, hasGrammar = false) {
 export function parseFast(source) {
   if (typeof source !== 'string' || new TextEncoder().encode(source).length > 262144)
     throw Error('Fast UI 超过 256 KiB');
-  const raw = JSON.parse(source),
-    meta = z
-      .object(base)
-      .strict()
-      .parse(Object.fromEntries(Object.keys(base).map((k) => [k, raw[k]])));
+  const raw = JSON.parse(source);
+  if (raw && Object.hasOwn(raw, 'requestProof')) {
+    z.string().uuid().parse(raw.requestProof);
+    delete raw.requestProof;
+  }
+  const meta = z
+    .object(base)
+    .strict()
+    .parse(Object.fromEntries(Object.keys(base).map((k) => [k, raw[k]])));
   const view = validateView(
     Object.fromEntries(Object.entries(raw).filter(([k]) => !Object.hasOwn(base, k))),
   );

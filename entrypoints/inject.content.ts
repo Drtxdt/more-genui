@@ -114,24 +114,34 @@ export default defineContentScript({
       }
       if (mode === 'demand' && !match && !/本次修复标识：[a-f0-9-]+/.test(body.prompt))
         return { text, enhanced: false };
+      const proof = crypto.randomUUID();
       return {
+        proof,
         text: JSON.stringify({
           ...body,
-          prompt:
-            mode === 'visual'
-              ? composePolicy(body.prompt, 'visual', match?.kind)
-              : ['B', 'C'].includes(policy)
-                ? composePolicy(body.prompt, policy, match?.kind)
-                : augment(
-                    body.prompt,
-                    true,
-                    match?.kind ?? (preferred ? 'preference-' + preferred : ''),
-                  ),
+          prompt: (mode === 'visual'
+            ? composePolicy(body.prompt, 'visual', match?.kind)
+            : ['B', 'C'].includes(policy)
+              ? composePolicy(body.prompt, policy, match?.kind)
+              : augment(
+                  body.prompt,
+                  true,
+                  match?.kind ?? (preferred ? 'preference-' + preferred : ''),
+                )
+          ).replace(
+            '[/More GenUI]',
+            () =>
+              '\n本次归属标记：' +
+              proof +
+              '。每个 HTML 在元数据下一行放 <!-- more-genui-request: ' +
+              proof +
+              ' -->，JSON 根字段 requestProof 填此值。\n[/More GenUI]',
+          ),
         }),
         enhanced: true,
       };
     };
-    function observe(body = '', enhanced = false) {
+    function observe(body = '', enhanced = false, proof?: string) {
       const route = location.pathname;
       const repairToken = /本次修复标识：([a-f0-9-]+)/.exec(body)?.[1];
       const id = crypto.randomUUID();
@@ -147,17 +157,22 @@ export default defineContentScript({
               ? /\[More GenUI v1\][^]*?\[\/More GenUI\]/.exec(prompt)?.[0]
               : null;
           if (guide)
-            void crypto.subtle.digest('SHA-256', new TextEncoder().encode(guide)).then((hash) =>
-              post({
-                type: 'more-genui-diagnostic',
-                id,
-                route,
-                stage: 'policy',
-                policyHash: Array.from(new Uint8Array(hash), (b) =>
-                  b.toString(16).padStart(2, '0'),
-                ).join(''),
-              }),
-            );
+            void crypto.subtle
+              .digest(
+                'SHA-256',
+                new TextEncoder().encode(guide.replace(/\n本次归属标记：[^\n]+\n/, '')),
+              )
+              .then((hash) =>
+                post({
+                  type: 'more-genui-diagnostic',
+                  id,
+                  route,
+                  stage: 'policy',
+                  policyHash: Array.from(new Uint8Array(hash), (b) =>
+                    b.toString(16).padStart(2, '0'),
+                  ).join(''),
+                }),
+              );
         } catch {}
       }
       diagnose(enhanced ? 'enhanced' : 'skipped');
@@ -199,7 +214,7 @@ export default defineContentScript({
           failed = true;
         },
       );
-      post({ type: 'more-genui-start', id, route, repairToken });
+      post({ type: 'more-genui-start', id, route, repairToken, proof });
       return {
         push(text: string) {
           if (ended || failed) return;
@@ -215,9 +230,10 @@ export default defineContentScript({
           ended = true;
           diagnose(failed ? 'unsupported' : status);
           if (!failed && !sse.buffer.trim() && status === 'complete') {
-            diagnose('response-bytes',new TextEncoder().encode(accumulator.text).length);
+            diagnose('response-bytes', new TextEncoder().encode(accumulator.text).length);
             accumulator.scanner.finish();
-            if (accumulator.scanner.fence && accumulator.scanner.explicit) diagnose('invalid-protocol');
+            if (accumulator.scanner.fence && accumulator.scanner.explicit)
+              diagnose('invalid-protocol');
             else if (accumulator.scanner.candidate) diagnose('preview-candidate');
             else if (enhanced && firstText && !accumulator.emitted.size) diagnose('no-ui');
             else if (!firstText) diagnose('insufficient-evidence');
@@ -231,6 +247,7 @@ export default defineContentScript({
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
       if (!target(url)) return originalFetch.call(window, input, init);
       let request: Request;
+      let proof: string | undefined;
       let enhanced = false;
       try {
         request = new Request(input instanceof Request ? input.clone() : input, init);
@@ -241,6 +258,7 @@ export default defineContentScript({
             url.pathname === '/api/v0/chat/completion',
           );
           enhanced = result.enhanced;
+          proof = result.proof;
           request = new Request(request, { body: result.text });
         }
       } catch {
@@ -252,7 +270,7 @@ export default defineContentScript({
           fallback.end('unsupported');
         }
       }
-      const stream = observe(await request.clone().text(), enhanced);
+      const stream = observe(await request.clone().text(), enhanced, proof);
       try {
         const response = await originalFetch.call(window, request);
         if (!response.ok || !response.body) {
@@ -315,6 +333,7 @@ export default defineContentScript({
       const request = requests.get(this);
       if (!request || request.method !== 'POST' || !target(request.url))
         return originalSend.call(this, body);
+      let proof: string | undefined;
       let outgoing = body,
         enhanced = false;
       try {
@@ -323,6 +342,7 @@ export default defineContentScript({
           const result = rewrite(body, request.url.pathname === '/api/v0/chat/completion');
           outgoing = result.text;
           enhanced = result.enhanced;
+          proof = result.proof;
         }
       } catch {
         const fallback = observe();
@@ -330,7 +350,7 @@ export default defineContentScript({
         post({ type: 'more-genui-unsupported', route: location.pathname });
         return originalSend.call(this, body);
       }
-      const stream = observe(typeof outgoing === 'string' ? outgoing : '', enhanced);
+      const stream = observe(typeof outgoing === 'string' ? outgoing : '', enhanced, proof);
       const hooks = new AbortController();
       let offset = 0;
       const progress = () => {

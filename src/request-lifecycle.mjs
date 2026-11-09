@@ -1,5 +1,7 @@
 import { digest } from './state.mjs';
+import { readProof } from './request-proof.mjs';
 export class RequestLifecycle {
+  proofs = new Map();
   requests = new Map();
   bindings = new Map();
   active = new Set();
@@ -7,29 +9,52 @@ export class RequestLifecycle {
   verified = new WeakMap();
   history = new Map();
   historicalNodes = new WeakMap();
-  overlap = false;
-  uncertainNodes = new WeakSet();
-  uncertainKeys = new Set();
-  anonymousSources = new Set();
-  classify(code, key, source) {
-    const bound = this.bindings.get(key);
-    if (bound) return { kind: 'live', owner: bound };
+  observedTraffic = false;
+  classify(code, key, source, language, index = 0) {
+    const owner = this.owner(code, key, source);
+    if (owner && (!owner.key || !key || owner.key === key)) return { kind: 'live', owner };
     if (this.historicalNodes.get(code) === source || this.history.get(key)?.has(source))
       return { kind: 'history' };
-    if (
-      this.overlap ||
-      this.uncertainNodes.has(code) ||
-      this.uncertainKeys.has(key) ||
-      (!key && this.anonymousSources.has(source))
-    )
-      return { kind: 'unknown' };
-    const owner = this.owner(code, key, source);
-    if (owner) return { kind: 'live', owner };
-    if (this.active.size) {
-      this.uncertainNodes.add(code);
-      if (key) this.uncertainKeys.add(key);
-      else if (this.anonymousSources.size < 32) this.anonymousSources.add(source);
-      else this.overlap = true;
+    if (this.observedTraffic) {
+      const proof = readProof(source);
+      const request = proof && this.proofs.get(proof);
+      const receipt = request?.blocks[index];
+      if (
+        request?.ended &&
+        (!request.key || request.key === key) &&
+        receipt?.language === language &&
+        receipt.hash &&
+        !receipt.source
+      ) {
+        const cached = this.verified.get(code);
+        if (
+          cached?.r === request &&
+          cached.source === source &&
+          cached.index === index &&
+          cached.ok
+        )
+          return { kind: 'live', owner: request };
+        if (!cached || cached.source !== source || cached.r !== request || cached.index !== index) {
+          const check = { r: request, source, index, ok: false };
+          this.verified.set(code, check);
+          void digest(source.trim()).then((hash) => {
+            if (hash === receipt.hash && this.proofs.get(proof) === request) {
+              check.ok = true;
+              this.rescan();
+            }
+          });
+        }
+      }
+      if (
+        receipt &&
+        (!request.key || request.key === key) &&
+        receipt.language === language &&
+        receipt.source === source.trim()
+      ) {
+        if (key) this.identify(request.id, key);
+        this.owners.set(code, request);
+        return { kind: 'live', owner: request };
+      }
       return { kind: 'unknown' };
     }
     this.historicalNodes.set(code, source);
@@ -45,45 +70,48 @@ export class RequestLifecycle {
   constructor(rescan) {
     this.rescan = rescan;
   }
-  start(id, baseline, repairToken) {
+  start(id, baseline, repairToken, proof) {
     const r = { id, baseline, repairToken, complete: new Set(), hashes: new Set(), ended: false };
-    if (this.active.size) this.overlap = true;
+    this.observedTraffic = true;
+    r.blocks = [];
+    if (proof) {
+      this.proofs.set(proof, r);
+      if (this.proofs.size > 256) this.proofs.delete(this.proofs.keys().next().value);
+    }
     this.requests.set(id, r);
     this.active.add(id);
   }
   identify(id, key) {
     const r = this.requests.get(id);
-    if (r && key) {
+    if (
+      r &&
+      key &&
+      (!r.key || r.key === String(key)) &&
+      (!this.bindings.has(String(key)) || this.bindings.get(String(key)) === r)
+    ) {
       if (this.bindings.get(r.key) === r) this.bindings.delete(r.key);
       r.key = String(key);
       this.bindings.set(r.key, r);
     }
   }
-  source(id, source) {
+  source(id, source, language) {
     const r = this.requests.get(id);
     if (!r) return;
+    const block = { source, language };
+    r.blocks.push(block);
     r.complete.add(source);
-    void digest(source).then((hash) => r.hashes.add(hash));
+    void digest(source).then((hash) => {
+      block.hash = hash;
+      r.hashes.add(hash);
+    });
   }
   owner(code, key, source) {
-    let r = this.bindings.get(key) ?? this.owners.get(code);
-    if (!r && this.active.size === 1) {
-      const candidate = this.requests.get([...this.active][0]);
-      if (candidate && !candidate.key && candidate.baseline.get(code) !== source) {
-        r = candidate;
-        if (key) this.identify(r.id, key);
-      }
-    }
-    if (!r) {
-      const matches = [...this.requests.values()].filter(
-        (x) => x.ended && !x.key && x.complete.has(source.trim()),
-      );
-      if (matches.length === 1) r = matches[0];
-    }
-    if (r) this.owners.set(code, r);
-    return r;
+    return this.bindings.get(key) ?? this.owners.get(code);
   }
-  confirmed(code, r, source) {
+  confirmed(code, r, source, language, index) {
+    const block = index == null ? undefined : r.blocks[index];
+    if (index != null && (!block || (language && block.language !== language))) return false;
+    if (block?.source) return block.source === source.trim();
     if (r.complete.has(source.trim())) return true;
     if (!r.ended || !r.hashes.size) return false;
     const cached = this.verified.get(code);
@@ -91,7 +119,7 @@ export class RequestLifecycle {
     const check = { source, r, ok: false };
     this.verified.set(code, check);
     void digest(source.trim()).then((hash) => {
-      if (r.hashes.has(hash)) {
+      if (block ? block.hash === hash : r.hashes.has(hash)) {
         check.ok = true;
         this.rescan();
       }
@@ -105,18 +133,18 @@ export class RequestLifecycle {
     r.ended = true;
     r.timer = setTimeout(() => {
       r.complete.clear();
+      for (const block of r.blocks) delete block.source;
+
       r.baseline = new WeakMap();
       this.requests.delete(id);
     }, 2000);
   }
   clear() {
     for (const r of this.requests.values()) clearTimeout(r.timer);
-    this.uncertainNodes = new WeakSet();
-    this.uncertainKeys.clear();
-    this.anonymousSources.clear();
     this.history.clear();
     this.historicalNodes = new WeakMap();
-    this.overlap = false;
+    this.observedTraffic = false;
+    this.proofs.clear();
     this.requests.clear();
     this.bindings.clear();
     this.active.clear();

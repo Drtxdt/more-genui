@@ -1,3 +1,4 @@
+import { stripRequestProof } from '../src/request-proof.mjs';
 import { readerIndex } from '../src/reader-index.mjs';
 import { GenerationDiagnostics } from '../src/diagnostics.mjs';
 import { parseRenderable as parseApp } from '../src/renderable.mjs';
@@ -414,7 +415,7 @@ export default defineContentScript({
       if (!enabled) {
         clearVisualizeActions();
         approvals = new WeakMap();
-        for (const id of active) ledger.end(id);
+        ledger.clear();
         tables.clear();
         cards.clear();
         previews.clear();
@@ -488,6 +489,26 @@ export default defineContentScript({
       for (const message of candidates) tables.render(message);
       if (showCards) for (const message of candidates) cards.render(message);
       if (previewImages) for (const message of candidates) previews.render(message);
+      function codeLanguage(code: Element) {
+        const pre = code.closest('pre');
+        const banner = [
+          ...(pre?.closest('.md-code-block')?.querySelectorAll('span,button,div') ?? []),
+        ].find(
+          (el) =>
+            !pre?.contains(el) &&
+            !el.childElementCount &&
+            /^(genui-)?(json|html)$/.test(el.textContent?.trim() ?? ''),
+        );
+        return (
+          [code, pre]
+            .map(
+              (el) =>
+                el?.getAttribute('data-language') ||
+                [...(el?.classList ?? [])].find((c) => c.startsWith('language-'))?.slice(9),
+            )
+            .find(Boolean) ?? banner?.textContent?.trim()
+        );
+      }
       for (const code of candidates.flatMap((message: Element) =>
         codeBlocks(message),
       ) as HTMLElement[]) {
@@ -503,28 +524,19 @@ export default defineContentScript({
         const key = code
           .closest('[data-virtual-list-item-key]')
           ?.getAttribute('data-virtual-list-item-key');
-        const origin = ledger.classify(code, key, source);
-        const owner = origin.owner;
         const pre = code.closest('pre');
-        const banner = [
-          ...(pre?.closest('.md-code-block')?.querySelectorAll('span,button,div') ?? []),
-        ].find(
-          (el) =>
-            !pre?.contains(el) &&
-            !el.childElementCount &&
-            /^(genui-)?(json|html)$/.test(el.textContent?.trim() ?? ''),
-        );
-        const language =
-          [code, pre]
-            .map(
-              (el) =>
-                el?.getAttribute('data-language') ||
-                [...(el?.classList ?? [])].find((c) => c.startsWith('language-'))?.slice(9),
-            )
-            .find(Boolean) ?? banner?.textContent?.trim();
+        const language = codeLanguage(code);
         const expected = source.trimStart().startsWith('{') ? 'json' : 'html';
         if (language && language !== expected && language !== 'genui-' + expected) continue;
-        const confirmed = owner && ledger.confirmed(code, owner, source);
+        const message = code.closest('.ds-message')!;
+        const ordinal = codeBlocks(message)
+          .filter((node) => ['genui-json', 'genui-html'].includes(codeLanguage(node) ?? ''))
+          .indexOf(code);
+        const origin = ledger.classify(code, key, source, language, ordinal);
+        const owner = origin.owner;
+        const confirmed =
+          owner &&
+          ledger.confirmed(code, owner, source, language, ordinal >= 0 ? ordinal : undefined);
         const manual = language === expected || (!language && !confirmed);
         if (origin.kind === 'unknown')
           for (const id of active) diagnostic({ id, stage: 'ambiguous' });
@@ -593,7 +605,7 @@ export default defineContentScript({
         const allowRepair = requestId && token === requests.get(requestId)?.repairToken;
         reader.register(instance, appMeta.title, host);
         const surface = mountSurface(host, {
-          source,
+          source: stripRequestProof(source),
           diagnostic: (stage: string) => {
             if (requestId) diagnostic({ id: requestId, stage });
           },
@@ -667,6 +679,7 @@ export default defineContentScript({
           m.id,
           new WeakMap(allCodes().map((code) => [code, knownSources.get(code) ?? ''])),
           m.repairToken,
+          m.proof,
         );
       } else if (m.type === 'more-genui-identity' && requests.has(m.id)) {
         ledger.identify(m.id, m.key);
@@ -690,7 +703,7 @@ export default defineContentScript({
           diagnostic({ id: m.id, stage: 'invalid-protocol' });
           return;
         }
-        ledger.source(m.id, m.source.trim());
+        ledger.source(m.id, m.source.trim(), m.language);
       } else if (m.type === 'more-genui-end' && requests.has(m.id)) {
         scan();
         ledger.end(m.id);
