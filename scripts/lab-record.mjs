@@ -35,6 +35,7 @@ export function inspectCapture(capture) {
     text,
     ui,
     valid,
+    classification: ui ? (valid ? 'explicit-valid' : 'explicit-invalid') : scanner.candidate ? 'preview-candidate' : 'text',
     outputBytes: new TextEncoder().encode(text).length,
     characters: text.length,
   };
@@ -53,6 +54,7 @@ export function makeRecord(row, capture, manifest = policyManifest()) {
     injectionVerified: o.observedPolicyHash === manifest[row.strategy].sha256,
     ui: parsed.ui,
     protocolValid: parsed.valid,
+    classification: parsed.classification,
     valid: parsed.valid && o.runtimeValid === true,
     outputBytes: parsed.outputBytes,
     characters: parsed.characters,
