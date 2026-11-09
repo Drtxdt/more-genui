@@ -1,3 +1,4 @@
+import { rawApplications } from '../src/raw-applications.mjs';
 import { stripRequestProof } from '../src/request-proof.mjs';
 import { readerIndex } from '../src/reader-index.mjs';
 import { GenerationDiagnostics } from '../src/diagnostics.mjs';
@@ -21,6 +22,7 @@ export default defineContentScript({
     let enabled = false,
       route = location.pathname;
     const reader = readerIndex();
+    const raw = rawApplications();
     const diagnostics = new GenerationDiagnostics();
     const diagnosticPanel = document.createElement('aside');
     diagnosticPanel.className = 'more-genui-diagnostics';
@@ -366,6 +368,8 @@ export default defineContentScript({
       visualizeActions.clear();
     }
     function scan(changedOnly = false) {
+      if (!enabled || route !== location.pathname) raw.clear();
+      raw.prune();
       if (route !== location.pathname) {
         clearVisualizeActions();
         route = location.pathname;
@@ -440,6 +444,7 @@ export default defineContentScript({
         }
       for (const message of candidates) {
         const body = message.querySelector('.ds-assistant-message-main-content');
+        if (body && !active.size && !body.closest('aside,nav,.ds-think-content,[role=tooltip]')) raw.refresh(body);
         if (body && diagnostics.enabled) {
           const key = message
             .closest('[data-virtual-list-item-key]')
@@ -556,7 +561,7 @@ export default defineContentScript({
             button.dataset.source = source;
             button.textContent = manual && language ? '点击预览' : '未确认输出边界 · 运行此应用';
             button.onclick = () => {
-              if (code.textContent !== source || !code.isConnected) {
+              if (code.textContent !== source || !code.isConnected || !raw.current(code)) {
                 scan();
                 return;
               }
@@ -770,6 +775,7 @@ export default defineContentScript({
     window.addEventListener('popstate', discover);
     scan();
     ctx.onInvalidated(() => {
+      raw.clear();
       enabled = false;
       publish();
       ledger.clear();

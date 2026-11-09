@@ -998,3 +998,43 @@ test('an inline grammar recalculates FIRST when epsilon is removed', async () =>
       .first(),
   ).toBeVisible();
 });
+test('unfenced savings calculator in answer spans previews only the completed final answer', async () => {
+  const parts = JSON.parse(await readFile('tests/fixtures/unfenced-savings.json', 'utf8'));
+  const body = page.locator('.ds-assistant-message-main-content');
+  await body.evaluate((body, parts) => {
+    const create = (text) => {
+      const el = document.createElement('span');
+      el.className = 'ds-markdown-html';
+      el.textContent = text;
+      return el;
+    };
+    const thinking = document.createElement('div');
+    thinking.className = 'ds-think-content';
+    thinking.append(...parts.map(create));
+    body.before(thinking);
+    body.append(...parts.slice(0, -1).map(create));
+  }, parts);
+  const preview = page.getByRole('button', { name: '点击预览' });
+  await expect(preview).toHaveCount(0);
+  await body.evaluate((body, last) => {
+    const span = document.createElement('span');
+    span.className = 'ds-markdown-html';
+    span.textContent = last;
+    body.append(span);
+  }, parts.at(-1));
+  await expect(preview).toHaveCount(1);
+  await expect(body.locator('span.ds-markdown-html:visible')).toHaveCount(0);
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(0);
+  await preview.click();
+  const frame = page.frameLocator('.more-genui-surface iframe');
+  await frame.getByRole('button', { name: '0%', exact: true }).click();
+  await expect(frame.locator('#vBal')).toHaveText('¥180,000');
+  await expect(frame.locator('#vInt')).toHaveText('¥0');
+  await body
+    .locator('span.ds-markdown-html')
+    .last()
+    .evaluate((el) => (el.textContent = '</body>'));
+  await expect(page.locator('.more-genui-surface iframe')).toHaveCount(0);
+  await expect(body.locator('span.ds-markdown-html:visible')).toHaveCount(parts.length);
+  await expect(preview).toHaveCount(0);
+});

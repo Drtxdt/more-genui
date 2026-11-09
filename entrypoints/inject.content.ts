@@ -133,9 +133,9 @@ export default defineContentScript({
             () =>
               '\n本次归属标记：' +
               proof +
-              '。每个 HTML 在元数据下一行放 <!-- more-genui-request: ' +
+              '。输出 HTML 应用时，开头单独一行写三个反引号紧接 genui-html，末尾单独一行写三个反引号。HTML 的元数据只含 version、id、title、stateVersion，下一行放 <!-- more-genui-request: ' +
               proof +
-              ' -->，JSON 根字段 requestProof 填此值。\n[/More GenUI]',
+              ' -->，仅 genui-json 应用在 JSON 根字段 requestProof 填此值。\n[/More GenUI]',
           ),
         }),
         enhanced: true,
