@@ -249,7 +249,9 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   });
   panel.insertBefore(experiments.panel, viewport);
   button('实验工具', SlidersHorizontal, () => experiments.toggle());
-  function start() {
+  let probe: MessagePort | undefined;
+  function start(inline = !options.sandboxUrl) {
+    probe?.close();
     if (disposed) return;
     experiments.update({});
     const current = ++generation;
@@ -263,7 +265,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     next.title = app.title;
     next.sandbox.add('allow-scripts');
     next.referrerPolicy = 'no-referrer';
-    if (options.sandboxUrl) next.src = options.sandboxUrl;
+    if (!inline && options.sandboxUrl) next.src = options.sandboxUrl;
     else next.srcdoc = sandboxHTML;
     channel = new MessageChannel();
     const connection = channel;
@@ -357,7 +359,15 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         return;
       }
       loaded = true;
-      next.contentWindow?.postMessage(
+      const handshake = new MessageChannel();
+      probe = handshake.port1;
+      handshake.port1.onmessage = (event) => {
+        if (event.data !== 'booted' || current !== generation || disposed || frame !== next) return;
+        handshake.port1.close();
+        options.diagnostic?.('sandbox-boot');
+        clearTimeout(timeout);
+        timeout = setTimeout(() => failedStartup('应用已启动，等待运行结果超时'), 8000);
+        next.contentWindow?.postMessage(
         {
           type: 'more-genui-init',
           revision,
@@ -368,13 +378,31 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         },
         '*',
         [connection.port2],
-      );
+        );
+      };
+      next.contentWindow?.postMessage({type: 'more-genui-connect'}, '*', [handshake.port2]);
     };
     viewport.append(next);
-    timeout = setTimeout(() => {
+    function failedStartup(reason: string) {
+      error = reason;
       options.diagnostic?.('mount-timeout');
-      setStatus('启动超时，可点击重新运行或修复');
-    }, 8000);
+      setStatus(reason);
+      pre.hidden = false;
+      sourceButton.setAttribute('aria-expanded','true');
+      const saveCard = document.createElement('button');
+      saveCard.textContent = '保存离线卡';
+      saveCard.onclick = () => exportCard.click();
+      status.append(saveCard);
+    }
+    timeout = setTimeout(() => {
+      if (!inline) {
+        options.diagnostic?.('sandbox-fallback');
+        start(true);
+      } else {
+        probe?.close();
+        failedStartup(loaded ? '隔离页面已加载，启动握手超时' : '隔离页面未完成加载');
+      }
+    }, 4000);
   }
   button('重置', RotateCcw, async () => {
     clearTimeout(saveTimer);
@@ -388,6 +416,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     channel?.port1.close();
     frame?.remove();
     frame = undefined;
+    probe?.close();
     setStatus('已停止，参数已保留');
     void save();
   });
@@ -416,7 +445,8 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     }
   };
   bar.append(overflow, more);
-  if (app.spec) {
+  let exportCard: HTMLButtonElement;
+  {
     const download = (name: string, blob: Blob) => {
       const url = URL.createObjectURL(blob),
         a = document.createElement('a');
@@ -425,11 +455,12 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
-    button('导出离线教学卡', Code, () => {
+    exportCard = button('导出离线教学卡', Code, () => {
       const payload = JSON.stringify({
         type: 'more-genui-init',
         revision,
         spec: app.spec,
+        html: app.html,
         state,
         theme: resolvedTheme(),
       }).replaceAll('<', '\\u003c');
@@ -442,7 +473,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         ';<\/script>';
       download(app.id + '.html', new Blob([html], { type: 'text/html;charset=utf-8' }));
     });
-    button('导出图解 JSON', Code, () =>
+    if (app.spec) button('导出图解 JSON', Code, () =>
       download(
         app.id + '.json',
         new Blob([JSON.stringify({ spec: JSON.parse(options.source), state }, null, 2)], {
@@ -450,7 +481,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         }),
       ),
     );
-    button('导出图解 PNG', Code, async () =>
+    if (app.spec) button('导出图解 PNG', Code, async () =>
       download(
         app.id + '.png',
         await new Promise<Blob>((resolve, reject) => {
@@ -521,6 +552,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       disposed = true;
       generation++;
       clearTimeout(timeout);
+      probe?.close();
       clearTimeout(saveTimer);
       themeObserver.disconnect();
       media.removeEventListener('change', theme);
