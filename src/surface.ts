@@ -275,12 +275,14 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     let interactionPending = false;
     let ready = false, measured = false;
     function reveal() {
-      if (!ready || !measured || !next.inert || error) return;
+      if ((!ready && !error) || !measured || !next.inert) return;
       clearTimeout(timeout);
-      setStatus(sizeWarning);
       next.inert = false;
       next.style.visibility = '';
-      options.diagnostic?.('ready');
+      if (!error) {
+        setStatus(sizeWarning);
+        options.diagnostic?.('ready');
+      }
     }
     let loaded = false,
       sizeWarning = '';
@@ -359,6 +361,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
           action?.click();
         };
         status.append(fix);
+        reveal();
       } else if (message.type === 'ready') {
         ready = true;
         reveal();
