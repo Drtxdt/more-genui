@@ -129,6 +129,12 @@
       if (!failed) send('ready', true);
       return;
     }
+    // CSPs are cumulative. Install this before importing any model-authored DOM,
+    // including inline handlers. Removing this element cannot relax the policy.
+    const workerPolicy = document.createElement('meta');
+    workerPolicy.httpEquiv = 'Content-Security-Policy';
+    workerPolicy.content = "worker-src 'none'";
+    document.head.append(workerPolicy);
     const leadingComments = /^\s*(?:<!--[^]*?-->\s*)*/.exec(config.html)[0];
     const requirement = [...leadingComments.matchAll(/<!--([^]*?)-->/g)]
       .map((match) => /^\s*more-genui-requires:\s*([^]*)$/.exec(match[1]))

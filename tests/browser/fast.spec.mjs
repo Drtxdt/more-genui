@@ -293,10 +293,10 @@ test('a late grammar result cannot erase a newer syntax error', async ({ page })
     input: ['a'],
   });
   const iframe = page.frameLocator('#app iframe');
-  await iframe.locator('textarea').fill('invalid');
-  await iframe.getByText('重新计算', { exact: true }).click();
   const child = page.frames().find((frame) => frame.parentFrame());
   await child.waitForFunction(() => typeof window.releaseGrammar === 'function');
+  await iframe.locator('textarea').fill('invalid');
+  await iframe.getByText('重新计算', { exact: true }).click();
   await child.evaluate(() => window.releaseGrammar());
   await expect(iframe.getByText(/第 1 行需要/)).toBeVisible();
 });
