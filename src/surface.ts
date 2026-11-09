@@ -11,6 +11,7 @@ import {
   Square,
   MoreHorizontal,
   Bookmark,
+  Undo2, Redo2, Accessibility,
 } from 'lucide';
 import { safeState } from './protocol.mjs';
 import { StateRepository } from './state.mjs';
@@ -204,6 +205,33 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
     ),
   );
   const pre = document.createElement('pre');
+  const past:Record<string,unknown>[] = [], future:Record<string,unknown>[] = [];
+  let accessible=false;
+  const travel=(back:boolean)=>{
+    const target=(back?past:future).pop();
+    if(!target){setStatus(back?'没有可撤销的编辑':'没有可重做的编辑');return;}
+    (back?future:past).push(state);
+    state=target;dirty++;
+    if(groupKey){
+      const data=parameter==='choice'?{choice:state.__fast??app.spec.options[0].id}:
+        {grammar:(state[grammarPath] as any)?.grammar??app.spec.grammar};
+      if(Object.values(data).every(v=>v!==undefined)){
+        void options.repository.storage.set(groupKey,data);
+        groupEvents.dispatchEvent(new CustomEvent(groupKey,{detail:{sender:host,value:data}}));
+      }
+    }
+    void save();start();
+  };
+  if(app.spec) {
+    button('撤销编辑',Undo2,()=>travel(true));
+    button('重做编辑',Redo2,()=>travel(false));
+  }
+  const access=button('易读模式',Accessibility,()=>{
+    accessible=!accessible;
+    access.setAttribute('aria-pressed',String(accessible));
+    channel?.port1.postMessage({type:'accessible',value:accessible});
+  });
+  access.setAttribute('aria-pressed','false');
   if (options.bookmark) button('收藏此卡和当前进度', Bookmark, async () => {
     await options.bookmark!(safeState(state));
     setStatus('已收藏，可在扩展的「我的卡片」中打开');
@@ -308,6 +336,9 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
       if (disposed || current !== generation) return;
       const message = e.data;
       if (!message || typeof message !== 'object') return;
+      if (message.type==='history-shortcut' && app.spec) {
+        travel(message.value==='undo');return;
+      }
       if (message.type === 'interaction') {
         interactionPending = true;
         options.diagnostic?.('interaction');
@@ -342,6 +373,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
           const nextState = safeState(message.value);
           if (JSON.stringify(nextState) !== JSON.stringify(state)) {
             if (interactionPending) {
+              if(app.spec){past.push(state);if(past.length>25)past.shift();future.length=0;}
               options.diagnostic?.('feedback');
               interactionPending = false;
             }
@@ -406,6 +438,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
           {
             type: 'more-genui-init',
             revision,
+            accessible,
             html: app.html,
             spec: app.spec,
             state,
