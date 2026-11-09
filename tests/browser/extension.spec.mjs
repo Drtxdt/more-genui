@@ -84,7 +84,7 @@ for (const transport of ['fetch', 'xhr'])
       await route.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
     await page.getByLabel('输入').fill('解释正弦波');
     await page.getByTestId('send-button').click();
-    await expect.poll(() => sent?.prompt).toContain('[More GenUI v1]');
+    await expect.poll(() => sent?.prompt).toContain('解释正弦波');
     expect(sent.prompt.match(/\[More GenUI v1\]/g)).toHaveLength(1);
     await page.evaluate((source) => {
       const wrapper = document.createElement('div');
@@ -107,6 +107,9 @@ for (const transport of ['fetch', 'xhr'])
     if (!(await page.getByRole('button', { name: '修复', exact: true }).first().isVisible()))
       await page.getByRole('button', { name: '更多', exact: true }).first().click();
     await page.getByRole('button', { name: '修复', exact: true }).click();
+    await expect(page.locator('textarea')).toHaveValue(/请修复应用/);
+    expect(sent.prompt).not.toContain('请修复应用');
+    await page.getByTestId('send-button').click();
     await expect.poll(() => sent.prompt).toContain('请修复应用');
     await page.evaluate(
       ({ output, old }) => {

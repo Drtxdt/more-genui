@@ -384,32 +384,11 @@ export default defineContentScript({
       const input = composer();
       setDraft(input, input.value + (input.value ? '\n\n' : '') + text);
     }
-    async function repair(text: string) {
+    function repair(text: string) {
       if (active.size) throw Error('请等待当前回答结束后再修复');
       const input = composer();
       if (input.value.trim()) throw Error('输入框中已有草稿。请先发送或保存草稿，再点击修复');
       setDraft(input, text);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const send = document.querySelector<HTMLElement>(
-        '[data-testid="send-button"],button[aria-label="发送"],button[aria-label="Send"],[role="button"][aria-label="发送"],[role="button"][aria-label="Send"]',
-      );
-      if (
-        send &&
-        !(send as HTMLButtonElement).disabled &&
-        send.getAttribute('aria-disabled') !== 'true'
-      )
-        send.click();
-      else {
-        input.dispatchEvent(
-          new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }),
-        );
-        input.dispatchEvent(
-          new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true }),
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      if (input.value === text)
-        throw Error('站点未接受自动发送；修复内容已填入，请按发送。不会重复提交');
     }
     function unfold(element: HTMLElement, value: { view: HTMLElement; display: string }) {
       value.view.remove();
