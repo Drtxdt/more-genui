@@ -122,6 +122,8 @@ pnpm test
 pnpm exec playwright test tests/browser/inline.spec.mjs --project=Edge
 ```
 
+Windows 下，项目通过 pnpm 补丁在 Playwright 的 Chromium 默认禁用列表里加入 `AutofillAiWalletPrivatePasses`，用于规避自动化启动时可能触发的本地账户锁定。升级 Playwright 后可先运行 `node --test tests/windows-launch.test.mjs`：它在创建进程前检查最终参数，不会打开浏览器。直接双击缓存里的 chrome.exe 不会使用项目启动参数。
+
 需要运行 Chromium 测试时，先准备测试浏览器。下面是 PowerShell 写法：
 
 ```powershell
