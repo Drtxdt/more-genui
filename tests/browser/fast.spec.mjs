@@ -274,3 +274,33 @@ test('shared grammar follows explicit groups inside one answer and restores on r
   await page.evaluate(() => window.mountGroup());
   await expect(editor(1)).toHaveValue('S → b');
 });
+
+test('a late grammar result cannot erase a newer syntax error', async ({ page }) => {
+  await page.addInitScript(() => {
+    const NativeWorker = Worker;
+    window.Worker = class extends NativeWorker {
+      set onmessage(fn) {
+        this.addEventListener('message', event => { window.releaseGrammar = () => fn(event); });
+      }
+    };
+  });
+  await page.goto('/');
+  await show(page,{kind:'grammar',grammar:{start:'S',productions:[{id:'s',lhs:'S',rhs:['a']}]},input:['a']});
+  const iframe = page.frameLocator('#app iframe');
+  await iframe.locator('textarea').fill('invalid');
+  await iframe.getByText('重新计算',{exact:true}).click();
+  const child = page.frames().find(frame => frame.parentFrame());
+  await child.waitForFunction(() => typeof window.releaseGrammar === 'function');
+  await child.evaluate(() => window.releaseGrammar());
+  await expect(iframe.getByText(/第 1 行需要/)).toBeVisible();
+});
+
+test('a removed matrix column clears the previous selection', async ({page}) => {
+  await page.goto('/');
+  const view = {...matrix,rows:['A','B']};
+  await show(page,view);
+  await page.frameLocator('iframe').getByLabel('B / $',{exact:true}).click();
+  await page.waitForTimeout(350);
+  await show(page,{...view,columns:['id','new']});
+  await expect(page.frameLocator('iframe').getByRole('status')).toBeEmpty();
+});

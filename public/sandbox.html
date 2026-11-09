@@ -269,9 +269,14 @@ function createFastRenderer(root, initial, read, save, report) {
       );
       const selected = read()[path];
       if (Array.isArray(selected)) {
-        const index =
-          view.rows.indexOf(selected[0]) * view.columns.length + view.columns.indexOf(selected[1]);
-        if (index >= 0) buttons[index]?.click();
+        const row = view.rows.indexOf(selected[0]);
+        const column = view.columns.indexOf(selected[1]);
+        if (row >= 0 && column >= 0) buttons[row * view.columns.length + column].click();
+        else {
+          const state = {...read()};
+          delete state[path];
+          save(state);
+        }
       }
     } else if (view.kind === 'switch') {
       const select = el('select');
@@ -675,6 +680,7 @@ function createFastRenderer(root, initial, read, save, report) {
       };
       grammarWorker.onerror = () => (error.textContent = '文法计算无法启动，请重新运行应用');
       function compute(transform = false, share = false) {
+        localRevision++;
         try {
           const lines = editor.value
             .split(/\r?\n/)
@@ -695,7 +701,6 @@ function createFastRenderer(root, initial, read, save, report) {
           broadcast = share;
           pendingGrammar = grammar;
           pendingInput = tokens;
-          localRevision++;
           grammarWorker.postMessage({
             revision: localRevision,
             grammar,
