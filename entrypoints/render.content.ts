@@ -84,6 +84,11 @@ export default defineContentScript({
     diagnosticPanel.style.cssText =
       'position:fixed;right:12px;bottom:64px;max-width:340px;max-height:40vh;overflow:auto;z-index:2147483646;background:Canvas;color:CanvasText;padding:12px;border:1px solid GrayText;font:12px system-ui';
     document.body.append(diagnosticPanel);
+    const trialStrategy=document.createElement('select');
+    trialStrategy.setAttribute('aria-label','下一条验收策略');
+    for(const letter of ['A','B','C','D'])trialStrategy.add(new Option('策略 '+letter,letter));
+    trialStrategy.onchange=()=>void browser.storage.local.set({labPolicy:trialStrategy.value});
+    diagnosticPanel.append(trialStrategy);
     const stageNames: Record<string, string> = {
       recognized: '识别请求',
       policy: '发送策略',
@@ -111,7 +116,7 @@ export default defineContentScript({
     function diagnostic(event: any) {
       const record = diagnostics.update(event);
       if (!record) return;
-      diagnosticPanel.replaceChildren();
+      diagnosticPanel.replaceChildren(trialStrategy);
       for (const row of [...diagnostics.records.values()].slice(-8)) {
         const line = document.createElement('p');
         line.textContent =
@@ -283,6 +288,7 @@ export default defineContentScript({
           }),
         ]);
         labPolicy = readPolicy(value.labPolicy);
+        trialStrategy.value=labPolicy;
         learning = value.learning === true;
         preferred = String(value.preferred ?? '');
         diagnostics.configure(value.diagnostics);
@@ -329,6 +335,7 @@ export default defineContentScript({
       if (area === 'local' && changes.labPolicy) {
         labPolicy =
           readPolicy(changes.labPolicy.newValue);
+        trialStrategy.value=labPolicy;
         publish();
       }
       if (area === 'local' && changes.diagnostics) {
@@ -657,6 +664,7 @@ export default defineContentScript({
         const allowRepair = confirmed && token && token === owner?.repairToken;
         reader.register(instance, appMeta.title, host);
         const surface = mountSurface(host, {
+          deferOffscreen:true,
           bookmark: async (state) => {
             const id = crypto.randomUUID();
             const saved = stripRequestProof(source).replace(/<!--\s*more-genui-repair:\s*[\w-]+\s*-->\s*/g,'');

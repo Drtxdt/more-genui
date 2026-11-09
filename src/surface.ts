@@ -19,6 +19,7 @@ import { appParams, experimentPanel } from './experiment-panel.mjs';
 import sandboxHTML from './generated-sandbox';
 const groupEvents = new EventTarget();
 export interface SurfaceOptions {
+  deferOffscreen?: boolean;
   bookmark?: (state: Record<string,unknown>) => Promise<void>;
   refreshDataset?: (id: string) => Promise<unknown>;
   answerId?: string;
@@ -296,7 +297,10 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   panel.insertBefore(experiments.panel, viewport);
   button('实验工具', SlidersHorizontal, () => experiments.toggle());
   let probe: MessagePort | undefined;
+  let near=true, parked=false, stopped=false;
+  let parkTimer:ReturnType<typeof setTimeout>|undefined;
   function start(inline = !options.sandboxUrl) {
+    stopped=false;
     probe?.close();
     if (disposed) return;
     experiments.update({});
@@ -480,6 +484,7 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
   });
   button('重新运行', RefreshCw, () => start());
   button('停止', Square, () => {
+    stopped=true;parked=false;
     clearTimeout(timeout);
     channel?.port1.close();
     frame?.remove();
@@ -589,6 +594,21 @@ frame.srcdoc = ${template};
     });
   });
   visibility.observe(host);
+  const proximity = options.deferOffscreen ? new IntersectionObserver(([entry])=>{
+    near=entry.isIntersecting;
+    clearTimeout(parkTimer);
+    if(near && parked && stateLoaded && !stopped){
+      parked=false;viewport.style.minHeight='';start();
+    } else if(!near && frame && app.spec && !stopped){
+      parkTimer=setTimeout(()=>{
+        if(near||disposed||stopped||!frame||frame.inert||panel.matches(':popover-open'))return;
+        viewport.style.minHeight=viewport.getBoundingClientRect().height+'px';
+        generation++;clearTimeout(timeout);channel?.port1.close();probe?.close();
+        frame.remove();frame=undefined;parked=true;void save();
+      },1500);
+    }
+  },{rootMargin:'500px'}) : undefined;
+  proximity?.observe(host);
   const flushProgress = () => {
     clearTimeout(saveTimer);
     void save();
@@ -626,7 +646,10 @@ frame.srcdoc = ${template};
         if (options.initialState) dirty++;
         if (shared) applyShared(shared);
         stateLoaded = true;
-        start();
+        const rect=host.getBoundingClientRect();
+        if(options.deferOffscreen && (rect.top>innerHeight+500||rect.bottom< -500)){
+          parked=true;near=false;viewport.style.minHeight='48px';
+        } else start();
         void save();
       }
     })
@@ -636,6 +659,7 @@ frame.srcdoc = ${template};
     dispose() {
       if (groupKey) groupEvents.removeEventListener(groupKey, receiveGrammar);
       visibility.disconnect();
+      clearTimeout(parkTimer);proximity?.disconnect();
       window.removeEventListener('pagehide', flushProgress);
       document.removeEventListener('visibilitychange', tabVisibility);
       experiments.dispose();
