@@ -466,12 +466,25 @@ pre[hidden]{display:none}output{display:block;padding:0 12px;color:#b45309}
         theme: resolvedTheme(),
       }).replaceAll('<', '\\u003c');
       const template = JSON.stringify(sandboxHTML).replaceAll('<', '\\u003c');
-      const html =
-        '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>More GenUI</title><style>body{margin:0}iframe{border:0;width:100%;height:100vh}</style><iframe sandbox="allow-scripts" title="教学卡"></iframe><script>const frame=document.querySelector("iframe");frame.onload=()=>{const channel=new MessageChannel();frame.contentWindow.postMessage(' +
-        payload +
-        ', "*",[channel.port2]);channel.port1.start()};frame.srcdoc=' +
-        template +
-        ';<\/script>';
+      const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>More GenUI</title><style>body{margin:0}iframe{border:0;width:100%;height:100vh}</style>
+<iframe sandbox="allow-scripts" title="教学卡"></iframe>
+<script>
+const frame = document.querySelector("iframe");
+frame.onload = () => {
+  frame.onload = null;
+  const probe = new MessageChannel();
+  probe.port1.onmessage = event => {
+    if (event.data !== "booted") return;
+    probe.port1.close();
+    const channel = new MessageChannel();
+    frame.contentWindow.postMessage(${payload}, "*", [channel.port2]);
+    channel.port1.start();
+  };
+  frame.contentWindow.postMessage({type:"more-genui-connect"}, "*", [probe.port2]);
+};
+frame.srcdoc = ${template};
+<\/script>`;
       download(app.id + '.html', new Blob([html], { type: 'text/html;charset=utf-8' }));
     });
     if (app.spec)
