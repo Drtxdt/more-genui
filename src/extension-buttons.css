@@ -1,0 +1,46 @@
+/* Limit host styling to controls owned by the extension. */
+:is(
+  button.more-genui-once,
+  button.more-genui-visualize,
+  button.more-genui-recovery,
+  .more-genui-index button,
+  .more-genui-selection button,
+  .more-genui-diagnostics button,
+  .more-genui-table button,
+  .more-genui-popup button
+) {
+  appearance: none;
+  box-sizing: border-box;
+  min-height: 28px;
+  max-width: 100%;
+  margin: 2px;
+  padding: 4px 11px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  &:hover:enabled {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+  }
+  &:active:enabled {
+    background: color-mix(in srgb, currentColor 16%, transparent);
+  }
+  &[aria-pressed='true'] {
+    color: light-dark(#315fba, #9bbaff);
+    background: color-mix(in srgb, currentColor 12%, transparent);
+  }
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+  &:disabled {
+    opacity: 0.48;
+    cursor: default;
+  }
+}

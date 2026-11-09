@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh">
-  <meta charset="utf-8" /><title>More GenUI</title
+  <link rel="stylesheet" href="../../src/extension-buttons.css" /><meta charset="utf-8" /><title>
+    More GenUI</title
   ><style>
     :root {
       color-scheme: light dark;
@@ -18,39 +19,41 @@
     p {
       color: GrayText;
       font-size: 12px;
-    }</style
-  ><label
-    >回答增强<select id="mode">
-      <option value="auto">自动</option>
-      <option value="visual">偏好可视化（实验）</option>
-      <option value="demand">按需</option>
-      <option value="off">关闭</option>
-    </select></label
-  ><label
-    >检索来源<select id="sources" disabled>
-      <option value="images">图文</option>
-      <option value="text">仅文字</option>
-      <option value="off">关闭</option>
-    </select></label
-  >
-  <p>图文模式会访问来源页和图片，目标网站可见 IP 与访问时间。不会发送聊天正文。</p>
-  <button id="revoke">撤销来源网站授权</button>
-  <p id="permission-status" role="status"></p>
-  <label
-    >自动回答风格<select id="lab-policy">
-      <option value="A">标准</option>
-      <option value="B">简洁（试用）</option>
-      <option value="C">结构化图解（试用）</option>
-    </select></label
-  >
-  <details>
-    <summary>开发者选项</summary>
-    <label>生成诊断<input type="checkbox" id="diagnostics" /></label>
-  </details>
-  <label>学习我的表达偏好<input id="learning" type="checkbox" /></label>
-  <p id="preference-status"></p>
-  <select aria-label="建议偏好" id="suggestions"></select>
-  <button id="adopt">采纳</button
-  ><button id="forget">清空偏好记录</button>
-  <script type="module" src="./main.ts"></script>
+    }
+  </style>
+  <body class="more-genui-popup">
+    <label
+      >回答增强<select id="mode">
+        <option value="auto">自动</option>
+        <option value="visual">偏好可视化（实验）</option>
+        <option value="demand">按需</option>
+        <option value="off">关闭</option>
+      </select></label
+    ><label
+      >检索来源<select id="sources" disabled>
+        <option value="images">图文</option>
+        <option value="text">仅文字</option>
+        <option value="off">关闭</option>
+      </select></label
+    >
+    <p>图文模式会访问来源页和图片，目标网站可见 IP 与访问时间。不会发送聊天正文。</p>
+    <button id="revoke">撤销来源网站授权</button>
+    <p id="permission-status" role="status"></p>
+    <label
+      >自动回答风格<select id="lab-policy">
+        <option value="A">标准</option>
+        <option value="B">简洁（试用）</option>
+        <option value="C">结构化图解（试用）</option>
+      </select></label
+    >
+    <details>
+      <summary>开发者选项</summary>
+      <label>生成诊断<input type="checkbox" id="diagnostics" /></label>
+    </details>
+    <label>学习我的表达偏好<input id="learning" type="checkbox" /></label>
+    <p id="preference-status"></p>
+    <select aria-label="建议偏好" id="suggestions"></select>
+    <button id="adopt">采纳</button><button id="forget">清空偏好记录</button>
+    <script type="module" src="./main.ts"></script>
+  </body>
 </html>

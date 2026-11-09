@@ -1,3 +1,5 @@
+import { advancePreamble, withPreamble } from '../src/html-preamble.mjs';
+import buttonStyles from '../src/extension-buttons.css?inline';
 import { rawApplications } from '../src/raw-applications.mjs';
 import { stripRequestProof } from '../src/request-proof.mjs';
 import { readerIndex } from '../src/reader-index.mjs';
@@ -16,6 +18,56 @@ import { StateRepository } from '../src/state.mjs';
 import { mountSurface } from '../src/surface';
 import { messages, codeBlocks, userLeaves, messageIdentity } from '../src/deepseek-dom.mjs';
 import { RepairContexts, memoryRepositoryStorage } from '../src/repair.mjs';
+function codeLanguage(code: Element) {
+  const pre = code.closest('pre');
+  const banner = [
+    ...(pre?.closest('.md-code-block')?.querySelectorAll('span,button,div') ?? []),
+  ].find(
+    (el) =>
+      !pre?.contains(el) &&
+      !el.childElementCount &&
+      /^(genui-)?(json|html)$/.test(el.textContent?.trim() ?? ''),
+  );
+  return (
+    [code, pre]
+      .map(
+        (el) =>
+          el?.getAttribute('data-language') ||
+          [...(el?.classList ?? [])].find((c) => c.startsWith('language-'))?.slice(9),
+      )
+      .find(Boolean) ?? banner?.textContent?.trim()
+  );
+}
+
+function adjacentComments(code: Element) {
+  const block = code.closest('.md-code-block');
+  if (!block?.parentElement?.matches('.ds-assistant-message-main-content')) return [];
+  const nodes: HTMLElement[] = [];
+  for (
+    let sibling = block.previousSibling;
+    sibling && nodes.length < 2;
+    sibling = sibling.previousSibling
+  ) {
+    if (sibling.nodeType === Node.TEXT_NODE && !sibling.textContent?.trim()) continue;
+    if (
+      !(sibling instanceof HTMLElement) ||
+      !sibling.matches('span.ds-markdown-html') ||
+      sibling.childElementCount
+    )
+      break;
+    nodes.unshift(sibling);
+  }
+  return nodes;
+}
+function effectiveSource(code: Element) {
+  const source = code.textContent || '';
+  if (!/^\s*(?:<!doctype html>|<html[\s>])/i.test(source)) return source;
+  const lines = adjacentComments(code).reduce<string[]>(
+    (lines, node) => advancePreamble(lines, node.textContent || ''),
+    [],
+  );
+  return withPreamble(source, codeLanguage(code), lines);
+}
 export default defineContentScript({
   matches: ['https://chat.deepseek.com/*'],
   main(ctx) {
@@ -188,6 +240,7 @@ export default defineContentScript({
     const toggleStyle = document.createElement('style');
     toggleStyle.textContent =
       '#more-genui-toggle{display:grid;place-items:center;width:38px;height:38px;padding:9px!important;border-radius:50%!important;transition:color .2s,background .2s}#more-genui-toggle svg{width:18px;height:18px}#more-genui-toggle[aria-pressed=true]{color:#3569c8}#more-genui-toggle[aria-pressed=true]:after{content:"";position:absolute;right:3px;bottom:3px;width:6px;height:6px;border-radius:50%;background:currentColor}#more-genui-toggle.activating{animation:mg-activate .5s ease-out}@keyframes mg-activate{0%{box-shadow:0 0 0 0 #3569c855;transform:scale(.92)}100%{box-shadow:0 0 0 15px #3569c800;transform:scale(1)}}@media(prefers-reduced-motion:reduce){#more-genui-toggle{animation:none!important;transition:none!important}}';
+    toggleStyle.textContent += buttonStyles;
     document.head.append(toggleStyle);
     control.append(createElement(Power));
     document.body.append(control);
@@ -395,7 +448,7 @@ export default defineContentScript({
         }
       }
       for (const [code, m] of mounted)
-        if (!enabled || !code.isConnected || code.textContent !== m.source) {
+        if (!enabled || !code.isConnected || effectiveSource(code) !== m.source) {
           m.dispose();
           reader.detach(m.host);
           m.host.remove();
@@ -410,7 +463,7 @@ export default defineContentScript({
           !enabled ||
           !code.isConnected ||
           mounted.has(code) ||
-          button.dataset.source !== code.textContent
+          button.dataset.source !== effectiveSource(code)
         ) {
           button.remove();
           recovery.delete(code);
@@ -444,7 +497,8 @@ export default defineContentScript({
         }
       for (const message of candidates) {
         const body = message.querySelector('.ds-assistant-message-main-content');
-        if (body && !active.size && !body.closest('aside,nav,.ds-think-content,[role=tooltip]')) raw.refresh(body);
+        if (body && !active.size && !body.closest('aside,nav,.ds-think-content,[role=tooltip]'))
+          raw.refresh(body);
         if (body && diagnostics.enabled) {
           const key = message
             .closest('[data-virtual-list-item-key]')
@@ -494,30 +548,10 @@ export default defineContentScript({
       for (const message of candidates) tables.render(message);
       if (showCards) for (const message of candidates) cards.render(message);
       if (previewImages) for (const message of candidates) previews.render(message);
-      function codeLanguage(code: Element) {
-        const pre = code.closest('pre');
-        const banner = [
-          ...(pre?.closest('.md-code-block')?.querySelectorAll('span,button,div') ?? []),
-        ].find(
-          (el) =>
-            !pre?.contains(el) &&
-            !el.childElementCount &&
-            /^(genui-)?(json|html)$/.test(el.textContent?.trim() ?? ''),
-        );
-        return (
-          [code, pre]
-            .map(
-              (el) =>
-                el?.getAttribute('data-language') ||
-                [...(el?.classList ?? [])].find((c) => c.startsWith('language-'))?.slice(9),
-            )
-            .find(Boolean) ?? banner?.textContent?.trim()
-        );
-      }
       for (const code of candidates.flatMap((message: Element) =>
         codeBlocks(message),
       ) as HTMLElement[]) {
-        const source = code.textContent || '';
+        const source = effectiveSource(code);
         if (approvals.has(code) && approvals.get(code) !== source) approvals.delete(code);
         knownSources.set(code, source);
         if (
@@ -561,7 +595,7 @@ export default defineContentScript({
             button.dataset.source = source;
             button.textContent = manual && language ? '点击预览' : '未确认输出边界 · 运行此应用';
             button.onclick = () => {
-              if (code.textContent !== source || !code.isConnected || !raw.current(code)) {
+              if (effectiveSource(code) !== source || !code.isConnected || !raw.current(code)) {
                 scan();
                 return;
               }
@@ -593,7 +627,7 @@ export default defineContentScript({
         const appMeta = parseApp(source);
         const sameId = blocks.filter((node: HTMLElement) => {
           try {
-            return parseApp(node.textContent || '').id === appMeta.id;
+            return parseApp(effectiveSource(node)).id === appMeta.id;
           } catch {
             return false;
           }
@@ -634,7 +668,26 @@ export default defineContentScript({
           },
         });
         if (requestId) diagnostic({ id: requestId, stage: 'mounted' });
-        mounted.set(code, { source, host, container, display, dispose: surface.dispose });
+        const comments =
+          source !== code.textContent
+            ? adjacentComments(code).filter(
+                (node) =>
+                  source.startsWith(node.textContent!.trim()) ||
+                  source.split('\n')[1] === node.textContent!.trim(),
+              )
+            : [];
+        const restore = comments.map((node) => [node, node.hidden] as const);
+        for (const node of comments) node.hidden = true;
+        mounted.set(code, {
+          source,
+          host,
+          container,
+          display,
+          dispose() {
+            surface.dispose();
+            for (const [node, hidden] of restore) node.hidden = hidden;
+          },
+        });
       }
       // Fold only the smallest complete text container; retain the original DOM for framework reconciliation.
       for (const element of candidates.flatMap((message: Element) =>

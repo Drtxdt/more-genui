@@ -1038,3 +1038,34 @@ test('unfenced savings calculator in answer spans previews only the completed fi
   await expect(body.locator('span.ds-markdown-html:visible')).toHaveCount(parts.length);
   await expect(preview).toHaveCount(0);
 });
+
+test('explicit HTML fence following detached metadata mounts and restores its comments', async () => {
+  const example = process.env.GENUI_SQL_REPLAY
+    ? await readFile(process.env.GENUI_SQL_REPLAY, 'utf8')
+    : '<html><body><button id="btnPrev" disabled>上一步</button><button id="btnNext">下一步</button><script>document.getElementById("btnNext").onclick=()=>document.getElementById("btnPrev").disabled=false;</script></body></html>';
+  const body = page.locator('.ds-assistant-message-main-content');
+  await body.evaluate((body, example) => {
+    for (const text of [
+      '<!-- more-genui: {"version":1,"id":"sql-exec-order-viz","title":"SQL 逐句执行可视化","stateVersion":1} -->',
+      '<!-- more-genui-request: 70658388-9f0c-4ee0-9d13-4d0811d193b0 -->',
+    ]) {
+      const span = document.createElement('span');
+      span.className = 'ds-markdown-html';
+      span.textContent = text;
+      body.append(span);
+    }
+    const block = document.createElement('div');
+    block.className = 'md-code-block';
+    block.innerHTML = '<div class="md-code-block-banner-wrap"><span>genui-html</span></div><pre></pre>';
+    block.lastElementChild.textContent = example;
+    body.append(block);
+  }, example);
+  const frame = body.frameLocator('iframe');
+  await expect(frame.locator('#btnPrev')).toBeDisabled();
+  await frame.locator('#btnNext').click();
+  await expect(frame.locator('#btnPrev')).toBeEnabled();
+  await expect(body.locator('.ds-markdown-html:visible')).toHaveCount(0);
+  await expect(page.locator('.more-genui-visualize')).toHaveCSS('border-radius', '999px');
+  await page.locator('#more-genui-toggle').click();
+  await expect(body.locator('.ds-markdown-html:visible')).toHaveCount(2);
+});

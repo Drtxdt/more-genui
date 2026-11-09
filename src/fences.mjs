@@ -1,6 +1,8 @@
+import { advancePreamble, withPreamble } from './html-preamble.mjs';
 // Incremental line scanner. Rewrites reset parsing; append updates scan only the tail.
 export class FenceScanner {
   previous = '';
+  preamble = [];
   pending = '';
   fence = '';
   language = '';
@@ -14,6 +16,7 @@ export class FenceScanner {
     if (!appendOnly && !text.startsWith(this.previous)) {
       this.declared = this.candidate = false;
       this.previous = '';
+      this.preamble = [];
       this.pending = '';
       this.fence = '';
       this.lines = [];
@@ -46,9 +49,10 @@ export class FenceScanner {
         if (this.explicit) this.declared = true;
         this.fence = match[1];
         this.lines = [];
-      }
+      } else this.preamble = advancePreamble(this.preamble, line);
     } else if (this.closes(line)) {
-      const source = this.lines.join('\n');
+      const source = withPreamble(this.lines.join('\n'), this.language, this.preamble);
+      this.preamble = [];
       if (this.explicit) this.onSource(source, this.language);
       else if (
         ['html', 'json', ''].includes(this.language) &&
