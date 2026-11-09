@@ -95,3 +95,17 @@ test('iframe ignores forged window messages and reports external script requests
   );
   await expect(page.locator('#app output')).toHaveText(/External scripts/);
 });
+
+test('controls become interactive only after the first frame sizing receipt', async ({page}) => {
+  await page.route('**/delayed-size', route => route.fulfill({contentType:'text/html',body:
+    '<button>0%</button><output>416129</output><script>onmessage=e=>{const port=e.ports[0];if(e.data.type==="more-genui-connect"){port.postMessage("booted");return}window.measure=()=>port.postMessage({type:"resize",value:460});document.querySelector("button").onclick=()=>document.querySelector("output").value="180000";port.postMessage({type:"ready"})}</script>'
+  }));
+  await page.evaluate(() => window.show('wave', undefined, '/delayed-size'));
+  const iframe = page.locator('#app iframe');
+  const card = frame(page);
+  await expect.poll(() => card.locator('body').evaluate(() => typeof window.measure)).toBe('function');
+  await expect(iframe).toBeHidden();
+  await card.locator('body').evaluate(() => window.measure());
+  await card.getByRole('button',{name:'0%'}).click();
+  await expect(card.locator('output')).toHaveText('180000');
+});
